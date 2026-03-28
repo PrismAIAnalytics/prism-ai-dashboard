@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism AI Analytics — Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --navy: #17135C; --royal: #3A5998; --blue: #4A6DB5;
+  --sky: #BDC9DD; --white: #FFFFFF; --offwhite: #F4F7FB;
+  --charcoal: #1A1A2E; --bg: #0d0f1a; --card: #141627;
+  --border: #1e2140; --text: #e0e0e0; --muted: #8888aa;
+  --green: #34d399; --red: #f87171; --amber: #fbbf24; --purple: #a78bfa;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* Layout */
+.shell { display: flex; min-height: 100vh; }
+nav {
+  width: 220px; background: var(--charcoal); border-right: 1px solid var(--border);
+  padding: 20px 0; display: flex; flex-direction: column; position: fixed;
+  top: 0; bottom: 0; left: 0; z-index: 50;
+}
+nav .logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+nav .logo h1 { font-size: 16px; color: var(--white); font-weight: 700; }
+nav .logo span { font-size: 11px; color: var(--sky); }
+nav a {
+  display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+  color: var(--muted); text-decoration: none; font-size: 13px; transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+nav a:hover { color: var(--white); background: rgba(255,255,255,0.04); }
+nav a.active { color: var(--white); border-left-color: var(--blue); background: rgba(74,109,181,0.1); }
+nav .nav-section { font-size: 10px; text-transform: uppercase; color: var(--muted); padding: 16px 20px 6px; letter-spacing: 1px; }
+
+main { margin-left: 220px; flex: 1; padding: 24px 32px; }
+.page { display: none; }
+.page.active { display: block; }
+.page-header { margin-bottom: 24px; }
+.page-header h2 { font-size: 22px; font-weight: 700; }
+.page-header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* Cards */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.kpi {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px; transition: border-color 0.2s;
+}
+.kpi:hover { border-color: var(--royal); }
+.kpi .label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 8px; }
+.kpi .value { font-size: 28px; font-weight: 700; }
+.kpi .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px; margin-bottom: 20px;
+}
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.card h3 .badge {
+  font-size: 10px; background: var(--royal); color: var(--white);
+  padding: 2px 8px; border-radius: 10px; font-weight: 500;
+}
+
+/* Two-column */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 10px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* Badges */
+.badge-status {
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-completed, .badge-paid, .badge-won, .badge-active { background: rgba(52,211,153,0.15); color: var(--green); }
+.badge-in_progress, .badge-sent, .badge-proposal_sent { background: rgba(74,109,181,0.2); color: var(--blue); }
+.badge-pending, .badge-discovery_complete, .badge-planned { background: rgba(251,191,36,0.15); color: var(--amber); }
+.badge-overdue, .badge-lost, .badge-cancelled { background: rgba(248,113,113,0.15); color: var(--red); }
+.badge-scoping, .badge-new, .badge-draft, .badge-in_progress2 { background: rgba(167,139,250,0.15); color: var(--purple); }
+.badge-dormant { background: rgba(136,136,170,0.15); color: var(--muted); }
+
+/* Pipeline stages */
+.pipeline-stages { display: flex; gap: 16px; flex-wrap: wrap; }
+.pipeline-stage {
+  flex: 1; min-width: 160px; background: rgba(255,255,255,0.03);
+  border-radius: 10px; padding: 14px;
+}
+.pipeline-stage .stage-name { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 10px; }
+.pipeline-stage .lead-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; margin-bottom: 8px; font-size: 12px;
+}
+.pipeline-stage .lead-card .company { font-weight: 600; }
+.pipeline-stage .lead-card .amount { color: var(--green); margin-top: 4px; }
+
+/* Timeline */
+.timeline-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.timeline-item:last-child { border-bottom: none; }
+.timeline-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.timeline-dot.meeting { background: var(--blue); }
+.timeline-dot.email { background: var(--green); }
+.timeline-dot.call { background: var(--amber); }
+.timeline-dot.note { background: var(--purple); }
+.timeline-content { font-size: 13px; }
+.timeline-content .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* Milestones */
+.milestone-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.milestone-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.milestone-dot.completed { background: var(--green); }
+.milestone-dot.in_progress { background: var(--blue); }
+.milestone-dot.pending { background: var(--border); }
+.milestone-name { font-size: 13px; flex: 1; }
+.milestone-date { font-size: 11px; color: var(--muted); }
+
+/* Progress bars */
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--royal), var(--blue)); transition: width 0.6s ease; }
+
+/* Scrollable */
+.scroll-y { max-height: 400px; overflow-y: auto; }
+.scroll-y::-webkit-scrollbar { width: 4px; }
+.scroll-y::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.money { font-variant-numeric: tabular-nums; }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-amber { color: var(--amber); }
+
+/* ─── CRM Page ─── */
+.crm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.crm-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.crm-filters button {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); padding: 6px 14px; font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.crm-filters button:hover { color: var(--text); border-color: var(--royal); }
+.crm-filters button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
+.btn-primary {
+  background: var(--royal); color: var(--white); border: none; border-radius: 8px;
+  padding: 8px 18px; font-size: 13px; cursor: pointer; font-weight: 600; transition: background 0.2s;
+}
+.btn-primary:hover { background: var(--blue); }
+.btn-sm {
+  background: transparent; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--muted); padding: 4px 10px; font-size: 11px; cursor: pointer; transition: all 0.2s;
+}
+.btn-sm:hover { color: var(--white); border-color: var(--royal); }
+.btn-danger { border-color: var(--red); color: var(--red); }
+.btn-danger:hover { background: rgba(248,113,113,0.15); border-color: var(--red); color: var(--red); }
+
+/* Pipeline summary bar */
+.pipeline-summary { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.pipeline-chip {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 14px; font-size: 11px; text-align: center; cursor: pointer; transition: all 0.2s; min-width: 80px;
+}
+.pipeline-chip:hover { border-color: var(--royal); }
+.pipeline-chip .chip-count { font-size: 18px; font-weight: 700; display: block; }
+.pipeline-chip .chip-label { color: var(--muted); margin-top: 2px; display: block; }
+.pipeline-chip.urgent { border-color: var(--amber); }
+
+/* CRM table */
+.crm-row { cursor: pointer; }
+.crm-row:hover td { background: rgba(74,109,181,0.06); }
+.crm-row td:first-child { font-weight: 600; }
+.sla-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(136,136,170,0.15); color: var(--muted); }
+.sla-tag.urgent { background: rgba(251,191,36,0.15); color: var(--amber); }
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 60px;
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  width: 580px; max-width: 95vw; max-height: 80vh; overflow-y: auto; padding: 28px;
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal h3 { font-size: 18px; margin-bottom: 20px; }
+.modal label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; margin-top: 14px; }
+.modal input, .modal select, .modal textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 12px; font-size: 13px; font-family: inherit;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--royal); }
+.modal textarea { resize: vertical; min-height: 60px; }
+.modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.modal-actions .btn-cancel {
+  background: transparent; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 8px; padding: 8px 18px; font-size: 13px; cursor: pointer;
+}
+.modal-actions .btn-cancel:hover { color: var(--text); border-color: var(--text); }
+
+/* Detail panel (slides in from right) */
+.detail-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 90vw;
+  background: var(--card); border-left: 1px solid var(--border); z-index: 90;
+  overflow-y: auto; padding: 28px; animation: slideIn 0.2s ease;
+}
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.detail-panel h3 { font-size: 18px; margin-bottom: 4px; }
+.detail-panel .detail-meta { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.detail-section { margin-top: 20px; }
+.detail-section h4 { font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 10px; }
+.detail-field { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.detail-field .label { color: var(--muted); }
+.detail-close {
+  position: absolute; top: 16px; right: 16px; background: none; border: none;
+  color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px;
+}
+.detail-close:hover { color: var(--white); }
+.detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 80; }
+
+/* Activity form */
+.activity-form { display: flex; gap: 8px; margin-top: 12px; }
+.activity-form input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: 12px; }
+.activity-form input:focus { outline: none; border-color: var(--royal); }
+.activity-form select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px; font-size: 12px; }
+
+/* Toast notification */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #000;
+  padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 200;
+  animation: fadeIn 0.2s ease; transition: opacity 0.3s;
+}
+.toast.error { background: var(--red); color: var(--white); }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav>
+    <div class="logo">
+      <h1>PRISM AI</h1>
+      <span>Analytics Dashboard</span>
+    </div>
+    <div class="nav-section">Overview</div>
+    <a href="#" class="active" data-page="dashboard" onclick="showPage('dashboard', this)">&#9671; Dashboard</a>
+    <div class="nav-section">Business</div>
+    <a href="#" data-page="clients" onclick="showPage('clients', this)">&#9673; Clients</a>
+    <a href="#" data-page="crm" onclick="showPage('crm', this)">&#9830; CRM</a>
+    <a href="#" data-page="pipeline" onclick="showPage('pipeline', this)">&#9656; Pipeline</a>
+    <a href="#" data-page="projects" onclick="showPage('projects', this)">&#9635; Projects</a>
+    <div class="nav-section">Finance</div>
+    <a href="#" data-page="invoices" onclick="showPage('invoices', this)">&#9633; Invoices</a>
+    <a href="#" data-page="expenses" onclick="showPage('expenses', this)">&#8853; Expenses</a>
+    <a href="#" data-page="time" onclick="showPage('time', this)">&#9201; Time</a>
+    <div class="nav-section">Operations</div>
+    <a href="#" data-page="services" onclick="showPage('services', this)">&#9881; Services</a>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Welcome back, Michele. Here's your business at a glance.</p>
+      </div>
+      <div id="kpis" class="kpi-grid"></div>
+      <div class="grid-2">
+        <div class="card"><h3>Revenue Trend</h3><div style="position:relative;height:220px"><canvas id="chart-revenue"></canvas></div></div>
+        <div class="card"><h3>Expense Breakdown</h3><div style="position:relative;height:220px"><canvas id="chart-expenses"></canvas></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><h3>Active Projects</h3><div id="dash-projects" class="scroll-y"></div></div>
+        <div class="card"><h3>Recent Activity</h3><div id="dash-activity" class="scroll-y"></div></div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div id="page-clients" class="page">
+      <div class="page-header"><h2>Clients</h2><p>All client accounts</p></div>
+      <div class="card"><div id="clients-table" class="scroll-y"></div></div>
+    </div>
+
+    <!-- CRM -->
+    <div id="page-crm" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>CRM</h2><p>Customer relationship management — track leads through your 12-stage pipeline</p></div>
+        <button class="btn-primary" onclick="crmShowAddModal()">+ New Lead</button>
+      </div>
+      <div id="crm-pipeline-summary" class="pipeline-summary"></div>
+      <div id="crm-filters" class="crm-toolbar">
+        <div class="crm-filters" id="crm-stage-filters"></div>
+        <div style="font-size:12px;color:var(--muted)" id="crm-count"></div>
+      </div>
+      <div class="card"><div id="crm-table" class="scroll-y" style="max-height:600px"></div></div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div id="page-pipeline" class="page">
+      <div class="page-header"><h2>Pipeline</h2><p>Sales pipeline and lead tracking</p></div>
+      <div class="card"><div id="pipeline-board"></div></div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div id="page-projects" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>Projects</h2><p>All engagements and milestones</p></div>
+        <button class="btn-primary" onclick="showNewProjectModal()">+ New Project</button>
+      </div>
+      <div id="projects-list"></div>
+    </div>
+
+    <!-- INVOICES -->
+    <div id="page-invoices" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>Invoices</h2><p>Billing and payment tracking</p></div>
+        <button class="btn-primary" onclick="showNewInvoiceModal()">+ New Invoice</button>
+      </div>
+      <div class="card"><div id="invoices-table" class="scroll-y"></div></div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div id="page-expenses" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>Expenses</h2><p>Business costs and subscriptions</p></div>
+        <button class="btn-primary" onclick="showNewExpenseModal()">+ Log Expense</button>
+      </div>
+      <div class="card"><div id="expenses-table" class="scroll-y"></div></div>
+    </div>
+
+    <!-- TIME -->
+    <div id="page-time" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>Time Tracking</h2><p>Billable hours log</p></div>
+        <button class="btn-primary" onclick="showLogTimeModal()">+ Log Time</button>
+      </div>
+      <div class="card"><div id="time-table" class="scroll-y"></div></div>
+    </div>
+
+    <!-- SERVICES -->
+    <div id="page-services" class="page">
+      <div class="page-header"><h2>Services</h2><p>Service catalog and pricing</p></div>
+      <div class="card"><div id="services-table"></div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const fmt = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n);
+const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+function showPage(id, el) {
+  $$('.page').forEach(p => p.classList.remove('active'));
+  $$('nav a').forEach(a => a.classList.remove('active'));
+  $(`#page-${id}`).classList.add('active');
+  if (el) el.classList.add('active');
+  loaders[id]?.();
+}
+
+async function api(path) {
+  const r = await fetch(`/api/${path}`);
+  return r.json();
+}
+
+// Chart instances (destroy before re-creating)
+let chartRevenue, chartExpenses;
+
+function badge(status) {
+  const label = status.replace(/_/g, ' ');
+  return `<span class="badge-status badge-${status}">${label}</span>`;
+}
+
+const loaders = {};
+
+// --- DASHBOARD ---
+loaders.dashboard = async () => {
+  const d = await api('dashboard');
+  $('#kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total Revenue</div><div class="value text-green money">${fmt(d.totalRevenue)}</div></div>
+    <div class="kpi"><div class="label">Outstanding</div><div class="value text-amber money">${fmt(d.outstandingInvoices)}</div></div>
+    <div class="kpi"><div class="label">Pipeline Value</div><div class="value money" style="color:var(--purple)">${fmt(d.pipelineValue)}</div></div>
+    <div class="kpi"><div class="label">Active Projects</div><div class="value">${d.activeProjects}</div></div>
+    <div class="kpi"><div class="label">Retainers</div><div class="value">${d.activeRetainers}</div><div class="sub">active</div></div>
+    <div class="kpi"><div class="label">Clients</div><div class="value">${d.totalClients}</div></div>
+    <div class="kpi"><div class="label">Billable Hours</div><div class="value">${d.totalHours.toFixed(1)}</div></div>
+    <div class="kpi"><div class="label">Monthly Expenses</div><div class="value text-red money">${fmt(d.monthlyExpenses)}</div><div class="sub">recurring</div></div>
+  `;
+
+  const projects = await api('projects');
+  const active = projects.filter(p => p.status === 'active');
+  let ph = '';
+  for (const p of active) {
+    const ms = await api(`projects/${p.id}/milestones`);
+    const done = ms.filter(m => m.status === 'completed').length;
+    const pct = ms.length ? Math.round(done / ms.length * 100) : 0;
+    ph += `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>${p.client_name}</strong><br><span style="font-size:12px;color:var(--muted)">${p.name.split(' — ')[1] || p.name}</span></div>
+        <span style="font-size:12px;color:var(--muted)">${pct}%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }
+  $('#dash-projects').innerHTML = ph || '<p style="color:var(--muted)">No active projects</p>';
+
+  const activity = await api('activity');
+  $('#dash-activity').innerHTML = activity.map(a => `
+    <div class="timeline-item">
+      <div class="timeline-dot ${a.action}"></div>
+      <div class="timeline-content">
+        ${a.summary}
+        <div class="meta">${a.action} &middot; ${fmtDate(a.logged_at?.split(' ')[0] || a.logged_at?.split('T')[0])}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // ── Charts ──
+  const chartColors = { bg: '#141627', grid: '#1e2140', text: '#8888aa' };
+  const chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: chartColors.text, font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: chartColors.text, font: { size: 10 } }, grid: { color: chartColors.grid } },
+      y: { ticks: { color: chartColors.text, font: { size: 10 } }, grid: { color: chartColors.grid } }
+    }
+  };
+
+  // Revenue chart — invoices by month
+  const invoices = await api('invoices');
+  const monthlyRev = {};
+  invoices.forEach(inv => {
+    const m = inv.issue_date?.slice(0, 7); // YYYY-MM
+    if (m) monthlyRev[m] = (monthlyRev[m] || 0) + (inv.total || 0);
+  });
+  const revLabels = Object.keys(monthlyRev).sort();
+  const revData = revLabels.map(m => monthlyRev[m]);
+
+  if (chartRevenue) chartRevenue.destroy();
+  const revCtx = document.getElementById('chart-revenue');
+  if (revCtx) {
+    chartRevenue = new Chart(revCtx, {
+      type: 'bar',
+      data: {
+        labels: revLabels.map(m => { const [y,mo] = m.split('-'); return new Date(y,mo-1).toLocaleDateString('en-US',{month:'short',year:'2-digit'}); }),
+        datasets: [{
+          label: 'Invoiced',
+          data: revData,
+          backgroundColor: 'rgba(74,109,181,0.6)',
+          borderColor: '#4A6DB5',
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } },
+        scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$' + (v/1000).toFixed(0) + 'k' } } }
+      }
+    });
+  }
+
+  // Expense breakdown — donut by category
+  const expenses = await api('expenses');
+  const catTotals = {};
+  expenses.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; });
+  const catLabels = Object.keys(catTotals).sort((a,b) => catTotals[b] - catTotals[a]);
+  const catData = catLabels.map(c => catTotals[c]);
+  const catColors = ['#4A6DB5','#3A5998','#a78bfa','#34d399','#fbbf24','#f87171','#BDC9DD','#17135C','#8888aa','#1e2140'];
+
+  if (chartExpenses) chartExpenses.destroy();
+  const expCtx = document.getElementById('chart-expenses');
+  if (expCtx) {
+    chartExpenses = new Chart(expCtx, {
+      type: 'doughnut',
+      data: {
+        labels: catLabels.map(c => c.replace(/_/g, ' ')),
+        datasets: [{ data: catData, backgroundColor: catColors.slice(0, catLabels.length), borderWidth: 0 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: chartColors.text, font: { size: 11 }, padding: 8 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.raw.toLocaleString()}` } }
+        }
+      }
+    });
+  }
+};
+
+// --- CLIENTS ---
+loaders.clients = async () => {
+  const clients = await api('clients');
+  $('#clients-table').innerHTML = `<table>
+    <thead><tr><th>Company</th><th>Industry</th><th>Size</th><th>Location</th><th>Lifetime Revenue</th><th>Status</th></tr></thead>
+    <tbody>${clients.map(c => `<tr>
+      <td><strong>${c.company_name}</strong></td>
+      <td>${c.industry || '—'}</td>
+      <td>${c.company_size || '—'}</td>
+      <td>${c.city}, ${c.state}</td>
+      <td class="money text-green">${fmt(c.lifetime_revenue)}</td>
+      <td>${c.is_active ? badge('active') : badge('dormant')}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+};
+
+// --- PIPELINE ---
+loaders.pipeline = async () => {
+  const leads = await api('pipeline');
+  const stages = ['new','contacted','discovery_scheduled','discovery_complete','proposal_sent','negotiating','won','lost'];
+  const grouped = {};
+  stages.forEach(s => grouped[s] = []);
+  leads.forEach(l => { if (grouped[l.status]) grouped[l.status].push(l); });
+
+  const activeStages = stages.filter(s => grouped[s].length > 0 || ['discovery_complete','proposal_sent','won'].includes(s));
+  $('#pipeline-board').innerHTML = `<div class="pipeline-stages">${activeStages.map(s => `
+    <div class="pipeline-stage">
+      <div class="stage-name">${s.replace(/_/g, ' ')}</div>
+      ${grouped[s].map(l => `<div class="lead-card">
+        <div class="company">${l.company_name || 'Unknown'}</div>
+        <div style="font-size:11px;color:var(--muted)">${l.contact_name || ''}</div>
+        <div class="amount">${fmt(l.estimated_value || 0)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">via ${l.source || '—'}</div>
+      </div>`).join('') || '<div style="font-size:11px;color:var(--muted);padding:8px">No leads</div>'}
+    </div>
+  `).join('')}</div>`;
+};
+
+// --- PROJECTS (with create, status update, milestone management) ---
+loaders.projects = async () => {
+  const projects = await api('projects');
+  let html = '';
+  for (const p of projects) {
+    const ms = await api(`projects/${p.id}/milestones`);
+    const done = ms.filter(m => m.status === 'completed').length;
+    const pct = ms.length ? Math.round(done / ms.length * 100) : 0;
+    const statusOpts = ['scoping','active','completed','cancelled','on_hold'].map(s =>
+      `<option value="${s}" ${p.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('');
+    html += `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <h3 style="margin-bottom:0">${p.name} <span class="badge">${fmt(p.budget || 0)}</span></h3>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select onchange="projectChangeStatus('${p.id}',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">${statusOpts}</select>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+        ${p.client_name} &middot; ${p.service_name || ''} &middot; ${fmtDate(p.start_date)} — ${fmtDate(p.target_end_date)}
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div class="progress-bar" style="flex:1"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <span style="font-size:12px;color:var(--muted)">${done}/${ms.length} milestones</span>
+      </div>
+      ${ms.map(m => `<div class="milestone-row" style="cursor:pointer" onclick="milestoneToggle(${m.id},'${m.status}')">
+        <div class="milestone-dot ${m.status}" title="Click to toggle status"></div>
+        <div class="milestone-name">${m.name}</div>
+        <div class="milestone-date">${m.completed_date ? fmtDate(m.completed_date) : (m.due_date ? 'Due ' + fmtDate(m.due_date) : '')}</div>
+      </div>`).join('')}
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <input id="ms-name-${p.id}" placeholder="New milestone…" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px" onkeydown="if(event.key==='Enter')addMilestone('${p.id}')">
+        <button class="btn-sm" onclick="addMilestone('${p.id}')">+ Add</button>
+      </div>
+    </div>`;
+  }
+  $('#projects-list').innerHTML = html;
+};
+
+async function projectChangeStatus(id, status) {
+  const res = await apiWrite(`projects/${id}`, 'PATCH', { status });
+  if (res.ok) toast(`Project → ${status.replace(/_/g,' ')}`);
+  else toast(res.error || 'Failed', true);
+}
+
+async function milestoneToggle(id, currentStatus) {
+  const next = currentStatus === 'completed' ? 'pending' : currentStatus === 'in_progress' ? 'completed' : 'in_progress';
+  const res = await apiWrite(`milestones/${id}`, 'PATCH', { status: next });
+  if (res.ok) { toast(`Milestone → ${next}`); loaders.projects(); }
+  else toast(res.error || 'Failed', true);
+}
+
+async function addMilestone(projectId) {
+  const input = document.getElementById(`ms-name-${projectId}`);
+  const name = input.value.trim();
+  if (!name) return;
+  const res = await apiWrite(`projects/${projectId}/milestones`, 'POST', { name });
+  if (res.ok) { input.value = ''; toast('Milestone added'); loaders.projects(); }
+  else toast(res.error || 'Failed', true);
+}
+
+function showNewProjectModal() {
+  const clientsPromise = api('clients');
+  const servicesPromise = api('services');
+  Promise.all([clientsPromise, servicesPromise]).then(([clients, services]) => {
+    const clientOpts = clients.map(c => `<option value="${c.id}">${c.company_name}</option>`).join('');
+    const serviceOpts = services.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay'; overlay.id = 'project-modal';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `<div class="modal">
+      <h3>New Project</h3>
+      <label>Client *</label><select id="pj-client">${clientOpts}</select>
+      <label>Project Name *</label><input id="pj-name" placeholder="Q2 Dashboard Build">
+      <div class="modal-row">
+        <div><label>Service</label><select id="pj-service"><option value="">—</option>${serviceOpts}</select></div>
+        <div><label>Budget</label><input id="pj-budget" type="number" placeholder="5000"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Start Date</label><input id="pj-start" type="date"></div>
+        <div><label>Target End</label><input id="pj-end" type="date"></div>
+      </div>
+      <label>Description</label><textarea id="pj-desc" placeholder="Scope and deliverables…"></textarea>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('project-modal').remove()">Cancel</button>
+        <button class="btn-primary" onclick="submitNewProject()">Create Project</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  });
+}
+
+async function submitNewProject() {
+  const name = document.getElementById('pj-name').value.trim();
+  if (!name) { toast('Project name is required', true); return; }
+  const body = {
+    client_id: document.getElementById('pj-client').value,
+    name,
+    service_id: document.getElementById('pj-service').value ? Number(document.getElementById('pj-service').value) : undefined,
+    budget: document.getElementById('pj-budget').value ? Number(document.getElementById('pj-budget').value) : undefined,
+    start_date: document.getElementById('pj-start').value || undefined,
+    target_end_date: document.getElementById('pj-end').value || undefined,
+    description: document.getElementById('pj-desc').value.trim() || undefined,
+  };
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  const res = await apiWrite('projects', 'POST', body);
+  if (res.ok) { document.getElementById('project-modal').remove(); toast('Project created'); loaders.projects(); }
+  else toast(res.errors ? res.errors.map(e=>e.msg).join(', ') : (res.error||'Failed'), true);
+}
+
+// --- INVOICES (with create, status update, record payment) ---
+loaders.invoices = async () => {
+  const inv = await api('invoices');
+  const statusOpts = s => ['draft','sent','paid','overdue','cancelled'].map(o =>
+    `<option value="${o}" ${s===o?'selected':''}>${o}</option>`).join('');
+  $('#invoices-table').innerHTML = `<table>
+    <thead><tr><th>Invoice #</th><th>Client</th><th>Status</th><th>Issued</th><th>Due</th><th>Total</th><th>Paid</th><th>Balance</th><th></th></tr></thead>
+    <tbody>${inv.map(i => {
+      const balance = i.total - i.paid;
+      return `<tr>
+        <td><strong>${i.invoice_number}</strong></td>
+        <td>${i.company_name}</td>
+        <td><select onchange="invoiceStatus('${i.id}',this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:3px 6px;font-size:11px">${statusOpts(i.status)}</select></td>
+        <td>${fmtDate(i.issue_date)}</td>
+        <td>${fmtDate(i.due_date)}</td>
+        <td class="money">${fmt(i.total)}</td>
+        <td class="money text-green">${fmt(i.paid)}</td>
+        <td class="money ${balance > 0 ? 'text-amber' : 'text-green'}">${fmt(balance)}</td>
+        <td>${balance > 0 ? `<button class="btn-sm" onclick="showPaymentModal('${i.id}','${i.invoice_number}',${balance})">$ Pay</button>` : ''}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+};
+
+async function invoiceStatus(id, status) {
+  const res = await apiWrite(`invoices/${id}`, 'PATCH', { status });
+  if (res.ok) toast(`Invoice → ${status}`);
+  else toast(res.error || 'Failed', true);
+}
+
+function showPaymentModal(invoiceId, invoiceNum, balance) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'pay-modal';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div class="modal">
+    <h3>Record Payment — ${invoiceNum}</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Balance due: <strong class="text-amber">${fmt(balance)}</strong></p>
+    <label>Amount *</label><input id="pay-amount" type="number" value="${balance}" step="0.01">
+    <div class="modal-row">
+      <div><label>Date *</label><input id="pay-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div><label>Method</label><input id="pay-method" placeholder="ACH, Check, Credit Card…"></div>
+    </div>
+    <label>Reference #</label><input id="pay-ref" placeholder="Transaction or check number">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="document.getElementById('pay-modal').remove()">Cancel</button>
+      <button class="btn-primary" onclick="submitPayment('${invoiceId}')">Record Payment</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitPayment(invoiceId) {
+  const amount = Number(document.getElementById('pay-amount').value);
+  if (!amount || amount <= 0) { toast('Enter a valid amount', true); return; }
+  const body = {
+    invoice_id: invoiceId,
+    amount,
+    payment_date: document.getElementById('pay-date').value,
+    payment_method: document.getElementById('pay-method').value.trim() || undefined,
+    reference_number: document.getElementById('pay-ref').value.trim() || undefined,
+  };
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+  const res = await apiWrite('payments', 'POST', body);
+  if (res.ok) { document.getElementById('pay-modal').remove(); toast('Payment recorded'); loaders.invoices(); }
+  else toast(res.errors ? res.errors.map(e=>e.msg).join(', ') : (res.error||'Failed'), true);
+}
+
+function showNewInvoiceModal() {
+  api('clients').then(clients => {
+    const clientOpts = clients.map(c => `<option value="${c.id}">${c.company_name}</option>`).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay'; overlay.id = 'inv-modal';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `<div class="modal">
+      <h3>New Invoice</h3>
+      <label>Client *</label><select id="inv-client">${clientOpts}</select>
+      <div class="modal-row">
+        <div><label>Subtotal *</label><input id="inv-subtotal" type="number" step="0.01" placeholder="5000"></div>
+        <div><label>Tax Rate (%)</label><input id="inv-tax" type="number" step="0.01" value="0" placeholder="0"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Issue Date *</label><input id="inv-issue" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div><label>Due Date *</label><input id="inv-due" type="date" value="${new Date(Date.now()+30*86400000).toISOString().split('T')[0]}"></div>
+      </div>
+      <label>Notes</label><textarea id="inv-notes" placeholder="Payment terms, description…"></textarea>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('inv-modal').remove()">Cancel</button>
+        <button class="btn-primary" onclick="submitNewInvoice()">Create Invoice</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+  });
+}
+
+async function submitNewInvoice() {
+  const subtotal = Number(document.getElementById('inv-subtotal').value);
+  if (!subtotal) { toast('Subtotal is required', true); return; }
+  const body = {
+    client_id: document.getElementById('inv-client').value,
+    subtotal,
+    tax_rate: Number(document.getElementById('inv-tax').value) || 0,
+    issue_date: document.getElementById('inv-issue').value,
+    due_date: document.getElementById('inv-due').value,
+    notes: document.getElementById('inv-notes').value.trim() || undefined,
+  };
+  const res = await apiWrite('invoices', 'POST', body);
+  if (res.ok) { document.getElementById('inv-modal').remove(); toast(`Invoice ${res.invoice.invoice_number} created`); loaders.invoices(); }
+  else toast(res.errors ? res.errors.map(e=>e.msg).join(', ') : (res.error||'Failed'), true);
+}
+
+// --- EXPENSES (with create and delete) ---
+loaders.expenses = async () => {
+  const exp = await api('expenses');
+  const total = exp.reduce((s,e) => s + e.amount, 0);
+  const recurring = exp.filter(e => e.is_recurring).reduce((s,e) => s + e.amount, 0);
+  $('#expenses-table').innerHTML = `
+    <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">
+      Total: <strong class="text-red">${fmt(total)}</strong> &middot; Recurring: <strong style="color:var(--blue)">${fmt(recurring)}/mo</strong>
+    </div>
+    <table>
+    <thead><tr><th>Date</th><th>Category</th><th>Vendor</th><th>Description</th><th>Amount</th><th>Recurring</th><th></th></tr></thead>
+    <tbody>${exp.map(e => `<tr>
+      <td>${fmtDate(e.expense_date)}</td>
+      <td>${badge(e.category)}</td>
+      <td>${e.vendor || '—'}</td>
+      <td>${e.description}</td>
+      <td class="money text-red">${fmt(e.amount)}</td>
+      <td>${e.is_recurring ? `<span style="color:var(--blue)">${e.recurrence_freq}</span>` : '—'}</td>
+      <td><button class="btn-sm btn-danger" onclick="deleteExpense('${e.id}')" title="Delete">&#10006;</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+};
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  const res = await apiWrite(`expenses/${id}`, 'DELETE');
+  if (res.ok) { toast('Expense deleted'); loaders.expenses(); }
+  else toast(res.error || 'Failed', true);
+}
+
+function showNewExpenseModal() {
+  const cats = ['software','marketing','office','travel','professional_services','hosting','insurance','subscriptions','equipment','other'];
+  const catOpts = cats.map(c => `<option value="${c}">${c.replace(/_/g,' ')}</option>`).join('');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'exp-modal';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div class="modal">
+    <h3>Log Expense</h3>
+    <div class="modal-row">
+      <div><label>Category *</label><select id="exp-cat">${catOpts}</select></div>
+      <div><label>Amount *</label><input id="exp-amount" type="number" step="0.01" placeholder="99.99"></div>
+    </div>
+    <label>Description *</label><input id="exp-desc" placeholder="What is this expense for?">
+    <div class="modal-row">
+      <div><label>Vendor</label><input id="exp-vendor" placeholder="Company name"></div>
+      <div><label>Date *</label><input id="exp-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    </div>
+    <div class="modal-row">
+      <div><label style="display:flex;align-items:center;gap:8px;margin-top:18px"><input id="exp-recurring" type="checkbox" style="width:auto"> Recurring?</label></div>
+      <div><label>Frequency</label><select id="exp-freq"><option value="">—</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="document.getElementById('exp-modal').remove()">Cancel</button>
+      <button class="btn-primary" onclick="submitNewExpense()">Log Expense</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitNewExpense() {
+  const desc = document.getElementById('exp-desc').value.trim();
+  const amount = Number(document.getElementById('exp-amount').value);
+  if (!desc || !amount) { toast('Description and amount are required', true); return; }
+  const body = {
+    category: document.getElementById('exp-cat').value,
+    description: desc,
+    amount,
+    expense_date: document.getElementById('exp-date').value,
+    vendor: document.getElementById('exp-vendor').value.trim() || undefined,
+    is_recurring: document.getElementById('exp-recurring').checked,
+    recurrence_freq: document.getElementById('exp-freq').value || undefined,
+  };
+  Object.keys(body).forEach(k => { if (body[k] === undefined || body[k] === '') delete body[k]; });
+  const res = await apiWrite('expenses', 'POST', body);
+  if (res.ok) { document.getElementById('exp-modal').remove(); toast('Expense logged'); loaders.expenses(); }
+  else toast(res.errors ? res.errors.map(e=>e.msg).join(', ') : (res.error||'Failed'), true);
+}
+
+// --- TIME (with log hours) ---
+loaders.time = async () => {
+  const entries = await api('time');
+  const totalHours = entries.reduce((s, e) => s + e.hours, 0);
+  const billable = entries.filter(e => e.is_billable).reduce((s, e) => s + e.hours, 0);
+  $('#time-table').innerHTML = `
+    <div style="margin-bottom:12px;font-size:13px;color:var(--muted)">
+      Total: <strong style="color:var(--white)">${totalHours.toFixed(1)} hours</strong> &middot;
+      Billable: <strong class="text-green">${billable.toFixed(1)} hours</strong>
+    </div>
+    <table>
+    <thead><tr><th>Date</th><th>Client</th><th>Project</th><th>Hours</th><th>Billable</th><th>Description</th></tr></thead>
+    <tbody>${entries.map(e => `<tr>
+      <td>${fmtDate(e.entry_date)}</td>
+      <td>${e.company_name}</td>
+      <td>${e.project_name ? e.project_name.split(' — ')[1] || e.project_name : '—'}</td>
+      <td><strong>${e.hours}</strong></td>
+      <td>${e.is_billable ? '<span class="text-green">Yes</span>' : '<span style="color:var(--muted)">No</span>'}</td>
+      <td>${e.description || '—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+};
+
+function showLogTimeModal() {
+  api('clients').then(clients => {
+    const clientOpts = clients.map(c => `<option value="${c.id}">${c.company_name}</option>`).join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay'; overlay.id = 'time-modal';
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `<div class="modal">
+      <h3>Log Time</h3>
+      <label>Client *</label><select id="time-client" onchange="timeLoadProjects(this.value)">${clientOpts}</select>
+      <label>Project</label><select id="time-project"><option value="">— (no project) —</option></select>
+      <div class="modal-row">
+        <div><label>Date *</label><input id="time-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div><label>Hours *</label><input id="time-hours" type="number" step="0.25" min="0.25" max="24" placeholder="2.5"></div>
+      </div>
+      <label>Description</label><input id="time-desc" placeholder="What did you work on?">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px"><input id="time-billable" type="checkbox" checked style="width:auto"> Billable</label>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('time-modal').remove()">Cancel</button>
+        <button class="btn-primary" onclick="submitLogTime()">Log Time</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    // Load projects for first client
+    if (clients.length) timeLoadProjects(clients[0].id);
+  });
+}
+
+async function timeLoadProjects(clientId) {
+  const projects = await api('projects');
+  const clientProjects = projects.filter(p => p.client_id === clientId && p.status === 'active');
+  const sel = document.getElementById('time-project');
+  if (sel) sel.innerHTML = `<option value="">— (no project) —</option>` +
+    clientProjects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+async function submitLogTime() {
+  const hours = Number(document.getElementById('time-hours').value);
+  if (!hours || hours <= 0) { toast('Enter valid hours', true); return; }
+  const body = {
+    client_id: document.getElementById('time-client').value,
+    project_id: document.getElementById('time-project').value || undefined,
+    entry_date: document.getElementById('time-date').value,
+    hours,
+    description: document.getElementById('time-desc').value.trim() || undefined,
+    is_billable: document.getElementById('time-billable').checked,
+  };
+  Object.keys(body).forEach(k => { if (body[k] === undefined) delete body[k]; });
+  const res = await apiWrite('time', 'POST', body);
+  if (res.ok) { document.getElementById('time-modal').remove(); toast(`${hours}h logged`); loaders.time(); }
+  else toast(res.errors ? res.errors.map(e=>e.msg).join(', ') : (res.error||'Failed'), true);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CRM — Full CRUD with pipeline tracking, detail panel, and activity log
+// ═══════════════════════════════════════════════════════════════════════════
+
+let crmData = [];       // All customers from the API
+let crmStages = {};     // Stage definitions from the API
+let crmFilter = 'all';  // Current stage filter
+
+// ── Toast helper ──
+function toast(msg, isError) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 2500);
+}
+
+// ── POST/PATCH/DELETE helper ──
+async function apiWrite(path, method, body) {
+  const r = await fetch(`/api/${path}`, {
+    method, headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+// ── Main CRM loader ──
+loaders.crm = async () => {
+  const res = await api('crm');
+  crmData = res.customers || [];
+  crmStages = res.stages || {};
+
+  renderCRMPipelineSummary();
+  renderCRMFilters();
+  renderCRMTable();
+};
+
+// ── Pipeline summary chips ──
+function renderCRMPipelineSummary() {
+  const counts = {};
+  Object.keys(crmStages).forEach(s => counts[s] = 0);
+  crmData.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
+
+  // Group into: active pipeline stages (not closed/on hold)
+  const activeStages = Object.keys(crmStages).filter(s => !s.startsWith('Closed') && s !== 'On Hold');
+  const html = activeStages.map(s => {
+    const isUrgent = crmStages[s].urgent && counts[s] > 0;
+    return `<div class="pipeline-chip ${isUrgent ? 'urgent' : ''}" onclick="crmFilterBy('${s}')">
+      <span class="chip-count">${counts[s]}</span>
+      <span class="chip-label">${s.length > 18 ? s.slice(0,16) + '…' : s}</span>
+    </div>`;
+  }).join('');
+  $('#crm-pipeline-summary').innerHTML = html;
+}
+
+// ── Stage filter buttons ──
+function renderCRMFilters() {
+  const groups = [
+    { label: 'All', value: 'all' },
+    { label: 'Active Pipeline', value: 'active' },
+    { label: 'Urgent', value: 'urgent' },
+    { label: 'Closed / On Hold', value: 'closed' },
+  ];
+  $('#crm-stage-filters').innerHTML = groups.map(g =>
+    `<button class="${crmFilter === g.value ? 'active' : ''}" onclick="crmFilterBy('${g.value}')">${g.label}</button>`
+  ).join('');
+}
+
+function crmFilterBy(filter) {
+  crmFilter = filter;
+  renderCRMFilters();
+  renderCRMTable();
+}
+
+// ── CRM table ──
+function renderCRMTable() {
+  let filtered = crmData;
+
+  if (crmFilter === 'active') {
+    filtered = crmData.filter(c => !c.status.startsWith('Closed') && c.status !== 'On Hold');
+  } else if (crmFilter === 'urgent') {
+    filtered = crmData.filter(c => c.urgent);
+  } else if (crmFilter === 'closed') {
+    filtered = crmData.filter(c => c.status.startsWith('Closed') || c.status === 'On Hold');
+  } else if (crmFilter !== 'all') {
+    // Filter by specific stage name
+    filtered = crmData.filter(c => c.status === crmFilter);
+  }
+
+  $('#crm-count').textContent = `${filtered.length} of ${crmData.length} customers`;
+
+  if (filtered.length === 0) {
+    $('#crm-table').innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">No customers match this filter. <a href="#" onclick="crmFilterBy(\'all\');return false" style="color:var(--royal)">Show all</a></div>';
+    return;
+  }
+
+  $('#crm-table').innerHTML = `<table>
+    <thead><tr>
+      <th>Company</th><th>Contact</th><th>Status</th><th>Service</th>
+      <th>Budget</th><th>Next Action</th><th>SLA</th><th></th>
+    </tr></thead>
+    <tbody>${filtered.map(c => `<tr class="crm-row" onclick="crmOpenDetail('${c.id}')">
+      <td>${c.company}</td>
+      <td>${c.contactName || '<span style="color:var(--muted)">—</span>'}${c.contactEmail ? '<br><span style="font-size:11px;color:var(--muted)">' + c.contactEmail + '</span>' : ''}</td>
+      <td>${badge(c.status.replace(/[\s\/\-]+/g, '_').toLowerCase())}<br><span style="font-size:10px;color:var(--muted)">${c.status}</span></td>
+      <td>${c.service || '—'}</td>
+      <td class="money">${c.budget ? fmt(c.budget) : '—'}</td>
+      <td style="font-size:12px;max-width:180px">${c.trigger}</td>
+      <td><span class="sla-tag ${c.urgent ? 'urgent' : ''}">${c.sla}</span></td>
+      <td><button class="btn-sm" onclick="event.stopPropagation();crmAdvance('${c.id}')" title="Advance to next stage"${c.nextStage ? '' : ' disabled style="opacity:0.3"'}>&#9654;</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+// ── Advance to next stage (quick action) ──
+async function crmAdvance(id) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust || !cust.nextStage) return;
+  if (!confirm(`Move "${cust.company}" to "${cust.nextStage}"?`)) return;
+
+  const res = await apiWrite(`crm/customers/${id}/status`, 'PATCH', { status: cust.nextStage });
+  if (res.ok) {
+    toast(`${cust.company} → ${cust.nextStage}`);
+    loaders.crm();
+  } else {
+    toast(res.error || 'Failed to update', true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRM — Add Lead Modal
+// ═══════════════════════════════════════════════════════════════
+
+function crmShowAddModal() {
+  const stageOptions = Object.keys(crmStages).map(s =>
+    `<option value="${s}" ${s === 'New Lead' ? 'selected' : ''}>${s}</option>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'crm-modal';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>New Lead</h3>
+      <label>Company Name *</label>
+      <input id="crm-f-company" placeholder="Acme Corp" autofocus>
+
+      <div class="modal-row">
+        <div><label>Contact Name</label><input id="crm-f-contact" placeholder="Jane Smith"></div>
+        <div><label>Email</label><input id="crm-f-email" type="email" placeholder="jane@acme.com"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Phone</label><input id="crm-f-phone" placeholder="(555) 123-4567"></div>
+        <div><label>Lead Source</label><input id="crm-f-source" placeholder="LinkedIn, Referral, Website…"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Service Interest</label><input id="crm-f-service" placeholder="AI Readiness Assessment"></div>
+        <div><label>Budget</label><input id="crm-f-budget" type="number" placeholder="5000"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Industry</label><input id="crm-f-industry" placeholder="Healthcare, Finance…"></div>
+        <div><label>Starting Stage</label><select id="crm-f-status">${stageOptions}</select></div>
+      </div>
+      <label>Project Name</label>
+      <input id="crm-f-project" placeholder="Q2 Dashboard Build">
+      <label>Notes</label>
+      <textarea id="crm-f-notes" placeholder="How did they find us? What are their pain points?"></textarea>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('crm-modal').remove()">Cancel</button>
+        <button class="btn-primary" onclick="crmSubmitAdd()">Add Lead</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('crm-f-company').focus(), 100);
+}
+
+async function crmSubmitAdd() {
+  const company = document.getElementById('crm-f-company').value.trim();
+  if (!company) { toast('Company name is required', true); return; }
+
+  const body = {
+    company,
+    contactName:  document.getElementById('crm-f-contact').value.trim(),
+    contactEmail: document.getElementById('crm-f-email').value.trim(),
+    contactPhone: document.getElementById('crm-f-phone').value.trim(),
+    leadSource:   document.getElementById('crm-f-source').value.trim(),
+    service:      document.getElementById('crm-f-service').value.trim(),
+    budget:       document.getElementById('crm-f-budget').value ? Number(document.getElementById('crm-f-budget').value) : undefined,
+    industry:     document.getElementById('crm-f-industry').value.trim(),
+    status:       document.getElementById('crm-f-status').value,
+    projectName:  document.getElementById('crm-f-project').value.trim(),
+    notes:        document.getElementById('crm-f-notes').value.trim(),
+  };
+  // Remove empty optional fields
+  Object.keys(body).forEach(k => { if (!body[k]) delete body[k]; });
+
+  const res = await apiWrite('crm/customers', 'POST', body);
+  if (res.ok) {
+    document.getElementById('crm-modal').remove();
+    toast(`${company} added as ${body.status || 'New Lead'}`);
+    loaders.crm();
+  } else {
+    toast(res.errors ? res.errors.map(e => e.msg).join(', ') : (res.error || 'Failed to create'), true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRM — Detail Panel (slide-in from right)
+// ═══════════════════════════════════════════════════════════════
+
+async function crmOpenDetail(id) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust) return;
+
+  // Close any existing panel
+  crmCloseDetail();
+
+  // Load activity log
+  const actRes = await api(`crm/activity/${id}`);
+  const activity = actRes.activity || [];
+
+  // Build stage change dropdown
+  const stageOptions = Object.keys(crmStages).map(s =>
+    `<option value="${s}" ${s === cust.status ? 'selected' : ''}>${s}</option>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'detail-overlay';
+  overlay.id = 'crm-detail-overlay';
+  overlay.onclick = crmCloseDetail;
+  document.body.appendChild(overlay);
+
+  const panel = document.createElement('div');
+  panel.className = 'detail-panel';
+  panel.id = 'crm-detail-panel';
+  panel.innerHTML = `
+    <button class="detail-close" onclick="crmCloseDetail()">&times;</button>
+    <h3>${cust.company}</h3>
+    <div class="detail-meta">${cust.customerId} &middot; Added ${fmtDate(cust.createdAt?.split('T')[0])}</div>
+
+    <!-- Status change -->
+    <div class="detail-section">
+      <h4>Pipeline Stage</h4>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="crm-detail-status" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px;font-size:12px">${stageOptions}</select>
+        <button class="btn-primary" onclick="crmChangeStatus('${id}')" style="padding:8px 14px;font-size:12px">Update</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">
+        Next action: ${cust.trigger} &middot; SLA: <span class="${cust.urgent ? 'text-amber' : ''}">${cust.sla}</span>
+      </div>
+    </div>
+
+    <!-- Contact info -->
+    <div class="detail-section">
+      <h4>Contact</h4>
+      <div class="detail-field"><span class="label">Name</span><span>${cust.contactName || '—'}</span></div>
+      <div class="detail-field"><span class="label">Email</span><span>${cust.contactEmail ? '<a href="mailto:' + cust.contactEmail + '" style="color:var(--royal)">' + cust.contactEmail + '</a>' : '—'}</span></div>
+      <div class="detail-field"><span class="label">Phone</span><span>${cust.contactPhone || '—'}</span></div>
+    </div>
+
+    <!-- Deal info -->
+    <div class="detail-section">
+      <h4>Deal Details</h4>
+      <div class="detail-field"><span class="label">Service</span><span>${cust.service || '—'}</span></div>
+      <div class="detail-field"><span class="label">Project</span><span>${cust.projectName || '—'}</span></div>
+      <div class="detail-field"><span class="label">Budget</span><span class="money">${cust.budget ? fmt(cust.budget) : '—'}</span></div>
+      <div class="detail-field"><span class="label">Lead Source</span><span>${cust.leadSource || '—'}</span></div>
+      <div class="detail-field"><span class="label">Industry</span><span>${cust.industry || '—'}</span></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="detail-section">
+      <h4>Notes</h4>
+      <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${cust.notes || '<span style="color:var(--muted)">No notes yet</span>'}</div>
+    </div>
+
+    <!-- Edit / Delete -->
+    <div class="detail-section" style="display:flex;gap:8px">
+      <button class="btn-sm" onclick="crmShowEditModal('${id}')">&#9998; Edit Details</button>
+      <button class="btn-sm btn-danger" onclick="crmDeactivate('${id}')">&#10006; Deactivate</button>
+    </div>
+
+    <!-- Activity timeline -->
+    <div class="detail-section">
+      <h4>Activity Log <span class="badge">${activity.length}</span></h4>
+      <div class="activity-form">
+        <select id="crm-act-type">
+          <option value="call">Call</option>
+          <option value="email">Email</option>
+          <option value="meeting">Meeting</option>
+          <option value="note" selected>Note</option>
+        </select>
+        <input id="crm-act-summary" placeholder="Log an activity…" onkeydown="if(event.key==='Enter')crmLogActivity('${id}')">
+        <button class="btn-primary" style="padding:8px 12px;font-size:12px" onclick="crmLogActivity('${id}')">Log</button>
+      </div>
+      <div style="margin-top:12px">
+        ${activity.length === 0 ? '<div style="font-size:12px;color:var(--muted);padding:8px">No activity logged yet</div>' :
+          activity.map(a => `<div class="timeline-item">
+            <div class="timeline-dot ${a.action}"></div>
+            <div class="timeline-content">
+              ${a.summary}
+              <div class="meta">${a.action} &middot; ${fmtDate(a.logged_at?.split(' ')[0] || a.logged_at?.split('T')[0])}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+}
+
+function crmCloseDetail() {
+  const panel = document.getElementById('crm-detail-panel');
+  const overlay = document.getElementById('crm-detail-overlay');
+  if (panel) panel.remove();
+  if (overlay) overlay.remove();
+}
+
+// ── Change status from detail panel ──
+async function crmChangeStatus(id) {
+  const newStatus = document.getElementById('crm-detail-status').value;
+  const cust = crmData.find(c => c.id === id);
+  if (!cust || cust.status === newStatus) return;
+
+  const res = await apiWrite(`crm/customers/${id}/status`, 'PATCH', { status: newStatus });
+  if (res.ok) {
+    toast(`${cust.company} → ${newStatus}`);
+    await loaders.crm();
+    crmOpenDetail(id); // Refresh the panel
+  } else {
+    toast(res.error || 'Failed to update status', true);
+  }
+}
+
+// ── Log activity from detail panel ──
+async function crmLogActivity(id) {
+  const action = document.getElementById('crm-act-type').value;
+  const summary = document.getElementById('crm-act-summary').value.trim();
+  if (!summary) { toast('Enter an activity note', true); return; }
+
+  const res = await apiWrite(`crm/activity/${id}`, 'POST', { action, summary });
+  if (res.ok) {
+    toast('Activity logged');
+    crmOpenDetail(id); // Refresh panel to show new entry
+  } else {
+    toast(res.error || 'Failed to log activity', true);
+  }
+}
+
+// ── Deactivate customer ──
+async function crmDeactivate(id) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust) return;
+  if (!confirm(`Deactivate "${cust.company}"? This removes them from the active CRM list.`)) return;
+
+  const res = await apiWrite(`crm/customers/${id}`, 'DELETE');
+  if (res.ok) {
+    crmCloseDetail();
+    toast(`${cust.company} deactivated`);
+    loaders.crm();
+  } else {
+    toast(res.error || 'Failed to deactivate', true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRM — Edit Modal
+// ═══════════════════════════════════════════════════════════════
+
+function crmShowEditModal(id) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'crm-edit-modal';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Edit — ${cust.company}</h3>
+      <label>Company Name</label>
+      <input id="crm-e-company" value="${cust.company}">
+      <div class="modal-row">
+        <div><label>Contact Name</label><input id="crm-e-contact" value="${cust.contactName}"></div>
+        <div><label>Email</label><input id="crm-e-email" type="email" value="${cust.contactEmail}"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Phone</label><input id="crm-e-phone" value="${cust.contactPhone}"></div>
+        <div><label>Lead Source</label><input id="crm-e-source" value="${cust.leadSource}"></div>
+      </div>
+      <div class="modal-row">
+        <div><label>Service</label><input id="crm-e-service" value="${cust.service}"></div>
+        <div><label>Budget</label><input id="crm-e-budget" type="number" value="${cust.budget || ''}"></div>
+      </div>
+      <label>Project Name</label>
+      <input id="crm-e-project" value="${cust.projectName}">
+      <label>Notes</label>
+      <textarea id="crm-e-notes">${cust.notes}</textarea>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="document.getElementById('crm-edit-modal').remove()">Cancel</button>
+        <button class="btn-primary" onclick="crmSubmitEdit('${id}')">Save Changes</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+}
+
+async function crmSubmitEdit(id) {
+  const body = {
+    company_name:      document.getElementById('crm-e-company').value.trim(),
+    crm_contact_name:  document.getElementById('crm-e-contact').value.trim(),
+    crm_contact_email: document.getElementById('crm-e-email').value.trim(),
+    crm_contact_phone: document.getElementById('crm-e-phone').value.trim(),
+    crm_lead_source:   document.getElementById('crm-e-source').value.trim(),
+    crm_service:       document.getElementById('crm-e-service').value.trim(),
+    crm_budget:        document.getElementById('crm-e-budget').value ? Number(document.getElementById('crm-e-budget').value) : undefined,
+    crm_project_name:  document.getElementById('crm-e-project').value.trim(),
+    notes:             document.getElementById('crm-e-notes').value.trim(),
+  };
+  // Remove empty values so we don't overwrite with blanks unintentionally
+  Object.keys(body).forEach(k => { if (body[k] === '' || body[k] === undefined) delete body[k]; });
+
+  if (Object.keys(body).length === 0) { toast('No changes to save', true); return; }
+
+  const res = await apiWrite(`crm/customers/${id}`, 'PATCH', body);
+  if (res.ok) {
+    document.getElementById('crm-edit-modal').remove();
+    toast('Customer updated');
+    await loaders.crm();
+    crmOpenDetail(id);
+  } else {
+    toast(res.errors ? res.errors.map(e => e.msg).join(', ') : (res.error || 'Failed to update'), true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+
+// --- SERVICES ---
+loaders.services = async () => {
+  const svcs = await api('services');
+  $('#services-table').innerHTML = `<table>
+    <thead><tr><th>Service</th><th>Type</th><th>Price Range</th><th>Unit</th></tr></thead>
+    <tbody>${svcs.map(s => `<tr>
+      <td><strong>${s.name}</strong></td>
+      <td>${badge(s.service_type)}</td>
+      <td class="money">${s.price_min === s.price_max ? fmt(s.price_min) : `${fmt(s.price_min)} — ${fmt(s.price_max)}`}</td>
+      <td>${s.price_unit}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+};
+
+// Boot
+loaders.dashboard();
+</script>
+</body>
+</html>

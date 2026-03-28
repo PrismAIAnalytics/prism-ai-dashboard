@@ -1,0 +1,187 @@
+### ═══════════════════════════════════════════════════
+### PRISM AI Analytics — API Test Suite
+### ═══════════════════════════════════════════════════
+### Install the "REST Client" extension in VS Code,
+### then click "Send Request" above any request below.
+### ═══════════════════════════════════════════════════
+
+### ─── Health Check (no auth required) ───
+GET http://localhost:3000/health
+
+###
+
+### ─── Dashboard KPIs ───
+GET http://localhost:3000/api/dashboard
+
+###
+
+### ─── All Clients ───
+GET http://localhost:3000/api/clients
+
+###
+
+### ─── All Projects ───
+GET http://localhost:3000/api/projects
+
+###
+
+### ─── Pipeline (Leads) ───
+GET http://localhost:3000/api/pipeline
+
+###
+
+### ─── Invoices ───
+GET http://localhost:3000/api/invoices
+
+###
+
+### ─── Expenses ───
+GET http://localhost:3000/api/expenses
+
+###
+
+### ─── Time Entries ───
+GET http://localhost:3000/api/time
+
+###
+
+### ─── Activity Log ───
+GET http://localhost:3000/api/activity
+
+###
+
+### ─── Services ───
+GET http://localhost:3000/api/services
+
+###
+
+### ─── Certifications ───
+GET http://localhost:3000/api/certifications
+
+###
+
+### ═══════════════════════════════════════════════════
+### CRM ENDPOINTS
+### ═══════════════════════════════════════════════════
+
+### ─── All CRM Customers ───
+GET http://localhost:3000/api/crm
+
+###
+
+### ─── Urgent Triggers ───
+GET http://localhost:3000/api/crm/triggers
+
+###
+
+### ─── Create a New Customer ───
+POST http://localhost:3000/api/crm/customers
+Content-Type: application/json
+
+{
+  "company": "Test Company LLC",
+  "contactName": "Jane Doe",
+  "contactEmail": "jane@testcompany.com",
+  "contactPhone": "704-555-1234",
+  "status": "New Lead",
+  "service": "AI Readiness Assessment",
+  "projectName": "Test — AI Assessment",
+  "budget": 2500,
+  "leadSource": "LinkedIn",
+  "industry": "Technology",
+  "notes": "Test record — safe to delete"
+}
+
+###
+
+### ─── Update Customer Status ───
+### (Replace :id with a real customer id from GET /api/crm)
+PATCH http://localhost:3000/api/crm/customers/:id/status
+Content-Type: application/json
+
+{
+  "status": "Discovery Scheduled",
+  "notes": "Booked intro call for next Tuesday"
+}
+
+###
+
+### ─── Update Customer Fields ───
+### (Replace :id with a real customer id from GET /api/crm)
+PATCH http://localhost:3000/api/crm/customers/:id
+Content-Type: application/json
+
+{
+  "crm_budget": 3500,
+  "crm_service": "Analytics & Reporting Modernization"
+}
+
+###
+
+### ─── Log Activity for a Customer ───
+### (Replace :id with a real customer id from GET /api/crm)
+POST http://localhost:3000/api/crm/activity/:id
+Content-Type: application/json
+
+{
+  "action": "call",
+  "summary": "Follow-up call — discussed project timeline"
+}
+
+###
+
+### ─── Get Activity Log for a Customer ───
+### (Replace :id with a real customer id from GET /api/crm)
+GET http://localhost:3000/api/crm/activity/:id
+
+###
+
+### ═══════════════════════════════════════════════════
+### VALIDATION TESTS (should return errors)
+### ═══════════════════════════════════════════════════
+
+### ─── Missing company (expect 400) ───
+POST http://localhost:3000/api/crm/customers
+Content-Type: application/json
+
+{
+  "contactName": "No Company Person"
+}
+
+###
+
+### ─── Invalid email (expect 400) ───
+POST http://localhost:3000/api/crm/customers
+Content-Type: application/json
+
+{
+  "company": "Bad Email Co",
+  "contactEmail": "not-an-email"
+}
+
+###
+
+### ─── Invalid status (expect 400) ───
+PATCH http://localhost:3000/api/crm/customers/:id/status
+Content-Type: application/json
+
+{
+  "status": "Fake Status That Doesnt Exist"
+}
+
+###
+
+### ═══════════════════════════════════════════════════
+### AUTH TESTS (only relevant if API_KEY is set)
+### ═══════════════════════════════════════════════════
+
+### ─── With Bearer Token ───
+### (Set your API_KEY value below)
+GET http://localhost:3000/api/crm
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Bad Token (expect 403) ───
+GET http://localhost:3000/api/crm
+Authorization: Bearer wrong-key

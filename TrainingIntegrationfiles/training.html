@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CCA Training Tracker — Prism AI Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #17135C;
+      --royal: #3A5998;
+      --blue: #4A6DB5;
+      --sky: #BDC9DD;
+      --off-white: #F4F7FB;
+      --light-gray: #D0D7DE;
+      --charcoal: #1A1A2E;
+      --white: #FFFFFF;
+      --green: #1D9E75;
+      --coral: #D85A30;
+      --pink: #D4537E;
+      --amber: #BA7517;
+      --gray: #888780;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: var(--off-white);
+      color: var(--charcoal);
+      line-height: 1.5;
+    }
+
+    /* ── Top nav ─────────────────────────────────────── */
+    .top-bar {
+      background: var(--navy);
+      color: var(--white);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .top-bar h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    .top-bar .tagline {
+      font-size: 11px;
+      opacity: 0.6;
+      font-weight: 400;
+    }
+    .top-bar a {
+      color: var(--sky);
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .top-bar a:hover { text-decoration: underline; }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .page-header .subtitle {
+      font-size: 13px;
+      color: var(--gray);
+      margin-top: 2px;
+    }
+
+    /* ── Tabs ─────────────────────────────────────────── */
+    .member-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--white);
+      border: 1px solid var(--light-gray);
+      border-radius: var(--radius);
+      padding: 4px;
+    }
+    .member-tab {
+      padding: 8px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      background: transparent;
+      color: var(--gray);
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .member-tab.active {
+      background: var(--navy);
+      color: var(--white);
+    }
+
+    /* ── KPI Cards ────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--white);
+      border: 1px solid var(--light-gray);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .kpi-card .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--gray);
+      margin-bottom: 4px;
+    }
+    .kpi-card .value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--navy);
+    }
+    .kpi-card .detail {
+      font-size: 12px;
+      color: var(--gray);
+      margin-top: 2px;
+    }
+
+    /* ── Domain Cards ─────────────────────────────────── */
+    .domain-card {
+      background: var(--white);
+      border: 1px solid var(--light-gray);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 12px;
+    }
+    .domain-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .domain-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--charcoal);
+    }
+    .domain-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .domain-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .weight-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--off-white);
+      color: var(--gray);
+    }
+    .pct-label {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      height: 5px;
+      background: var(--off-white);
+      border-radius: 3px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    /* Expand/collapse */
+    .domain-toggle {
+      font-size: 12px;
+      color: var(--royal);
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-family: inherit;
+      padding: 4px 0;
+    }
+    .domain-toggle:hover { text-decoration: underline; }
+    .topic-list { display: none; padding-top: 8px; }
+    .topic-list.open { display: block; }
+
+    .topic-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--off-white);
+      font-size: 14px;
+    }
+    .topic-row:last-child { border-bottom: none; }
+    .topic-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .topic-row.done .topic-name {
+      text-decoration: line-through;
+      color: var(--gray);
+    }
+
+    /* ── Compare chart ────────────────────────────────── */
+    .compare-section {
+      background: var(--white);
+      border: 1px solid var(--light-gray);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .compare-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 16px;
+    }
+    .compare-bars { display: flex; flex-direction: column; gap: 16px; }
+    .compare-member { }
+    .compare-member-name {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .compare-domain-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .compare-domain-label {
+      font-size: 11px;
+      color: var(--gray);
+      width: 200px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .compare-bar-track {
+      flex: 1;
+      height: 14px;
+      background: var(--off-white);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+    .compare-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      min-width: 2px;
+    }
+    .compare-bar-pct {
+      font-size: 11px;
+      font-weight: 600;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── Notes ─────────────────────────────────────────── */
+    .notes-section {
+      background: var(--white);
+      border: 1px solid var(--light-gray);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .notes-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 14px;
+    }
+    .note-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .note-input-row select, .note-input-row input, .note-input-row button {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 12px;
+      border: 1px solid var(--light-gray);
+      border-radius: var(--radius-sm);
+    }
+    .note-input-row input { flex: 1; min-width: 200px; }
+    .note-input-row select { min-width: 180px; }
+    .note-input-row button {
+      background: var(--royal);
+      color: var(--white);
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      padding: 8px 18px;
+    }
+    .note-input-row button:hover { background: var(--navy); }
+
+    .note-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--off-white);
+      font-size: 13px;
+    }
+    .note-item:last-child { border-bottom: none; }
+    .note-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .note-text { flex: 1; color: var(--charcoal); line-height: 1.4; }
+    .note-date { font-size: 11px; color: var(--gray); white-space: nowrap; margin-top: 2px; }
+    .note-delete {
+      font-size: 11px;
+      color: var(--gray);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 2px 6px;
+      font-family: inherit;
+    }
+    .note-delete:hover { color: var(--coral); }
+    .empty-state {
+      font-size: 13px;
+      color: var(--gray);
+      padding: 12px 0;
+    }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 700px) {
+      .container { padding: 16px; }
+      .kpi-row { grid-template-columns: 1fr 1fr; }
+      .compare-domain-label { width: 100px; font-size: 10px; }
+      .page-header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <div>
+      <h1>Prism AI Analytics</h1>
+      <div class="tagline">Illuminating Data. Empowering Decisions.</div>
+    </div>
+    <a href="/">← Back to Dashboard</a>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h2>CCA Training Tracker</h2>
+        <div class="subtitle">Claude Certified Architect — Foundations · Anthropic Academy</div>
+      </div>
+      <div class="member-tabs" id="memberTabs"></div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <!-- Progress comparison -->
+    <div class="compare-section" id="compareSection">
+      <h3>Progress comparison</h3>
+      <div class="compare-bars" id="compareBars"></div>
+    </div>
+
+    <!-- Domain cards -->
+    <div id="domainCards"></div>
+
+    <!-- Notes -->
+    <div class="notes-section">
+      <h3>Study notes & content ideas</h3>
+      <div class="note-input-row">
+        <select id="noteDomain">
+          <option value="general">General</option>
+          <option value="d1">D1: Agentic Architecture</option>
+          <option value="d2">D2: Tool Design & MCP</option>
+          <option value="d3">D3: Claude Code Config</option>
+          <option value="d4">D4: Prompt Eng & Output</option>
+          <option value="d5">D5: Context & Reliability</option>
+          <option value="content">Content Idea</option>
+        </select>
+        <input type="text" id="noteText" placeholder="Add a note or content idea..." />
+        <button onclick="addNote()">Add Note</button>
+      </div>
+      <div id="notesList"></div>
+    </div>
+  </div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let programId = null;
+let members = [];
+let currentMemberId = null;
+let domains = [];
+let progressMap = {};   // { topicId: true }
+let notes = [];
+let compareData = [];
+
+const TAG_COLORS = {
+  general: { bg: '#F1EFE8', fg: '#5F5E5A' },
+  d1:      { bg: '#EEEDFE', fg: '#534AB7' },
+  d2:      { bg: '#E1F5EE', fg: '#1D9E75' },
+  d3:      { bg: '#FAECE7', fg: '#D85A30' },
+  d4:      { bg: '#E6F1FB', fg: '#378ADD' },
+  d5:      { bg: '#F1EFE8', fg: '#888780' },
+  content: { bg: '#FBEAF0', fg: '#D4537E' },
+};
+const TAG_LABELS = {
+  general: 'General', d1: 'D1', d2: 'D2', d3: 'D3', d4: 'D4', d5: 'D5', content: 'Content Idea'
+};
+
+// ── API helpers ─────────────────────────────────────────────────────────────
+async function api(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  return res.json();
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+async function init() {
+  // Get the first (only) training program
+  const progRes = await api('/api/training/programs');
+  if (!progRes.ok || !progRes.programs.length) {
+    document.getElementById('domainCards').innerHTML = '<p class="empty-state">No training programs found. Run the server to seed the CCA program.</p>';
+    return;
+  }
+  programId = progRes.programs[0].id;
+
+  // Load full program
+  const fullRes = await api(`/api/training/programs/${programId}`);
+  if (!fullRes.ok) return;
+
+  domains = fullRes.domains;
+  members = fullRes.members;
+
+  // Default to first member (Michele)
+  currentMemberId = members[0]?.id;
+
+  renderTabs();
+  await loadMemberData();
+  await loadCompare();
+}
+
+function renderTabs() {
+  const el = document.getElementById('memberTabs');
+  el.innerHTML = members.map(m =>
+    `<button class="member-tab ${m.id === currentMemberId ? 'active' : ''}"
+             onclick="switchMember('${m.id}')">${m.first_name}</button>`
+  ).join('');
+}
+
+async function switchMember(id) {
+  currentMemberId = id;
+  renderTabs();
+  await loadMemberData();
+}
+
+async function loadMemberData() {
+  // Load progress
+  const progRes = await api(`/api/training/progress/${programId}/${currentMemberId}`);
+  progressMap = {};
+  if (progRes.ok) {
+    progRes.progress.forEach(p => { progressMap[p.topic_id] = true; });
+  }
+
+  // Load notes
+  const noteRes = await api(`/api/training/notes/${programId}/${currentMemberId}`);
+  notes = noteRes.ok ? noteRes.notes : [];
+
+  renderKPIs();
+  renderDomains();
+  renderNotes();
+}
+
+async function loadCompare() {
+  const res = await api(`/api/training/compare/${programId}`);
+  if (res.ok) {
+    compareData = res.comparison;
+    renderCompare();
+  }
+}
+
+// ── Render: KPIs ────────────────────────────────────────────────────────────
+function renderKPIs() {
+  let done = 0, total = 0;
+  domains.forEach(d => {
+    d.topics.forEach(t => {
+      total++;
+      if (progressMap[t.id]) done++;
+    });
+  });
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const contentCount = notes.filter(n => n.domain_tag === 'content').length;
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card">
+      <div class="label">Overall Progress</div>
+      <div class="value">${pct}%</div>
+      <div class="detail">${done} of ${total} topics</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Study Notes</div>
+      <div class="value">${notes.length}</div>
+      <div class="detail">across all domains</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Content Ideas</div>
+      <div class="value">${contentCount}</div>
+      <div class="detail">captured for roadmap</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Exam Details</div>
+      <div class="value">60 Q</div>
+      <div class="detail">120 min · Pass: 720/1000</div>
+    </div>
+  `;
+}
+
+// ── Render: Domains ─────────────────────────────────────────────────────────
+function renderDomains() {
+  const container = document.getElementById('domainCards');
+  container.innerHTML = domains.map((d, di) => {
+    const total = d.topics.length;
+    const done = d.topics.filter(t => progressMap[t.id]).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+
+    const topicsHTML = d.topics.map(t => {
+      const checked = progressMap[t.id] ? 'checked' : '';
+      const doneClass = progressMap[t.id] ? 'done' : '';
+      return `<div class="topic-row ${doneClass}">
+        <input type="checkbox" ${checked} onchange="toggleTopic('${t.id}', this.checked)" style="accent-color: ${d.color};" />
+        <span class="topic-name">${t.name}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="domain-card">
+      <div class="domain-header">
+        <div class="domain-name">
+          <span class="domain-dot" style="background: ${d.color};"></span>
+          ${d.name}
+        </div>
+        <div class="domain-meta">
+          <span class="weight-badge">${d.weight}% of exam</span>
+          <span class="pct-label" style="color: ${d.color};">${pct}%</span>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width: ${pct}%; background: ${d.color};"></div>
+      </div>
+      <button class="domain-toggle" onclick="toggleDomain(${di})">
+        ${done} of ${total} topics — click to expand
+      </button>
+      <div class="topic-list" id="topicList${di}">
+        ${topicsHTML}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDomain(idx) {
+  const el = document.getElementById('topicList' + idx);
+  el.classList.toggle('open');
+}
+
+async function toggleTopic(topicId, completed) {
+  progressMap[topicId] = completed ? true : false;
+  if (!completed) delete progressMap[topicId];
+
+  renderKPIs();
+  renderDomains();
+
+  await api('/api/training/progress', {
+    method: 'POST',
+    body: JSON.stringify({ team_member_id: currentMemberId, topic_id: topicId, completed: completed ? 1 : 0 }),
+  });
+
+  // Refresh compare data in background
+  loadCompare();
+}
+
+// ── Render: Compare ─────────────────────────────────────────────────────────
+function renderCompare() {
+  const el = document.getElementById('compareBars');
+  el.innerHTML = compareData.map(c => {
+    const domBars = c.domains.map(d =>
+      `<div class="compare-domain-row">
+        <div class="compare-domain-label">${d.domain_name.split(' ')[0]}</div>
+        <div class="compare-bar-track">
+          <div class="compare-bar-fill" style="width: ${d.pct}%; background: ${d.color};"></div>
+        </div>
+        <div class="compare-bar-pct" style="color: ${d.color};">${d.pct}%</div>
+      </div>`
+    ).join('');
+
+    return `<div class="compare-member">
+      <div class="compare-member-name">
+        <span>${c.member.first_name} ${c.member.last_name}</span>
+        <span style="color: var(--navy); font-weight: 700;">${c.overall.pct}% overall</span>
+      </div>
+      ${domBars}
+    </div>`;
+  }).join('<hr style="border: none; border-top: 1px solid var(--off-white); margin: 4px 0;">');
+}
+
+// ── Render: Notes ───────────────────────────────────────────────────────────
+function renderNotes() {
+  const el = document.getElementById('notesList');
+  if (notes.length === 0) {
+    el.innerHTML = '<p class="empty-state">No notes yet. Add your first note above.</p>';
+    return;
+  }
+  el.innerHTML = notes.map(n => {
+    const tag = TAG_COLORS[n.domain_tag] || TAG_COLORS.general;
+    const label = TAG_LABELS[n.domain_tag] || n.domain_tag;
+    const date = n.created_at ? n.created_at.slice(0, 10) : '';
+    return `<div class="note-item">
+      <span class="note-tag" style="background: ${tag.bg}; color: ${tag.fg};">${label}</span>
+      <span class="note-text">${escHtml(n.note)}</span>
+      <span class="note-date">${date}</span>
+      <button class="note-delete" onclick="deleteNote('${n.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function addNote() {
+  const tag = document.getElementById('noteDomain').value;
+  const text = document.getElementById('noteText').value.trim();
+  if (!text) return;
+
+  const res = await api('/api/training/notes', {
+    method: 'POST',
+    body: JSON.stringify({ team_member_id: currentMemberId, program_id: programId, domain_tag: tag, note: text }),
+  });
+
+  if (res.ok) {
+    notes.unshift(res.note);
+    document.getElementById('noteText').value = '';
+    renderKPIs();
+    renderNotes();
+  }
+}
+
+async function deleteNote(id) {
+  await api(`/api/training/notes/${id}`, { method: 'DELETE' });
+  notes = notes.filter(n => n.id !== id);
+  renderKPIs();
+  renderNotes();
+}
+
+// Enter key to add note
+document.getElementById('noteText').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addNote();
+});
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
