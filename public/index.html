@@ -128,6 +128,44 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .scroll-y::-webkit-scrollbar { width: 4px; }
 .scroll-y::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+/* Login overlay */
+#login-overlay { position:fixed; inset:0; z-index:200; background:var(--bg); display:flex; align-items:center; justify-content:center; }
+#login-overlay.hidden { display:none; }
+.login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:40px; width:360px; text-align:center; }
+.login-box h1 { font-size:22px; margin-bottom:4px; }
+.login-box .subtitle { font-size:12px; color:var(--muted); margin-bottom:28px; }
+.login-box input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:12px 14px; font-size:14px; margin-bottom:12px; font-family:inherit; }
+.login-box input:focus { outline:none; border-color:var(--royal); }
+.login-box .btn-login { width:100%; background:var(--royal); color:var(--white); border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px; }
+.login-box .btn-login:hover { background:var(--blue); }
+.login-box .error { color:var(--red); font-size:12px; margin-top:8px; min-height:18px; }
+.nav-user { margin-top:auto; padding:16px 20px; border-top:1px solid var(--border); font-size:12px; color:var(--muted); display:flex; align-items:center; justify-content:space-between; }
+.nav-user .name { color:var(--text); font-weight:600; }
+.nav-user .btn-logout { background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); padding:3px 10px; font-size:11px; cursor:pointer; }
+.nav-user .btn-logout:hover { color:var(--red); border-color:var(--red); }
+/* Training page */
+.training-member-tabs { display:flex; gap:8px; margin-bottom:20px; }
+.training-member-tabs button { background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--muted); padding:8px 16px; font-size:13px; cursor:pointer; transition:all 0.2s; }
+.training-member-tabs button.active { color:var(--white); background:var(--royal); border-color:var(--royal); }
+.training-member-tabs button:hover:not(.active) { color:var(--text); border-color:var(--royal); }
+.domain-section { margin-bottom:20px; }
+.domain-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.domain-header .dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.domain-header .domain-name { font-weight:600; font-size:14px; }
+.domain-header .domain-pct { font-size:13px; color:var(--muted); margin-left:auto; }
+.domain-header .domain-weight { font-size:11px; color:var(--muted); }
+.topic-row { display:flex; align-items:center; gap:10px; padding:6px 0 6px 22px; font-size:13px; }
+.topic-row input[type="checkbox"] { accent-color:var(--royal); width:16px; height:16px; cursor:pointer; }
+.topic-row label { cursor:pointer; flex:1; }
+.topic-row label.done { text-decoration:line-through; color:var(--muted); }
+.cert-card { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+.cert-card:last-child { border-bottom:none; }
+.cert-card .cert-name { font-weight:600; font-size:13px; }
+.cert-card .cert-provider { font-size:12px; color:var(--muted); }
+.training-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+.training-stat { background:rgba(255,255,255,0.03); border-radius:10px; padding:14px; text-align:center; }
+.training-stat .stat-value { font-size:24px; font-weight:700; }
+.training-stat .stat-label { font-size:11px; color:var(--muted); margin-top:4px; }
 .money { font-variant-numeric: tabular-nums; }
 .text-green { color: var(--green); }
 .text-red { color: var(--red); }
@@ -239,6 +277,19 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 </head>
 <body>
 
+<!-- LOGIN -->
+<div id="login-overlay">
+  <div class="login-box">
+    <h1>PRISM AI</h1>
+    <div class="subtitle">Analytics Dashboard</div>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <input type="text" id="login-user" placeholder="Username" autocomplete="username" required>
+      <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit" class="btn-login">Sign In</button>
+      <div id="login-error" class="error"></div>
+    </form>
+  </div>
+</div>
 <div class="shell">
   <nav>
     <div class="logo">
@@ -258,6 +309,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <a href="javascript:void(0)" data-page="time" onclick="showPage('time', this)">&#9201; Time</a>
     <div class="nav-section">Operations</div>
     <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">&#9881; Services</a>
+    <div class="nav-section">Team</div>
+    <a href="javascript:void(0)" data-page="training" onclick="showPage('training', this)">&#9733; Training</a>
+    <div class="nav-user" id="nav-user" style="display:none">
+      <div><span class="name" id="nav-username"></span></div>
+      <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+    </div>
   </nav>
 
   <main>
@@ -265,7 +322,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="page-dashboard" class="page active">
       <div class="page-header">
         <h2>Dashboard</h2>
-        <p>Welcome back, Michele. Here's your business at a glance.</p>
+        <p>Welcome back. Here's your business at a glance.</p>
       </div>
       <div id="kpis" class="kpi-grid"></div>
       <div class="grid-2">
@@ -340,6 +397,30 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="card"><div id="time-table" class="scroll-y"></div></div>
     </div>
 
+    <!-- TRAINING -->
+    <div id="page-training" class="page">
+      <div class="page-header">
+        <h2>Training Tracker</h2>
+        <p>CCA certification prep and professional development progress</p>
+      </div>
+      <div class="training-member-tabs" id="training-member-tabs"></div>
+      <div class="training-stats" id="training-stats"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Certifications</h3>
+          <div id="training-certs" class="scroll-y"></div>
+        </div>
+        <div class="card">
+          <h3>Study Notes <span class="badge" id="training-note-count">0</span></h3>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <textarea id="training-note-input" placeholder="Add a study note..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px"></textarea>
+            <button class="btn-primary" style="white-space:nowrap;align-self:flex-end" onclick="addTrainingNote()">Add</button>
+          </div>
+          <div id="training-notes" class="scroll-y" style="max-height:300px"></div>
+        </div>
+      </div>
+      <div id="training-programs"></div>
+    </div>
     <!-- SERVICES -->
     <div id="page-services" class="page">
       <div class="page-header"><h2>Services</h2><p>Service catalog and pricing</p></div>
@@ -362,13 +443,15 @@ function showPage(id, el) {
   loaders[id]?.();
 }
 
-// Extract API key from URL query param (?key=...) for Bearer auth
-const API_KEY = new URLSearchParams(window.location.search).get('key') || '';
+// Session-based auth
+let SESSION_TOKEN = localStorage.getItem('prism_token') || '';
+let CURRENT_USER = null;
 
 async function api(path) {
   const headers = {};
-  if (API_KEY) headers['Authorization'] = `Bearer ${API_KEY}`;
+  if (SESSION_TOKEN) headers['Authorization'] = `Bearer ${SESSION_TOKEN}`;
   const r = await fetch(`/api/${path}`, { headers });
+  if (r.status === 401 || r.status === 403) { showLoginScreen(); return {}; }
   return r.json();
 }
 
@@ -925,7 +1008,7 @@ function toast(msg, isError) {
 // ── POST/PATCH/DELETE helper ──
 async function apiWrite(path, method, body) {
   const headers = { 'Content-Type': 'application/json' };
-  if (API_KEY) headers['Authorization'] = `Bearer ${API_KEY}`;
+  if (SESSION_TOKEN) headers['Authorization'] = `Bearer ${SESSION_TOKEN}`;
   const r = await fetch(`/api/${path}`, {
     method, headers,
     body: JSON.stringify(body)
@@ -1361,8 +1444,166 @@ loaders.services = async () => {
   </table>`;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// --- TRAINING ---
+let trainingMembers = [];
+let trainingSelectedMember = null;
+
+loaders.training = async () => {
+  const programsRes = await api('training/programs');
+  if (!programsRes.programs) return;
+  const programs = programsRes.programs;
+
+  if (programs.length > 0) {
+    const compareRes = await api('training/compare/' + programs[0].id);
+    if (compareRes.comparison) trainingMembers = compareRes.comparison.map(c => c.member);
+  }
+
+  if (trainingMembers.length > 0 && !trainingSelectedMember) trainingSelectedMember = trainingMembers[0].id;
+  $('#training-member-tabs').innerHTML = trainingMembers.map(m =>
+    '<button class="' + (m.id === trainingSelectedMember ? 'active' : '') + '" onclick="selectTrainingMember(\'' + m.id + '\')">' + m.first_name + ' ' + m.last_name + '</button>'
+  ).join('');
+
+  if (!trainingSelectedMember) return;
+
+  // Certs
+  const certsRes = await api('certifications');
+  const allCerts = certsRes.certifications || [];
+  const myCerts = allCerts.filter(c => c.team_member_id === trainingSelectedMember);
+  $('#training-certs').innerHTML = myCerts.length === 0
+    ? '<div style="color:var(--muted);padding:12px;font-size:13px">No certifications yet</div>'
+    : myCerts.map(c => '<div class="cert-card"><div><div class="cert-name">' + c.name + '</div><div class="cert-provider">' + (c.provider||'') + '</div></div><div style="margin-left:auto">' + badge(c.status) + '</div></div>').join('');
+
+  // Notes
+  if (programs.length > 0) {
+    const notesRes = await api('training/notes/' + programs[0].id + '/' + trainingSelectedMember);
+    const notes = notesRes.notes || [];
+    $('#training-note-count').textContent = notes.length;
+    $('#training-notes').innerHTML = notes.length === 0
+      ? '<div style="color:var(--muted);font-size:13px;padding:8px 0">No notes yet</div>'
+      : notes.map(n => '<div style="padding:10px 0;border-bottom:1px solid var(--border);font-size:13px"><div>' + n.note + '</div><div style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:10px;align-items:center">' + badge(n.domain_tag) + ' <span>' + fmtDate((n.created_at||'').split('T')[0]) + '</span> <button class="btn-sm btn-danger" onclick="deleteTrainingNote(\'' + n.id + '\')">Delete</button></div></div>').join('');
+  }
+
+  // Programs
+  let programsHtml = '';
+  for (const prog of programs) {
+    const fullRes = await api('training/programs/' + prog.id);
+    if (!fullRes.program) continue;
+    const progressRes = await api('training/progress/' + prog.id + '/' + trainingSelectedMember);
+    const doneSet = new Set((progressRes.completed || []).map(c => c.topic_id));
+    let tTotal = 0, tDone = 0;
+    let domHtml = '';
+    (fullRes.domains || []).forEach(d => {
+      const dTopics = (fullRes.topics || []).filter(t => t.domain_id === d.id);
+      const dDone = dTopics.filter(t => doneSet.has(t.id)).length;
+      tTotal += dTopics.length; tDone += dDone;
+      const pct = dTopics.length > 0 ? Math.round(dDone/dTopics.length*100) : 0;
+      domHtml += '<div class="domain-section"><div class="domain-header"><div class="dot" style="background:' + (d.color||'var(--royal)') + '"></div><span class="domain-name">' + d.name + '</span><span class="domain-weight">' + d.weight + '%</span><span class="domain-pct">' + dDone + '/' + dTopics.length + ' (' + pct + '%)</span></div><div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%;background:' + (d.color||'var(--royal)') + '"></div></div><div style="margin-top:8px">';
+      dTopics.forEach(t => {
+        const done = doneSet.has(t.id);
+        domHtml += '<div class="topic-row"><input type="checkbox" id="tp-' + t.id + '" ' + (done?'checked':'') + ' onchange="toggleTopic(\'' + t.id + '\',this.checked)"><label for="tp-' + t.id + '" class="' + (done?'done':'') + '">' + t.name + '</label></div>';
+      });
+      domHtml += '</div></div>';
+    });
+    const oPct = tTotal > 0 ? Math.round(tDone/tTotal*100) : 0;
+    programsHtml += '<div class="card" style="margin-top:16px"><h3>' + prog.name + ' <span class="badge">' + oPct + '%</span></h3><p style="font-size:12px;color:var(--muted);margin-bottom:16px">' + (prog.description||'') + '</p><div class="progress-bar" style="margin-bottom:16px"><div class="progress-fill" style="width:' + oPct + '%"></div></div>' + domHtml + '</div>';
+  }
+
+  // Stats
+  const st = programs[0] ? await api('training/compare/' + programs[0].id) : { comparison: [] };
+  const my = (st.comparison||[]).find(c => c.member.id === trainingSelectedMember);
+  const sDone = my ? my.totalDone : 0, sTotal = my ? my.totalTopics : 0;
+  const sPct = sTotal > 0 ? Math.round(sDone/sTotal*100) : 0;
+  $('#training-stats').innerHTML = '<div class="training-stat"><div class="stat-value">' + sPct + '%</div><div class="stat-label">Overall Progress</div></div><div class="training-stat"><div class="stat-value">' + sDone + '/' + sTotal + '</div><div class="stat-label">Topics Completed</div></div><div class="training-stat"><div class="stat-value">' + myCerts.length + '</div><div class="stat-label">Certifications</div></div><div class="training-stat"><div class="stat-value">' + myCerts.filter(c=>c.status==='completed').length + '</div><div class="stat-label">Certs Earned</div></div>';
+  $('#training-programs').innerHTML = programsHtml;
+};
+
+function selectTrainingMember(id) { trainingSelectedMember = id; loaders.training(); }
+
+async function toggleTopic(topicId, completed) {
+  await apiWrite('training/progress', 'POST', { team_member_id: trainingSelectedMember, topic_id: topicId, completed: completed });
+  loaders.training();
+}
+
+async function addTrainingNote() {
+  const input = $('#training-note-input');
+  const note = input.value.trim();
+  if (!note) return;
+  const pr = await api('training/programs');
+  const pid = pr.programs && pr.programs[0] ? pr.programs[0].id : null;
+  if (!pid) return;
+  await apiWrite('training/notes', 'POST', { team_member_id: trainingSelectedMember, program_id: pid, domain_tag: 'general', note: note });
+  input.value = '';
+  loaders.training();
+}
+
+async function deleteTrainingNote(id) { await apiWrite('training/notes/' + id, 'DELETE'); loaders.training(); }
+
+// ═══════════════════════════════════════════════════════════════
+// --- LOGIN / SESSION ---
+function showLoginScreen() {
+  SESSION_TOKEN = '';
+  CURRENT_USER = null;
+  localStorage.removeItem('prism_token');
+  $('#login-overlay').classList.remove('hidden');
+  $('#nav-user').style.display = 'none';
+}
+
+function hideLoginScreen() {
+  $('#login-overlay').classList.add('hidden');
+  $('#nav-user').style.display = 'flex';
+  $('#nav-username').textContent = CURRENT_USER ? (CURRENT_USER.name || CURRENT_USER.username) : '';
+  var hdr = document.querySelector('#page-dashboard .page-header p');
+  if (hdr && CURRENT_USER && CURRENT_USER.name) hdr.textContent = 'Welcome back, ' + CURRENT_USER.name.split(' ')[0] + '. Here\u2019s your business at a glance.';
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  var user = $('#login-user').value.trim();
+  var pass = $('#login-pass').value;
+  $('#login-error').textContent = '';
+  try {
+    var r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:user, password:pass}) });
+    var data = await r.json();
+    if (data.ok) {
+      SESSION_TOKEN = data.token;
+      CURRENT_USER = data.user;
+      localStorage.setItem('prism_token', data.token);
+      hideLoginScreen();
+      loaders.dashboard();
+    } else {
+      $('#login-error').textContent = data.error || 'Login failed';
+    }
+  } catch(err) { $('#login-error').textContent = 'Connection error'; }
+}
+
+async function handleLogout() {
+  try { await fetch('/api/auth/logout', { method:'POST', headers:{'Authorization':'Bearer '+SESSION_TOKEN} }); } catch(e) {}
+  showLoginScreen();
+}
+
 // Boot
-loaders.dashboard();
+async function boot() {
+  if (SESSION_TOKEN) {
+    try {
+      var r = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+SESSION_TOKEN} });
+      var data = await r.json();
+      if (data.ok) { CURRENT_USER = data.user; hideLoginScreen(); loaders.dashboard(); return; }
+    } catch(e) {}
+  }
+  var urlKey = new URLSearchParams(window.location.search).get('key');
+  if (urlKey) {
+    SESSION_TOKEN = urlKey;
+    localStorage.setItem('prism_token', urlKey);
+    try {
+      var r2 = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+urlKey} });
+      var d2 = await r2.json();
+      if (d2.ok) { CURRENT_USER = d2.user; hideLoginScreen(); loaders.dashboard(); window.history.replaceState({},'',window.location.pathname); return; }
+    } catch(e) {}
+  }
+  showLoginScreen();
+}
+boot();
 </script>
 </body>
 </html>

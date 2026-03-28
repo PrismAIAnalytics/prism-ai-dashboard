@@ -8,6 +8,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, param, validationResult } = require('express-validator');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,20 +49,79 @@ app.use(express.json({ limit: '1mb' }));
 const API_KEY = process.env.API_KEY || '';
 
 function requireAuth(req, res, next) {
-  // If no API_KEY is configured, skip auth (local dev mode)
-  if (!API_KEY) return next();
+  // Local dev: skip if no API_KEY and no users
+  if (!API_KEY) { try { if (db.prepare('SELECT COUNT(*) as n FROM users').get().n === 0) return next(); } catch(e) { return next(); } }
 
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ ok: false, error: 'Missing or invalid Authorization header' });
   }
   const token = header.slice(7);
-  if (token !== API_KEY) {
-    return res.status(403).json({ ok: false, error: 'Invalid API key' });
-  }
-  next();
+  if (API_KEY && token === API_KEY) return next();
+  try {
+    const session = db.prepare("SELECT s.*, u.id as uid, u.username, u.role, u.team_member_id FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')").get(token);
+    if (session) { req.user = { id: session.uid, username: session.username, role: session.role, team_member_id: session.team_member_id }; return next(); }
+  } catch(e) {}
+  return res.status(403).json({ ok: false, error: 'Invalid or expired token' });
 }
 
+// ─── Auth endpoints (public) ──────────────────────────────────────────────
+app.post('/api/auth/login', express.json(), (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ ok: false, error: 'Username and password required' });
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase().trim());
+    if (!user) return res.status(401).json({ ok: false, error: 'Invalid credentials' });
+    const hash = hashPassword(password, user.salt);
+    if (hash !== user.password_hash) return res.status(401).json({ ok: false, error: 'Invalid credentials' });
+    db.prepare("DELETE FROM sessions WHERE user_id = ? OR expires_at < datetime('now')").run(user.id);
+    const session = createSession(user.id);
+    const member = user.team_member_id ? db.prepare('SELECT first_name, last_name FROM team_members WHERE id = ?').get(user.team_member_id) : null;
+    res.json({ ok: true, token: session.token, expires_at: session.expires_at,
+      user: { id: user.id, username: user.username, role: user.role, team_member_id: user.team_member_id,
+              name: member ? member.first_name + ' ' + member.last_name : user.username } });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const header = req.headers.authorization;
+  if (header && header.startsWith('Bearer ')) {
+    try { db.prepare('DELETE FROM sessions WHERE token = ?').run(header.slice(7)); } catch(e) {}
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return res.status(401).json({ ok: false });
+  const token = header.slice(7);
+  if (API_KEY && token === API_KEY) return res.json({ ok: true, user: { username: 'admin', role: 'admin', name: 'API Admin' } });
+  try {
+    const session = db.prepare("SELECT s.*, u.id as uid, u.username, u.role, u.team_member_id FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')").get(token);
+    if (!session) return res.status(401).json({ ok: false });
+    const member = session.team_member_id ? db.prepare('SELECT first_name, last_name FROM team_members WHERE id = ?').get(session.team_member_id) : null;
+    res.json({ ok: true, user: { id: session.uid, username: session.username, role: session.role,
+      team_member_id: session.team_member_id, name: member ? member.first_name + ' ' + member.last_name : session.username } });
+  } catch(e) { res.status(401).json({ ok: false }); }
+});
+
+app.post('/api/auth/change-password', express.json(), (req, res) => {
+  try {
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) return res.status(401).json({ ok: false });
+    const token = header.slice(7);
+    const session = db.prepare("SELECT s.*, u.id as uid FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')").get(token);
+    if (!session) return res.status(401).json({ ok: false });
+    const { current_password, new_password } = req.body || {};
+    if (!current_password || !new_password) return res.status(400).json({ ok: false, error: 'Both passwords required' });
+    if (new_password.length < 8) return res.status(400).json({ ok: false, error: 'Min 8 characters' });
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.uid);
+    if (hashPassword(current_password, user.salt) !== user.password_hash) return res.status(401).json({ ok: false, error: 'Current password incorrect' });
+    const newSalt = crypto.randomBytes(16).toString('hex');
+    db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hashPassword(new_password, newSalt), newSalt, user.id);
+    res.json({ ok: true, message: 'Password updated' });
+  } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
+});
 // Apply auth to all /api/* routes
 app.use('/api', requireAuth);
 
@@ -332,6 +392,24 @@ function initDB() {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+  // Auth tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      team_member_id TEXT REFERENCES team_members(id),
+      role TEXT NOT NULL DEFAULT 'member',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      created_at TEXT DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
+    );
+  `);
 }
 
 function uuid() {
@@ -600,7 +678,38 @@ function migrateCRMColumns() {
 }
 migrateCRMColumns();
 
+
+// Auth helpers
+function hashPassword(password, salt) {
+  return crypto.scryptSync(password, salt, 64).toString('hex');
+}
+function createSession(userId) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?,?,?)').run(token, userId, expires);
+  return { token, expires_at: expires };
+}
+function seedUsersIfEmpty() {
+  try { db.prepare('SELECT 1 FROM users LIMIT 1').get(); } catch(e) { return; }
+  const count = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
+  if (count > 0) return;
+  const michele = db.prepare("SELECT id FROM team_members WHERE email = 'michele@prismaianalytics.com'").get();
+  const izayah = db.prepare("SELECT id FROM team_members WHERE email = 'izayah@prismaianalytics.com'").get();
+  if (michele) {
+    const sl = crypto.randomBytes(16).toString('hex');
+    db.prepare('INSERT INTO users (id, username, password_hash, salt, team_member_id, role) VALUES (?,?,?,?,?,?)')
+      .run(uuid(), 'michele', hashPassword('Prism2026!', sl), sl, michele.id, 'admin');
+  }
+  if (izayah) {
+    const sl = crypto.randomBytes(16).toString('hex');
+    db.prepare('INSERT INTO users (id, username, password_hash, salt, team_member_id, role) VALUES (?,?,?,?,?,?)')
+      .run(uuid(), 'izayah', hashPassword('PrismJr2026!', sl), sl, izayah.id, 'member');
+  }
+  console.log('User accounts seeded');
+}
+
 seedIfEmpty();
+seedUsersIfEmpty();
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
@@ -1465,5 +1574,5 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`\n  PRISM AI Analytics Dashboard (v2.0 — Hardened)`);
   console.log(`  http://localhost:${PORT}`);
-  console.log(`  Auth: ${API_KEY ? 'Bearer token required' : 'OPEN (set API_KEY env var to enable)'}\n`);
+  console.log(`  Auth: ${API_KEY ? 'API key + user login' : 'User login (set API_KEY for external access)'}\n`);
 });
