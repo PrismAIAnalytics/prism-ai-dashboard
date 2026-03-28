@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Database (auto-created on first run)
+prism.db
+prism.db-wal
+prism.db-shm
+
+# Environment (secrets)
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+build/
