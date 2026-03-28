@@ -27,9 +27,6 @@ RUN npm ci --ignore-scripts && npm rebuild better-sqlite3
 # ── Stage 2: Production ────────────────────────────────────────────────────
 FROM node:20-slim
 
-# Create non-root user for security
-RUN groupadd -r prism && useradd -r -g prism -m prism
-
 WORKDIR /app
 
 # Copy built node_modules from builder
@@ -42,18 +39,17 @@ COPY import-excel-crm.js ./
 COPY Procfile ./
 COPY public/ ./public/
 
-# Create data directory for SQLite with correct permissions
-RUN mkdir -p /app/data && chown -R prism:prism /app
-
-# Switch to non-root user
-USER prism
+# Create data directory for SQLite
+# NOTE: Running as root so Railway-mounted volumes are writable.
+# Railway handles container isolation at the platform level.
+RUN mkdir -p /app/data
 
 # Railway sets PORT automatically; default to 3000 for local Docker use
 ENV PORT=3000
 ENV NODE_ENV=production
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD node -e "fetch('http://localhost:${PORT}/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
 
 EXPOSE ${PORT}
