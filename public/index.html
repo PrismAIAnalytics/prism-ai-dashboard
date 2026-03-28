@@ -362,8 +362,13 @@ function showPage(id, el) {
   loaders[id]?.();
 }
 
+// Extract API key from URL query param (?key=...) for Bearer auth
+const API_KEY = new URLSearchParams(window.location.search).get('key') || '';
+
 async function api(path) {
-  const r = await fetch(`/api/${path}`);
+  const headers = {};
+  if (API_KEY) headers['Authorization'] = `Bearer ${API_KEY}`;
+  const r = await fetch(`/api/${path}`, { headers });
   return r.json();
 }
 
@@ -381,14 +386,14 @@ const loaders = {};
 loaders.dashboard = async () => {
   const d = await api('dashboard');
   $('#kpis').innerHTML = `
-    <div class="kpi"><div class="label">Total Revenue</div><div class="value text-green money">${fmt(d.totalRevenue)}</div></div>
-    <div class="kpi"><div class="label">Outstanding</div><div class="value text-amber money">${fmt(d.outstandingInvoices)}</div></div>
-    <div class="kpi"><div class="label">Pipeline Value</div><div class="value money" style="color:var(--purple)">${fmt(d.pipelineValue)}</div></div>
-    <div class="kpi"><div class="label">Active Projects</div><div class="value">${d.activeProjects}</div></div>
-    <div class="kpi"><div class="label">Retainers</div><div class="value">${d.activeRetainers}</div><div class="sub">active</div></div>
-    <div class="kpi"><div class="label">Clients</div><div class="value">${d.totalClients}</div></div>
-    <div class="kpi"><div class="label">Billable Hours</div><div class="value">${d.totalHours.toFixed(1)}</div></div>
-    <div class="kpi"><div class="label">Monthly Expenses</div><div class="value text-red money">${fmt(d.monthlyExpenses)}</div><div class="sub">recurring</div></div>
+    <div class="kpi"><div class="label">Total Revenue</div><div class="value text-green money">${fmt(d.totalRevenue || 0)}</div></div>
+    <div class="kpi"><div class="label">Outstanding</div><div class="value text-amber money">${fmt(d.outstandingInvoices || 0)}</div></div>
+    <div class="kpi"><div class="label">Pipeline Value</div><div class="value money" style="color:var(--purple)">${fmt(d.pipelineValue || 0)}</div></div>
+    <div class="kpi"><div class="label">Active Projects</div><div class="value">${d.activeProjects || 0}</div></div>
+    <div class="kpi"><div class="label">Retainers</div><div class="value">${d.activeRetainers || 0}</div><div class="sub">active</div></div>
+    <div class="kpi"><div class="label">Clients</div><div class="value">${d.totalClients || 0}</div></div>
+    <div class="kpi"><div class="label">Billable Hours</div><div class="value">${(d.totalHours || 0).toFixed(1)}</div></div>
+    <div class="kpi"><div class="label">Monthly Expenses</div><div class="value text-red money">${fmt(d.monthlyExpenses || 0)}</div><div class="sub">recurring</div></div>
   `;
 
   const projects = await api('projects');
@@ -919,8 +924,10 @@ function toast(msg, isError) {
 
 // ── POST/PATCH/DELETE helper ──
 async function apiWrite(path, method, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (API_KEY) headers['Authorization'] = `Bearer ${API_KEY}`;
   const r = await fetch(`/api/${path}`, {
-    method, headers: { 'Content-Type': 'application/json' },
+    method, headers,
     body: JSON.stringify(body)
   });
   return r.json();
