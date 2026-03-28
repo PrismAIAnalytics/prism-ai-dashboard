@@ -86,12 +86,35 @@ app.get('/health', (req, res) => {
 // ─── SQLite setup (mirrors PostgreSQL schema) ───────────────────────────────
 // In production (Railway), use the mounted volume so data persists across deploys.
 // Locally, use the project directory.
-const DB_PATH = process.env.NODE_ENV === 'production' && require('fs').existsSync('/app/data')
-  ? '/app/data/prism.db'
-  : path.join(__dirname, 'prism.db');
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+// Railway mounts volumes slightly after the container starts, so we retry if needed.
+const fs = require('fs');
+
+function getDBPath() {
+  if (process.env.NODE_ENV === 'production' && fs.existsSync('/app/data')) {
+    return '/app/data/prism.db';
+  }
+  return path.join(__dirname, 'prism.db');
+}
+
+function openDB(retries = 10, delay = 1000) {
+  const dbPath = getDBPath();
+  for (let i = 0; i < retries; i++) {
+    try {
+      const conn = new Database(dbPath);
+      conn.pragma('journal_mode = WAL');
+      conn.pragma('foreign_keys = ON');
+      console.log(`Database opened at ${dbPath} (attempt ${i + 1})`);
+      return conn;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      console.log(`DB open failed (attempt ${i + 1}/${retries}): ${e.message}. Retrying in ${delay}ms...`);
+      const waitUntil = Date.now() + delay;
+      while (Date.now() < waitUntil) { /* sync wait */ }
+    }
+  }
+}
+
+const db = openDB();
 
 function initDB() {
   db.exec(`
