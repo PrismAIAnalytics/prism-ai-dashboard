@@ -425,6 +425,12 @@ function initDB() {
       updated_at TEXT DEFAULT (datetime('now'))
     );
   `);
+  // Migration: add review_section column if missing
+  try {
+    db.exec(`ALTER TABLE documents ADD COLUMN review_section TEXT`);
+  } catch (e) {
+    // Column already exists — ignore
+  }
   // Auth tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
