@@ -409,6 +409,20 @@ function initDB() {
       sources_reviewed TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL DEFAULT 'brand',
+      visibility TEXT NOT NULL DEFAULT 'internal',
+      doc_type TEXT NOT NULL DEFAULT 'Word Doc',
+      drive_url TEXT,
+      tags TEXT,
+      linked_date TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
   // Auth tables
   db.exec(`
@@ -1657,6 +1671,86 @@ app.post('/api/daily-reviews', [
 app.delete('/api/daily-reviews/:date', requireAuth, (req, res) => {
   try {
     db.prepare('DELETE FROM daily_reviews WHERE review_date = ?').run(req.params.date);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ─── Document Library ────────────────────────────────────────────────────────
+
+// GET — list all documents (newest first), optional ?date= filter
+app.get('/api/documents', requireAuth, (req, res) => {
+  try {
+    if (req.query.date) {
+      const rows = db.prepare('SELECT * FROM documents WHERE linked_date = ? ORDER BY updated_at DESC').all(req.query.date);
+      return res.json({ ok: true, documents: rows });
+    }
+    const rows = db.prepare('SELECT * FROM documents ORDER BY updated_at DESC').all();
+    res.json({ ok: true, documents: rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET — single document by id
+app.get('/api/documents/:id', requireAuth, (req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Document not found' });
+    res.json({ ok: true, document: row });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST — create a new document
+app.post('/api/documents', [
+  body('title').trim().notEmpty().withMessage('title is required'),
+], handleValidation, (req, res) => {
+  try {
+    const { title, description, category, visibility, doc_type, drive_url, tags, linked_date } = req.body;
+    const result = db.prepare(`INSERT INTO documents
+      (title, description, category, visibility, doc_type, drive_url, tags, linked_date)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      title, description || null, category || 'brand', visibility || 'internal',
+      doc_type || 'Word Doc', drive_url || null, tags || null, linked_date || null
+    );
+    const created = db.prepare('SELECT * FROM documents WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ ok: true, document: created });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// PATCH — update a document
+app.patch('/api/documents/:id', requireAuth, (req, res) => {
+  try {
+    const allowed = ['title', 'description', 'category', 'visibility', 'doc_type', 'drive_url', 'tags', 'linked_date'];
+    const updates = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+    updates.updated_at = new Date().toISOString();
+
+    if (Object.keys(updates).length <= 1) return res.status(400).json({ ok: false, error: 'No valid fields' });
+
+    const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+    const result = db.prepare(`UPDATE documents SET ${setClause} WHERE id = ?`).run(...Object.values(updates), req.params.id);
+    if (result.changes === 0) return res.status(404).json({ ok: false, error: 'Document not found' });
+
+    const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+    res.json({ ok: true, document: row });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// DELETE — remove a document
+app.delete('/api/documents/:id', requireAuth, (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM documents WHERE id = ?').run(req.params.id);
+    if (result.changes === 0) return res.status(404).json({ ok: false, error: 'Document not found' });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });

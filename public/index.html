@@ -430,10 +430,96 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="card"><div id="services-table"></div></div>
     </div>
 
-    <!-- DAILY REVIEW -->
+    <!-- DAILY REVIEW + DOCUMENT LIBRARY -->
     <div id="page-daily-review" class="page">
-      <div class="page-header"><h2>Daily Review</h2><p>Prism AI Analytics — Daily business review log</p></div>
+      <div class="page-header"><h2>Daily Review</h2><p>Prism AI Analytics — Daily business review log & document library</p></div>
+
+      <!-- Document Library toolbar -->
+      <div class="card" style="margin-bottom:20px;padding:16px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1">
+            <h3 style="margin:0;font-size:14px;display:flex;align-items:center;gap:8px">&#128196; Document Library</h3>
+            <div style="position:relative;flex:1;min-width:180px;max-width:320px">
+              <input id="doc-search" type="text" placeholder="Search documents..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:12px;font-family:inherit">
+            </div>
+            <select id="doc-filter-cat" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:12px;cursor:pointer">
+              <option value="all">All Categories</option>
+              <option value="brand">&#9670; Brand Assets & Guidelines</option>
+              <option value="training">&#9672; Training & Knowledge Base</option>
+            </select>
+            <select id="doc-filter-vis" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:12px;cursor:pointer">
+              <option value="all">All Visibility</option>
+              <option value="internal">Internal Only</option>
+              <option value="external">External Only</option>
+            </select>
+          </div>
+          <button class="btn-primary" onclick="openDocModal()">+ Add Document</button>
+        </div>
+        <div id="doc-library-list" style="margin-top:16px"></div>
+        <div id="doc-library-footer" style="font-size:11px;color:var(--muted);margin-top:12px;display:flex;justify-content:space-between"></div>
+      </div>
+
+      <!-- Daily Reviews -->
       <div id="daily-review-list"></div>
+    </div>
+
+    <!-- Document Add/Edit Modal -->
+    <div id="doc-modal-overlay" class="modal-overlay" style="display:none">
+      <div class="modal" style="background:var(--card);border:1px solid var(--border);border-radius:16px;width:500px;max-width:95vw">
+        <div class="modal-header" style="padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <h3 id="doc-modal-title" style="margin:0;font-size:16px">Add Document</h3>
+          <button onclick="closeDocModal()" style="border:none;background:none;color:var(--muted);font-size:20px;cursor:pointer">&times;</button>
+        </div>
+        <div style="padding:24px">
+          <input type="hidden" id="doc-edit-id">
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Title *</label>
+            <input id="doc-title" type="text" placeholder="e.g. Brand Guidelines v2" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Description</label>
+            <textarea id="doc-desc" rows="2" placeholder="Brief summary of the document..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div>
+              <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Category</label>
+              <select id="doc-category" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;cursor:pointer">
+                <option value="brand">Brand Assets & Guidelines</option>
+                <option value="training">Training & Knowledge Base</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Visibility</label>
+              <select id="doc-visibility" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;cursor:pointer">
+                <option value="internal">Internal</option>
+                <option value="external">External (Client-Facing)</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Document Type</label>
+            <select id="doc-type" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;cursor:pointer">
+              <option>PDF</option><option>Word Doc</option><option>Spreadsheet</option><option>Presentation</option><option>Image/Design</option><option>Video</option><option>Other</option>
+            </select>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Google Drive Link</label>
+            <input id="doc-drive-url" type="text" placeholder="https://drive.google.com/file/d/..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Tags (comma-separated)</label>
+            <input id="doc-tags" type="text" placeholder="e.g. brand, logo, guidelines" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Linked Date (associate with a daily review)</label>
+            <input id="doc-linked-date" type="date" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+            <button onclick="closeDocModal()" class="btn-sm" style="padding:9px 18px;font-size:13px">Cancel</button>
+            <button onclick="saveDocument()" class="btn-primary" style="padding:9px 22px;font-size:13px">Save</button>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 </div>
@@ -456,10 +542,14 @@ function showPage(id, el) {
 let SESSION_TOKEN = localStorage.getItem('prism_token') || '';
 let CURRENT_USER = null;
 
-async function api(path) {
-  const headers = {};
+async function api(path, opts) {
+  const options = opts || {};
+  const headers = Object.assign({}, options.headers || {});
   if (SESSION_TOKEN) headers['Authorization'] = `Bearer ${SESSION_TOKEN}`;
-  const r = await fetch(`/api/${path}`, { headers });
+  const fetchOpts = { headers };
+  if (options.method) fetchOpts.method = options.method;
+  if (options.body) fetchOpts.body = options.body;
+  const r = await fetch(`/api/${path}`, fetchOpts);
   if (r.status === 401 || r.status === 403) { showLoginScreen(); return {}; }
   return r.json();
 }
@@ -1491,10 +1581,184 @@ function renderReviewCard(r) {
     </div>
     ${r.summary ? `<div style="font-size:14px;color:var(--text);margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--royal)">${r.summary}</div>` : ''}
     ${sections}
+    <div id="review-docs-${r.review_date}" style="margin-top:16px"></div>
   </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// --- DOCUMENT LIBRARY ---
+let allDocuments = [];
+
+const DOC_CATEGORIES = { brand: { label: 'Brand Assets & Guidelines', icon: '&#9670;', color: 'var(--royal)' }, training: { label: 'Training & Knowledge Base', icon: '&#9672;', color: 'var(--blue)' } };
+const DOC_VISIBILITY = { internal: { label: 'Internal', bg: 'rgba(74,109,181,0.2)', color: 'var(--blue)' }, external: { label: 'External', bg: 'rgba(52,211,153,0.15)', color: 'var(--green)' } };
+
+function renderDocBadge(label, bg, color) {
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:${bg};color:${color};text-transform:uppercase;white-space:nowrap">${label}</span>`;
+}
+
+function renderDocRow(doc) {
+  const cat = DOC_CATEGORIES[doc.category] || DOC_CATEGORIES.brand;
+  const vis = DOC_VISIBILITY[doc.visibility] || DOC_VISIBILITY.internal;
+  const driveBtn = doc.drive_url ? `<button class="btn-sm" onclick="window.open('${doc.drive_url}','_blank')" title="Open in Google Drive" style="font-size:12px">&#8599;</button>` : '';
+  const linkedInfo = doc.linked_date ? `<span style="font-size:10px;color:var(--purple)">&#128197; ${fmtDate(doc.linked_date)}</span>` : '';
+
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)" data-doc-id="${doc.id}">
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-weight:600;font-size:13px;color:var(--text)">${doc.title}</span>
+        ${renderDocBadge(vis.label, vis.bg, vis.color)}
+        ${renderDocBadge(doc.doc_type, 'rgba(136,136,170,0.15)', 'var(--muted)')}
+      </div>
+      ${doc.description ? `<p style="margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.4">${doc.description}</p>` : ''}
+      <div style="margin-top:4px;display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted)">
+        <span>${cat.icon} ${cat.label}</span>
+        <span>&middot;</span>
+        <span>Updated ${fmtDate((doc.updated_at||'').split('T')[0])}</span>
+        ${linkedInfo ? `<span>&middot;</span>${linkedInfo}` : ''}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;margin-left:12px">
+      ${driveBtn}
+      <button class="btn-sm" onclick="openDocModal(${doc.id})" title="Edit" style="font-size:12px">&#9998;</button>
+      <button class="btn-sm btn-danger" onclick="deleteDocument(${doc.id})" title="Delete" style="font-size:12px">&times;</button>
+    </div>
+  </div>`;
+}
+
+function renderDocLibrary() {
+  const search = ($('#doc-search') || {}).value || '';
+  const filterCat = ($('#doc-filter-cat') || {}).value || 'all';
+  const filterVis = ($('#doc-filter-vis') || {}).value || 'all';
+
+  const filtered = allDocuments.filter(d => {
+    if (filterCat !== 'all' && d.category !== filterCat) return false;
+    if (filterVis !== 'all' && d.visibility !== filterVis) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const tags = (d.tags || '').toLowerCase();
+      if (!d.title.toLowerCase().includes(q) && !(d.description||'').toLowerCase().includes(q) && !tags.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const list = $('#doc-library-list');
+  if (!list) return;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">
+      <div style="font-size:32px;margin-bottom:8px;opacity:0.4">&#128194;</div>
+      <p style="margin:0;font-size:13px">${search ? 'No documents match your search.' : 'No documents yet — click Add Document to get started.'}</p>
+    </div>`;
+  } else {
+    list.innerHTML = filtered.map(d => renderDocRow(d)).join('');
+  }
+
+  const footer = $('#doc-library-footer');
+  if (footer) footer.innerHTML = `<span>${filtered.length} of ${allDocuments.length} document${allDocuments.length !== 1 ? 's' : ''}</span><span>Files stored in Google Drive &middot; Index in dashboard DB</span>`;
+}
+
+// Render mini doc list under a daily review card
+function renderLinkedDocs(date, docs) {
+  const container = document.getElementById('review-docs-' + date);
+  if (!container) return;
+  const linked = docs.filter(d => d.linked_date === date);
+  if (linked.length === 0) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
+    <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">&#128196; Artifacts &amp; Documents (${linked.length})</div>
+    ${linked.map(d => {
+      const vis = DOC_VISIBILITY[d.visibility] || DOC_VISIBILITY.internal;
+      const openLink = d.drive_url ? ` <a href="${d.drive_url}" target="_blank" style="color:var(--royal);text-decoration:none;font-size:11px">&#8599; Open</a>` : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px">
+        <span style="color:var(--muted)">&#128196;</span>
+        <span style="font-weight:600;color:var(--text)">${d.title}</span>
+        ${renderDocBadge(vis.label, vis.bg, vis.color)}
+        ${renderDocBadge(d.doc_type, 'rgba(136,136,170,0.15)', 'var(--muted)')}
+        ${openLink}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function openDocModal(editId) {
+  const overlay = $('#doc-modal-overlay');
+  overlay.style.display = 'flex';
+  $('#doc-modal-title').textContent = editId ? 'Edit Document' : 'Add Document';
+  $('#doc-edit-id').value = editId || '';
+
+  if (editId) {
+    const doc = allDocuments.find(d => d.id === editId);
+    if (doc) {
+      $('#doc-title').value = doc.title;
+      $('#doc-desc').value = doc.description || '';
+      $('#doc-category').value = doc.category || 'brand';
+      $('#doc-visibility').value = doc.visibility || 'internal';
+      $('#doc-type').value = doc.doc_type || 'Word Doc';
+      $('#doc-drive-url').value = doc.drive_url || '';
+      $('#doc-tags').value = doc.tags || '';
+      $('#doc-linked-date').value = doc.linked_date || '';
+    }
+  } else {
+    $('#doc-title').value = '';
+    $('#doc-desc').value = '';
+    $('#doc-category').value = 'brand';
+    $('#doc-visibility').value = 'internal';
+    $('#doc-type').value = 'Word Doc';
+    $('#doc-drive-url').value = '';
+    $('#doc-tags').value = '';
+    $('#doc-linked-date').value = '';
+  }
+  setTimeout(() => $('#doc-title').focus(), 80);
+}
+
+function closeDocModal() { $('#doc-modal-overlay').style.display = 'none'; }
+
+async function saveDocument() {
+  const title = $('#doc-title').value.trim();
+  if (!title) return;
+
+  const body = {
+    title: title,
+    description: $('#doc-desc').value.trim(),
+    category: $('#doc-category').value,
+    visibility: $('#doc-visibility').value,
+    doc_type: $('#doc-type').value,
+    drive_url: $('#doc-drive-url').value.trim(),
+    tags: $('#doc-tags').value.trim(),
+    linked_date: $('#doc-linked-date').value || null
+  };
+
+  const editId = $('#doc-edit-id').value;
+  if (editId) {
+    await api('documents/' + editId, { method: 'PATCH', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+  } else {
+    await api('documents', { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+  }
+
+  closeDocModal();
+  loaders['daily-review']();
+}
+
+async function deleteDocument(id) {
+  if (!confirm('Remove this document from the library?')) return;
+  await api('documents/' + id, { method: 'DELETE' });
+  loaders['daily-review']();
+}
+
+// Wire up search/filter events
+document.addEventListener('DOMContentLoaded', () => {
+  const s = $('#doc-search'); if (s) s.addEventListener('input', renderDocLibrary);
+  const c = $('#doc-filter-cat'); if (c) c.addEventListener('change', renderDocLibrary);
+  const v = $('#doc-filter-vis'); if (v) v.addEventListener('change', renderDocLibrary);
+});
+
 loaders['daily-review'] = async () => {
+  // Load documents
+  const docRes = await api('documents');
+  allDocuments = (docRes && docRes.documents) || [];
+  renderDocLibrary();
+
+  // Load reviews
   const d = await api('daily-reviews');
   if (d.error) { $('#daily-review-list').innerHTML = '<p style="color:var(--red)">Failed to load reviews.</p>'; return; }
 
@@ -1509,6 +1773,9 @@ loaders['daily-review'] = async () => {
   }
 
   $('#daily-review-list').innerHTML = reviews.map(r => renderReviewCard(r)).join('');
+
+  // Render linked documents under each review card
+  reviews.forEach(r => renderLinkedDocs(r.review_date, allDocuments));
 };
 
 // ═══════════════════════════════════════════════════════════════
