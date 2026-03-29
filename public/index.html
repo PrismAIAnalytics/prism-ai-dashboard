@@ -1571,13 +1571,16 @@ function renderReviewCard(r) {
 
   if (!sections) sections = '<div style="color:var(--muted);font-size:13px">No updates recorded for this day.</div>';
 
-  return `<div class="card" style="padding:24px;margin-bottom:20px">
+  return `<div id="review-${r.review_date}" class="card" style="padding:24px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
       <div>
         <div style="font-size:16px;font-weight:bold;color:var(--text)">${dayName}</div>
         ${sprintInfo ? `<div style="font-size:12px;color:var(--purple);margin-top:4px">${sprintInfo}</div>` : ''}
       </div>
-      ${r.sources_reviewed ? `<div style="font-size:11px;color:var(--muted);max-width:200px;text-align:right">${r.sources_reviewed}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-sm" onclick="openDocModalForDate('${r.review_date}')" style="font-size:11px;display:flex;align-items:center;gap:4px">&#128206; Link Document</button>
+        ${r.sources_reviewed ? `<div style="font-size:11px;color:var(--muted);max-width:200px;text-align:right">${r.sources_reviewed}</div>` : ''}
+      </div>
     </div>
     ${r.summary ? `<div style="font-size:14px;color:var(--text);margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--royal)">${r.summary}</div>` : ''}
     ${sections}
@@ -1600,7 +1603,7 @@ function renderDocRow(doc) {
   const cat = DOC_CATEGORIES[doc.category] || DOC_CATEGORIES.brand;
   const vis = DOC_VISIBILITY[doc.visibility] || DOC_VISIBILITY.internal;
   const driveBtn = doc.drive_url ? `<button class="btn-sm" onclick="window.open('${doc.drive_url}','_blank')" title="Open in Google Drive" style="font-size:12px">&#8599;</button>` : '';
-  const linkedInfo = doc.linked_date ? `<span style="font-size:10px;color:var(--purple)">&#128197; ${fmtDate(doc.linked_date)}</span>` : '';
+  const linkedInfo = doc.linked_date ? `<a href="javascript:void(0)" onclick="scrollToReview('${doc.linked_date}')" style="font-size:10px;color:var(--purple);text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:3px" title="Jump to daily review">&#128197; ${fmtDate(doc.linked_date)} &#8595;</a>` : '';
 
   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)" data-doc-id="${doc.id}">
     <div style="min-width:0;flex:1">
@@ -1658,23 +1661,42 @@ function renderDocLibrary() {
 }
 
 // Render mini doc list under a daily review card
+const DOC_TYPE_ICONS = { 'PDF': '&#128459;', 'Word Doc': '&#128196;', 'Spreadsheet': '&#128202;', 'Presentation': '&#128202;', 'Image/Design': '&#127912;', 'Video': '&#127916;', 'Other': '&#128196;' };
+
 function renderLinkedDocs(date, docs) {
   const container = document.getElementById('review-docs-' + date);
   if (!container) return;
   const linked = docs.filter(d => d.linked_date === date);
   if (linked.length === 0) { container.innerHTML = ''; return; }
 
-  container.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-    <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px">&#128196; Artifacts &amp; Documents (${linked.length})</div>
+  container.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;display:flex;align-items:center;gap:6px;font-weight:600">
+        &#128206; Linked Artifacts <span class="badge" style="font-size:10px;background:var(--royal);color:var(--white);padding:1px 7px;border-radius:10px;font-weight:500">${linked.length}</span>
+      </div>
+      <button class="btn-sm" onclick="openDocModalForDate('${date}')" style="font-size:10px;padding:3px 8px">+ Add</button>
+    </div>
     ${linked.map(d => {
       const vis = DOC_VISIBILITY[d.visibility] || DOC_VISIBILITY.internal;
-      const openLink = d.drive_url ? ` <a href="${d.drive_url}" target="_blank" style="color:var(--royal);text-decoration:none;font-size:11px">&#8599; Open</a>` : '';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px">
-        <span style="color:var(--muted)">&#128196;</span>
-        <span style="font-weight:600;color:var(--text)">${d.title}</span>
-        ${renderDocBadge(vis.label, vis.bg, vis.color)}
-        ${renderDocBadge(d.doc_type, 'rgba(136,136,170,0.15)', 'var(--muted)')}
-        ${openLink}
+      const icon = DOC_TYPE_ICONS[d.doc_type] || '&#128196;';
+      const openBtn = d.drive_url ? `<a href="${d.drive_url}" target="_blank" class="btn-sm" style="font-size:10px;padding:2px 8px;text-decoration:none">&#8599; Drive</a>` : '';
+      const desc = d.description ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35">${d.description}</div>` : '';
+      const tags = d.tags ? `<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">${d.tags.split(',').map(t => `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--muted)">${t.trim()}</span>`).join('')}</div>` : '';
+      return `<div style="display:flex;gap:10px;padding:10px 12px;margin-bottom:6px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--royal)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:20px;opacity:0.6;flex-shrink:0;padding-top:2px">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-weight:600;font-size:12px;color:var(--text)">${d.title}</span>
+            ${renderDocBadge(vis.label, vis.bg, vis.color)}
+            ${renderDocBadge(d.doc_type, 'rgba(136,136,170,0.15)', 'var(--muted)')}
+          </div>
+          ${desc}
+          ${tags}
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:4px;flex-shrink:0">
+          ${openBtn}
+          <button class="btn-sm" onclick="openDocModal(${d.id})" style="font-size:10px;padding:2px 8px">&#9998;</button>
+        </div>
       </div>`;
     }).join('')}
   </div>`;
@@ -1709,6 +1731,16 @@ function openDocModal(editId) {
     $('#doc-linked-date').value = '';
   }
   setTimeout(() => $('#doc-title').focus(), 80);
+}
+
+function openDocModalForDate(date) {
+  openDocModal();
+  $('#doc-linked-date').value = date;
+}
+
+function scrollToReview(date) {
+  const el = document.getElementById('review-' + date);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function closeDocModal() { $('#doc-modal-overlay').style.display = 'none'; }
