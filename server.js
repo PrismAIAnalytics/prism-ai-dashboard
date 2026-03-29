@@ -391,6 +391,24 @@ function initDB() {
       note TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS daily_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      review_date TEXT NOT NULL UNIQUE,
+      sprint_day INTEGER,
+      sprint_week INTEGER,
+      clients_revenue TEXT,
+      sprint_progress TEXT,
+      development TEXT,
+      training TEXT,
+      services_pricing TEXT,
+      marketing TEXT,
+      infrastructure TEXT,
+      other_milestones TEXT,
+      reminders TEXT,
+      summary TEXT,
+      sources_reviewed TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
   // Auth tables
   db.exec(`
@@ -1564,149 +1582,83 @@ app.patch('/api/milestones/:id', [
   }
 });
 
-// ─── Daily Review ────────────────────────────────────────────────────────────
-app.get('/api/daily-review', requireAuth, (req, res) => {
+// ─── Daily Reviews ───────────────────────────────────────────────────────────
+
+// GET — list all daily reviews (most recent first)
+app.get('/api/daily-reviews', requireAuth, (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const monthStart = today.slice(0, 7) + '-01';
-
-    // ── KPI snapshot ──
-    const totalRevenue = db.prepare('SELECT COALESCE(SUM(amount),0) as v FROM payments').get().v;
-    const outstandingInvoices = db.prepare(`
-      SELECT COALESCE(SUM(i.total),0) - COALESCE(SUM(p.paid),0) as v
-      FROM invoices i
-      LEFT JOIN (SELECT invoice_id, SUM(amount) as paid FROM payments GROUP BY invoice_id) p ON i.id = p.invoice_id
-      WHERE i.status IN ('sent','overdue')
-    `).get().v;
-    const pipelineValue = db.prepare(`SELECT COALESCE(SUM(estimated_value),0) as v FROM leads WHERE status NOT IN ('won','lost')`).get().v;
-    const activeClients = db.prepare('SELECT COUNT(*) as v FROM clients WHERE is_active = 1').get().v;
-    const activeProjects = db.prepare("SELECT COUNT(*) as v FROM projects WHERE status = 'active'").get().v;
-    const activeRetainers = db.prepare("SELECT COUNT(*) as v FROM retainers WHERE status = 'active'").get().v;
-
-    // ── Client activity (recent 7 days) ──
-    const newClients = db.prepare(`SELECT COUNT(*) as v FROM clients WHERE created_at >= date('now', '-7 days')`).get().v;
-    const clientList = db.prepare(`
-      SELECT c.company_name, c.is_active, i.name as industry,
-        (SELECT COALESCE(SUM(p.amount),0) FROM invoices inv JOIN payments p ON inv.id = p.invoice_id WHERE inv.client_id = c.id) as lifetime_revenue
-      FROM clients c LEFT JOIN industries i ON c.industry_id = i.id
-      WHERE c.is_active = 1 ORDER BY lifetime_revenue DESC LIMIT 5
-    `).all();
-
-    // ── Pipeline summary ──
-    const pipelineByStage = db.prepare(`
-      SELECT status, COUNT(*) as count, COALESCE(SUM(estimated_value),0) as value
-      FROM leads WHERE status NOT IN ('won','lost')
-      GROUP BY status ORDER BY count DESC
-    `).all();
-    const recentWins = db.prepare(`
-      SELECT l.*, c.company_name
-      FROM leads l LEFT JOIN clients c ON l.client_id = c.id
-      WHERE l.status = 'won' ORDER BY l.close_date DESC LIMIT 3
-    `).all();
-
-    // ── Project status ──
-    const projects = db.prepare(`
-      SELECT p.id, p.name, p.status, p.budget, p.start_date, p.target_end_date,
-        c.company_name as client_name
-      FROM projects p JOIN clients c ON p.client_id = c.id
-      WHERE p.status = 'active' ORDER BY p.target_end_date ASC
-    `).all();
-    // Get milestone progress for each active project
-    const projectsWithProgress = projects.map(p => {
-      const ms = db.prepare('SELECT status FROM milestones WHERE project_id = ?').all(p.id);
-      const done = ms.filter(m => m.status === 'completed').length;
-      return { ...p, milestones_total: ms.length, milestones_done: done, progress: ms.length ? Math.round(done / ms.length * 100) : 0 };
-    });
-
-    // ── Finance snapshot ──
-    const monthRevenue = db.prepare(`SELECT COALESCE(SUM(amount),0) as v FROM payments WHERE payment_date >= ?`).get(monthStart).v;
-    const overdueInvoices = db.prepare(`
-      SELECT i.invoice_number, i.total, i.due_date, c.company_name
-      FROM invoices i JOIN clients c ON i.client_id = c.id
-      WHERE i.status = 'overdue' ORDER BY i.due_date ASC
-    `).all();
-    const monthExpenses = db.prepare(`SELECT COALESCE(SUM(amount),0) as v FROM expenses WHERE expense_date >= ?`).get(monthStart).v;
-    const recurringExpenses = db.prepare(`SELECT COALESCE(SUM(amount),0) as v FROM expenses WHERE is_recurring = 1`).get().v;
-
-    // ── Time tracking (this month) ──
-    const monthHours = db.prepare(`SELECT COALESCE(SUM(hours),0) as v FROM time_entries WHERE entry_date >= ?`).get(monthStart).v;
-    const billableHours = db.prepare(`SELECT COALESCE(SUM(hours),0) as v FROM time_entries WHERE entry_date >= ? AND is_billable = 1`).get(monthStart).v;
-
-    // ── Recent activity ──
-    const recentActivity = db.prepare(`
-      SELECT a.*, tm.first_name || ' ' || tm.last_name as team_member_name
-      FROM activity_log a LEFT JOIN team_members tm ON a.team_member_id = tm.id
-      ORDER BY a.logged_at DESC LIMIT 10
-    `).all();
-
-    // ── Upcoming deadlines (next 14 days) ──
-    const upcomingDeadlines = [];
-    // Project deadlines
-    const projDeadlines = db.prepare(`
-      SELECT name, target_end_date as due_date, 'project' as type, status
-      FROM projects WHERE status = 'active' AND target_end_date <= date('now', '+14 days') AND target_end_date >= date('now')
-      ORDER BY target_end_date ASC
-    `).all();
-    upcomingDeadlines.push(...projDeadlines);
-    // Invoice due dates
-    const invDeadlines = db.prepare(`
-      SELECT i.invoice_number as name, i.due_date, 'invoice' as type, i.status
-      FROM invoices i WHERE i.status IN ('sent','overdue') AND i.due_date <= date('now', '+14 days') AND i.due_date >= date('now')
-      ORDER BY i.due_date ASC
-    `).all();
-    upcomingDeadlines.push(...invDeadlines);
-    // Retainer renewals
-    const retDeadlines = db.prepare(`
-      SELECT c.company_name as name, r.end_date as due_date, 'retainer' as type, r.status
-      FROM retainers r JOIN clients c ON r.client_id = c.id
-      WHERE r.status = 'active' AND r.end_date <= date('now', '+14 days') AND r.end_date >= date('now')
-      ORDER BY r.end_date ASC
-    `).all();
-    upcomingDeadlines.push(...retDeadlines);
-    // Milestone deadlines
-    const msDeadlines = db.prepare(`
-      SELECT m.name, m.due_date, 'milestone' as type, m.status
-      FROM milestones m JOIN projects p ON m.project_id = p.id
-      WHERE p.status = 'active' AND m.status != 'completed' AND m.due_date <= date('now', '+14 days') AND m.due_date >= date('now')
-      ORDER BY m.due_date ASC
-    `).all();
-    upcomingDeadlines.push(...msDeadlines);
-    upcomingDeadlines.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
-
-    // ── Training progress ──
-    let trainingProgress = [];
-    try {
-      const programs = db.prepare('SELECT * FROM training_programs').all();
-      const members = db.prepare('SELECT * FROM team_members WHERE status = ?').all('active');
-      trainingProgress = programs.map(prog => {
-        const memberProgress = members.map(m => {
-          const total = db.prepare('SELECT COUNT(*) as v FROM training_topics t JOIN training_domains d ON t.domain_id = d.id WHERE d.program_id = ?').get(prog.id).v;
-          const done = db.prepare('SELECT COUNT(*) as v FROM training_progress tp JOIN training_topics t ON tp.topic_id = t.id JOIN training_domains d ON t.domain_id = d.id WHERE d.program_id = ? AND tp.team_member_id = ? AND tp.completed = 1').get(prog.id, m.id).v;
-          return { name: m.first_name + ' ' + m.last_name, total, done, pct: total ? Math.round(done / total * 100) : 0 };
-        });
-        return { program: prog.name, provider: prog.provider, members: memberProgress };
-      });
-    } catch(e) { /* training tables might not exist */ }
-
-    // ── Certifications ──
-    let certs = [];
-    try { certs = db.prepare('SELECT c.*, tm.first_name || \' \' || tm.last_name as member_name FROM certifications c JOIN team_members tm ON c.team_member_id = tm.id ORDER BY c.completion_date DESC').all(); } catch(e) {}
-
-    res.json({
-      date: today,
-      kpis: { totalRevenue, outstandingInvoices, pipelineValue, activeClients, activeProjects, activeRetainers, monthRevenue, monthExpenses, recurringExpenses, monthHours, billableHours },
-      clients: { active: activeClients, newThisWeek: newClients, topClients: clientList },
-      pipeline: { byStage: pipelineByStage, recentWins },
-      projects: projectsWithProgress,
-      finance: { overdueInvoices },
-      time: { monthHours, billableHours },
-      deadlines: upcomingDeadlines,
-      activity: recentActivity,
-      training: trainingProgress,
-      certifications: certs
-    });
+    const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+    const rows = db.prepare('SELECT * FROM daily_reviews ORDER BY review_date DESC LIMIT ?').all(limit);
+    res.json({ ok: true, reviews: rows });
   } catch (e) {
-    console.error('[daily-review]', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET — single daily review by date
+app.get('/api/daily-reviews/:date', requireAuth, (req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM daily_reviews WHERE review_date = ?').get(req.params.date);
+    if (!row) return res.status(404).json({ ok: false, error: 'No review found for this date' });
+    res.json({ ok: true, review: row });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST — create or update a daily review (upsert by date)
+app.post('/api/daily-reviews', [
+  body('review_date').trim().notEmpty().withMessage('review_date is required'),
+], handleValidation, (req, res) => {
+  try {
+    const { review_date, sprint_day, sprint_week, clients_revenue, sprint_progress,
+            development, training, services_pricing, marketing, infrastructure,
+            other_milestones, reminders, summary, sources_reviewed } = req.body;
+
+    const existing = db.prepare('SELECT id FROM daily_reviews WHERE review_date = ?').get(review_date);
+    if (existing) {
+      db.prepare(`UPDATE daily_reviews SET
+        sprint_day = COALESCE(?, sprint_day), sprint_week = COALESCE(?, sprint_week),
+        clients_revenue = COALESCE(?, clients_revenue), sprint_progress = COALESCE(?, sprint_progress),
+        development = COALESCE(?, development), training = COALESCE(?, training),
+        services_pricing = COALESCE(?, services_pricing), marketing = COALESCE(?, marketing),
+        infrastructure = COALESCE(?, infrastructure), other_milestones = COALESCE(?, other_milestones),
+        reminders = COALESCE(?, reminders), summary = COALESCE(?, summary),
+        sources_reviewed = COALESCE(?, sources_reviewed)
+        WHERE review_date = ?`).run(
+        sprint_day, sprint_week, clients_revenue, sprint_progress,
+        development, training, services_pricing, marketing, infrastructure,
+        other_milestones, reminders, summary, sources_reviewed, review_date
+      );
+      const updated = db.prepare('SELECT * FROM daily_reviews WHERE review_date = ?').get(review_date);
+      res.json({ ok: true, review: updated, action: 'updated' });
+    } else {
+      db.prepare(`INSERT INTO daily_reviews
+        (review_date, sprint_day, sprint_week, clients_revenue, sprint_progress,
+         development, training, services_pricing, marketing, infrastructure,
+         other_milestones, reminders, summary, sources_reviewed)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        review_date, sprint_day || null, sprint_week || null,
+        clients_revenue || null, sprint_progress || null,
+        development || null, training || null, services_pricing || null,
+        marketing || null, infrastructure || null,
+        other_milestones || null, reminders || null,
+        summary || null, sources_reviewed || null
+      );
+      const created = db.prepare('SELECT * FROM daily_reviews WHERE review_date = ?').get(review_date);
+      res.status(201).json({ ok: true, review: created, action: 'created' });
+    }
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// DELETE — remove a daily review
+app.delete('/api/daily-reviews/:date', requireAuth, (req, res) => {
+  try {
+    db.prepare('DELETE FROM daily_reviews WHERE review_date = ?').run(req.params.date);
+    res.json({ ok: true });
+  } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
