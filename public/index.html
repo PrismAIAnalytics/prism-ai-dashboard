@@ -431,19 +431,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="card"><div id="services-table"></div></div>
     </div>
 
-    <!-- GOOGLE DRIVE -->
+    <!-- PRISM SHARED DRIVE -->
     <div id="page-drive" class="page">
       <div class="page-header"><h2>Prism Shared Drive</h2><p>Browse and open your Prism AI files directly</p></div>
       <div id="drive-folders" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px"></div>
-      <div id="drive-viewer" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <button class="btn-sm" onclick="closeDriveViewer()" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px">&#9664; Back to folders</button>
-          <a id="drive-open-external" href="#" target="_blank" class="btn-sm" style="text-decoration:none;font-size:12px;padding:6px 12px">&#8599; Open in Google Drive</a>
-        </div>
-        <div class="card" style="padding:0;overflow:hidden;border-radius:12px">
-          <iframe id="drive-iframe" style="width:100%;height:calc(100vh - 220px);border:none" allowfullscreen></iframe>
-        </div>
-      </div>
     </div>
 
     <!-- DAILY REVIEW + DOCUMENT LIBRARY -->
@@ -1861,27 +1852,13 @@ const DRIVE_FOLDERS = [
   { name: 'Data Pipeline', desc: 'Data engineering, ETL workflows, and pipeline configs', id: '1f6QwfrxsCr5oWH-Zr60cff3LQbKkXZ-5', icon: '&#128202;', color: 'var(--amber)' },
 ];
 
-function openDriveFolder(id, name) {
-  const url = 'https://drive.google.com/drive/folders/' + id;
-  $('#drive-folders').style.display = 'none';
-  $('#drive-viewer').style.display = 'block';
-  $('#drive-open-external').href = url;
-  $('#drive-iframe').src = url;
-}
-
-function closeDriveViewer() {
-  $('#drive-viewer').style.display = 'none';
-  $('#drive-folders').style.display = 'grid';
-  $('#drive-iframe').src = '';
+function openDriveFolder(id) {
+  window.open('https://drive.google.com/drive/folders/' + id, '_blank');
 }
 
 loaders.drive = async () => {
-  $('#drive-viewer').style.display = 'none';
-  $('#drive-folders').style.display = 'grid';
-  $('#drive-iframe').src = '';
-
   $('#drive-folders').innerHTML = DRIVE_FOLDERS.map(f => `
-    <div class="card" style="padding:0;overflow:hidden;cursor:pointer;transition:border-color 0.2s" onclick="openDriveFolder('${f.id}','${f.name}')" onmouseover="this.style.borderColor='var(--royal)'" onmouseout="this.style.borderColor='var(--border)'">
+    <div class="card" style="padding:0;overflow:hidden;cursor:pointer;transition:border-color 0.2s" onclick="openDriveFolder('${f.id}')" onmouseover="this.style.borderColor='var(--royal)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="padding:20px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <div style="width:40px;height:40px;border-radius:10px;background:${f.color}22;display:flex;align-items:center;justify-content:center;font-size:20px">${f.icon}</div>
@@ -1892,7 +1869,7 @@ loaders.drive = async () => {
         </div>
       </div>
       <div style="padding:8px 20px;border-top:1px solid var(--border);background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:11px;color:var(--muted)">Click to browse</span>
+        <span style="font-size:11px;color:var(--muted)">Opens in Google Drive</span>
         <span style="font-size:12px;color:var(--royal)">&#8599;</span>
       </div>
     </div>
