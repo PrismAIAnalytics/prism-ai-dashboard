@@ -1844,12 +1844,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ═══════════════════════════════════════════════════════════════
 // --- GOOGLE DRIVE ---
+const PRISM_DRIVE_ROOT = '12FLv-i-weKyy1O7HaYLv8m_WOYT8Uoj4';
 const DRIVE_FOLDERS = [
-  { name: 'Prism AI Analytics', desc: 'Client project folders — Discovery through Deliverables', id: '1reLpXUGWYPun4EAsYSLmH9bSjj7spgde', icon: '&#128188;', color: 'var(--royal)' },
-  { name: 'Company Profile', desc: 'Brand identity, company docs, and profile assets', id: '1qdWsgKOvyGgvLSVaVv7MxshV4xb2htj_', icon: '&#9670;', color: 'var(--blue)' },
-  { name: 'PRISM Start Up', desc: 'Business formation, planning, and startup resources', id: '14D28SuCz8wCA7xqf42LN-OANXW7C5ZUb', icon: '&#128640;', color: 'var(--purple)' },
+  { name: 'Admin', desc: 'Business admin, legal, and operational docs', id: '1IfE72gX8J5xRXX8zuLjzNzfEfikY0X7T', icon: '&#128203;', color: 'var(--muted)' },
+  { name: 'Clients', desc: 'Client project folders — Discovery through Deliverables', id: '1ep1cwsh2JbmPRXUmZTdXM0rg9oFVV2IP', icon: '&#128188;', color: 'var(--royal)' },
+  { name: 'Development', desc: 'Dashboard, data pipeline, and engineering projects', id: '1_8uuIVnRmaCcACDmEktfBcKjxiPdN1wL', icon: '&#9635;', color: 'var(--blue)' },
+  { name: 'HR', desc: 'Team management, hiring, and HR resources', id: '1_JgDAnK8R6Q7L0bPt48PatHuMpRo6flp', icon: '&#128101;', color: 'var(--purple)' },
+  { name: 'Marketing', desc: 'Content, campaigns, LinkedIn, and brand materials', id: '1KbY5OOaiWH18mU2ApFUrG1kEd1MCl8k6', icon: '&#9830;', color: '#4A6DB5' },
+  { name: 'Research', desc: 'Industry research, competitive analysis, and market data', id: '1nK2tCjPoCKzEkm5Ja4hCJzE1hWQSZXBq', icon: '&#128270;', color: 'var(--amber)' },
+  { name: 'Revenue Workstreams', desc: 'Sales pipeline, revenue tracking, and workstream docs', id: '1n-fiKFYlglFDf2UZ7yVxjNoPp7ZCSd4K', icon: '&#128176;', color: 'var(--green)' },
+  { name: 'Services', desc: 'Service offerings, pricing tiers, and deliverable templates', id: '1ctrrUl9l2eFJVZc7UzPwqs5FuXL0YVPl', icon: '&#9881;', color: 'var(--sky)' },
+  { name: 'PRISM Start Up', desc: 'Business formation, planning, and startup resources', id: '14D28SuCz8wCA7xqf42LN-OANXW7C5ZUb', icon: '&#128640;', color: 'var(--red)' },
   { name: 'Website Project', desc: 'Website design, content, and deployment files', id: '14GJCASqrFNhqa9jni5OWxqUj9BpGragE', icon: '&#127760;', color: 'var(--green)' },
-  { name: 'Data Pipeline', desc: 'Data engineering, ETL workflows, and pipeline configs', id: '1f6QwfrxsCr5oWH-Zr60cff3LQbKkXZ-5', icon: '&#128202;', color: 'var(--amber)' },
 ];
 
 function openDriveFolder(id) {
@@ -1874,10 +1880,10 @@ loaders.drive = async () => {
       </div>
     </div>
   `).join('') + `
-    <div class="card" style="padding:20px;cursor:pointer;border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:120px;transition:border-color 0.2s" onclick="window.open('https://drive.google.com/drive/my-drive','_blank')" onmouseover="this.style.borderColor='var(--royal)'" onmouseout="this.style.borderColor='var(--border)'">
+    <div class="card" style="padding:20px;cursor:pointer;border-style:dashed;display:flex;align-items:center;justify-content:center;min-height:120px;transition:border-color 0.2s" onclick="openDriveFolder('${PRISM_DRIVE_ROOT}')" onmouseover="this.style.borderColor='var(--royal)'" onmouseout="this.style.borderColor='var(--border)'">
       <div style="text-align:center">
-        <div style="font-size:24px;margin-bottom:6px;opacity:0.4">&#43;</div>
-        <div style="font-size:12px;color:var(--muted)">Open full Google Drive</div>
+        <div style="font-size:24px;margin-bottom:6px;opacity:0.4">&#128193;</div>
+        <div style="font-size:12px;color:var(--muted)">Open PRISM AI Analytics root</div>
       </div>
     </div>
   `;
