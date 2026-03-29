@@ -434,11 +434,21 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="page-daily-review" class="page">
       <div class="page-header"><h2>Daily Review</h2><p>Prism AI Analytics — Daily business review log & document library</p></div>
 
-      <!-- Document Library toolbar -->
-      <div class="card" style="margin-bottom:20px;padding:16px 20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1">
+      <!-- Daily Reviews -->
+      <div id="daily-review-list"></div>
+
+      <!-- Document Library (collapsible, below reviews) -->
+      <div class="card" style="margin-top:24px;padding:0;overflow:hidden">
+        <div onclick="toggleDocLibrary()" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;user-select:none;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="doc-lib-chevron" style="font-size:12px;color:var(--muted);transition:transform 0.2s;display:inline-block">&#9654;</span>
             <h3 style="margin:0;font-size:14px;display:flex;align-items:center;gap:8px">&#128196; Document Library</h3>
+            <span id="doc-lib-count" style="font-size:10px;background:var(--royal);color:var(--white);padding:1px 8px;border-radius:10px;font-weight:500"></span>
+          </div>
+          <button class="btn-primary" onclick="event.stopPropagation();openDocModal()" style="font-size:12px;padding:6px 14px">+ Add Document</button>
+        </div>
+        <div id="doc-lib-body" style="display:none">
+          <div style="padding:0 20px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="position:relative;flex:1;min-width:180px;max-width:320px">
               <input id="doc-search" type="text" placeholder="Search documents..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:12px;font-family:inherit">
             </div>
@@ -453,14 +463,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
               <option value="external">External Only</option>
             </select>
           </div>
-          <button class="btn-primary" onclick="openDocModal()">+ Add Document</button>
+          <div id="doc-library-list" style="padding:0 20px"></div>
+          <div id="doc-library-footer" style="font-size:11px;color:var(--muted);padding:10px 20px;display:flex;justify-content:space-between;border-top:1px solid var(--border)"></div>
         </div>
-        <div id="doc-library-list" style="margin-top:16px"></div>
-        <div id="doc-library-footer" style="font-size:11px;color:var(--muted);margin-top:12px;display:flex;justify-content:space-between"></div>
       </div>
-
-      <!-- Daily Reviews -->
-      <div id="daily-review-list"></div>
     </div>
 
     <!-- Document Add/Edit Modal -->
@@ -1649,6 +1655,20 @@ function renderUnsectionedDocs(date, docs) {
 // ═══════════════════════════════════════════════════════════════
 // --- DOCUMENT LIBRARY ---
 let allDocuments = [];
+let docLibExpanded = false;
+
+function toggleDocLibrary() {
+  docLibExpanded = !docLibExpanded;
+  const body = $('#doc-lib-body');
+  const chevron = $('#doc-lib-chevron');
+  if (docLibExpanded) {
+    body.style.display = 'block';
+    chevron.style.transform = 'rotate(90deg)';
+  } else {
+    body.style.display = 'none';
+    chevron.style.transform = 'rotate(0deg)';
+  }
+}
 
 const DOC_CATEGORIES = { brand: { label: 'Brand Assets & Guidelines', icon: '&#9670;', color: 'var(--royal)' }, training: { label: 'Training & Knowledge Base', icon: '&#9672;', color: 'var(--blue)' } };
 const DOC_VISIBILITY = { internal: { label: 'Internal', bg: 'rgba(74,109,181,0.2)', color: 'var(--blue)' }, external: { label: 'External', bg: 'rgba(52,211,153,0.15)', color: 'var(--green)' } };
@@ -1716,6 +1736,10 @@ function renderDocLibrary() {
 
   const footer = $('#doc-library-footer');
   if (footer) footer.innerHTML = `<span>${filtered.length} of ${allDocuments.length} document${allDocuments.length !== 1 ? 's' : ''}</span><span>Files stored in Google Drive &middot; Index in dashboard DB</span>`;
+
+  // Update count badge on collapsed header
+  const countBadge = $('#doc-lib-count');
+  if (countBadge) countBadge.textContent = allDocuments.length;
 }
 
 // Render mini doc list under a daily review card
