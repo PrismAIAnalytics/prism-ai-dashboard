@@ -300,6 +300,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     </div>
     <div class="nav-section">Overview</div>
     <a href="javascript:void(0)" class="active" data-page="dashboard" onclick="showPage('dashboard', this)">&#9671; Dashboard</a>
+    <a href="javascript:void(0)" data-page="daily-review" onclick="showPage('daily-review', this)">&#9783; Daily Review</a>
     <div class="nav-section">Business</div>
     <a href="javascript:void(0)" data-page="clients" onclick="showPage('clients', this)">&#9673; Clients</a>
     <a href="javascript:void(0)" data-page="crm" onclick="showPage('crm', this)">&#9830; CRM</a>
@@ -427,6 +428,49 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="page-services" class="page">
       <div class="page-header"><h2>Services</h2><p>Service catalog and pricing</p></div>
       <div class="card"><div id="services-table"></div></div>
+    </div>
+
+    <!-- DAILY REVIEW -->
+    <div id="page-daily-review" class="page">
+      <div class="page-header">
+        <h2>Daily Review</h2>
+        <p id="review-date">Auto-generated business snapshot</p>
+      </div>
+      <div id="review-kpis" class="kpi-grid" style="margin-bottom:24px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+        <div class="card" style="padding:20px">
+          <h3 style="margin:0 0 16px;font-size:14px;color:var(--sky)">&#9656; Active Projects</h3>
+          <div id="review-projects"></div>
+        </div>
+        <div class="card" style="padding:20px">
+          <h3 style="margin:0 0 16px;font-size:14px;color:var(--sky)">&#9830; Pipeline</h3>
+          <div id="review-pipeline"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+        <div class="card" style="padding:20px">
+          <h3 style="margin:0 0 16px;font-size:14px;color:var(--amber)">&#9888; Upcoming Deadlines</h3>
+          <div id="review-deadlines"></div>
+        </div>
+        <div class="card" style="padding:20px">
+          <h3 style="margin:0 0 16px;font-size:14px;color:var(--sky)">&#9633; Finance</h3>
+          <div id="review-finance"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+        <div class="card" style="padding:20px">
+          <h3 style="margin:0 0 16px;font-size:14px;color:var(--sky)">&#9733; Training &amp; Certifications</h3>
+          <div id="review-training"></div>
+        </div>
+        <div class="card" style="padding:20px">
+          <h3 style="margin:0 0 16px;font-size:14px;color:var(--sky)">&#9673; Top Clients</h3>
+          <div id="review-clients"></div>
+        </div>
+      </div>
+      <div class="card" style="padding:20px">
+        <h3 style="margin:0 0 16px;font-size:14px;color:var(--sky)">&#8987; Recent Activity</h3>
+        <div id="review-activity"></div>
+      </div>
     </div>
   </main>
 </div>
@@ -1444,6 +1488,162 @@ loaders.services = async () => {
       <td>${s.price_unit}</td>
     </tr>`).join('')}</tbody>
   </table>`;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// --- DAILY REVIEW ---
+loaders['daily-review'] = async () => {
+  const d = await api('daily-review');
+  if (d.error) { $('#review-kpis').innerHTML = '<p style="color:var(--red)">Failed to load review data.</p>'; return; }
+
+  // Date header
+  const reviewDate = new Date(d.date + 'T12:00:00');
+  const dayName = reviewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  $('#review-date').textContent = dayName + ' — Auto-generated snapshot';
+
+  // KPIs
+  const k = d.kpis;
+  $('#review-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total Revenue</div><div class="value text-green money">${fmt(k.totalRevenue || 0)}</div></div>
+    <div class="kpi"><div class="label">Outstanding</div><div class="value text-amber money">${fmt(k.outstandingInvoices || 0)}</div></div>
+    <div class="kpi"><div class="label">Pipeline Value</div><div class="value money" style="color:var(--purple)">${fmt(k.pipelineValue || 0)}</div></div>
+    <div class="kpi"><div class="label">Active Projects</div><div class="value">${k.activeProjects || 0}</div></div>
+    <div class="kpi"><div class="label">Active Clients</div><div class="value">${k.activeClients || 0}</div></div>
+    <div class="kpi"><div class="label">Retainers</div><div class="value">${k.activeRetainers || 0}</div></div>
+    <div class="kpi"><div class="label">Month Revenue</div><div class="value text-green money">${fmt(k.monthRevenue || 0)}</div><div class="sub">this month</div></div>
+    <div class="kpi"><div class="label">Month Hours</div><div class="value">${(k.monthHours || 0).toFixed(1)}</div><div class="sub">${(k.billableHours || 0).toFixed(1)} billable</div></div>
+  `;
+
+  // Active Projects with progress
+  if (d.projects.length === 0) {
+    $('#review-projects').innerHTML = '<p style="color:var(--muted);font-size:13px">No active projects</p>';
+  } else {
+    $('#review-projects').innerHTML = d.projects.map(p => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong style="font-size:13px">${p.client_name}</strong>
+            <div style="font-size:11px;color:var(--muted)">${p.name}</div>
+          </div>
+          <span style="font-size:12px;color:var(--muted)">${p.progress}%</span>
+        </div>
+        <div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:${p.progress}%"></div></div>
+        ${p.target_end_date ? '<div style="font-size:10px;color:var(--muted);margin-top:4px">Due: ' + fmtDate(p.target_end_date) + (p.budget ? ' &middot; Budget: ' + fmt(p.budget) : '') + '</div>' : ''}
+      </div>
+    `).join('');
+  }
+
+  // Pipeline
+  const pipe = d.pipeline;
+  let pipeHtml = '';
+  if (pipe.byStage.length > 0) {
+    pipeHtml += pipe.byStage.map(s => `
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span>${badge(s.status)}<span style="margin-left:8px;font-size:12px;color:var(--muted)">${s.count} lead${s.count > 1 ? 's' : ''}</span></span>
+        <span class="money" style="font-size:13px">${fmt(s.value)}</span>
+      </div>
+    `).join('');
+  } else {
+    pipeHtml = '<p style="color:var(--muted);font-size:13px">No active leads</p>';
+  }
+  if (pipe.recentWins.length > 0) {
+    pipeHtml += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--green);margin-bottom:6px">RECENT WINS</div>';
+    pipeHtml += pipe.recentWins.map(w => `<div style="font-size:12px;padding:4px 0">${w.company_name || 'Unknown'} &middot; ${fmt(w.estimated_value || 0)}</div>`).join('');
+    pipeHtml += '</div>';
+  }
+  $('#review-pipeline').innerHTML = pipeHtml;
+
+  // Deadlines
+  if (d.deadlines.length === 0) {
+    $('#review-deadlines').innerHTML = '<p style="color:var(--muted);font-size:13px">No upcoming deadlines in the next 14 days</p>';
+  } else {
+    const typeIcons = { project: '&#9635;', invoice: '&#9633;', retainer: '&#8635;', milestone: '&#9656;' };
+    $('#review-deadlines').innerHTML = d.deadlines.map(dl => {
+      const daysAway = Math.ceil((new Date(dl.due_date + 'T12:00:00') - new Date()) / 86400000);
+      const urgency = daysAway <= 3 ? 'var(--red)' : daysAway <= 7 ? 'var(--amber)' : 'var(--muted)';
+      return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>${typeIcons[dl.type] || '&#9679;'} ${dl.name} <span style="font-size:11px;color:var(--muted)">${dl.type}</span></span>
+        <span style="color:${urgency};font-size:12px">${fmtDate(dl.due_date)} (${daysAway}d)</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Finance
+  let finHtml = `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>Month-to-date expenses</span><span class="money">${fmt(k.monthExpenses || 0)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>Recurring expenses</span><span class="money">${fmt(k.recurringExpenses || 0)}</span>
+    </div>
+  `;
+  if (d.finance.overdueInvoices.length > 0) {
+    finHtml += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--red);margin-bottom:6px">OVERDUE INVOICES</div>';
+    finHtml += d.finance.overdueInvoices.map(inv => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0">
+      <span>${inv.company_name} — #${inv.invoice_number}</span>
+      <span class="money text-red">${fmt(inv.total)}</span>
+    </div>`).join('');
+    finHtml += '</div>';
+  } else {
+    finHtml += '<div style="font-size:12px;color:var(--green);margin-top:10px">No overdue invoices</div>';
+  }
+  $('#review-finance').innerHTML = finHtml;
+
+  // Training & Certs
+  let trainHtml = '';
+  if (d.certifications.length > 0) {
+    trainHtml += '<div style="font-size:11px;color:var(--muted);margin-bottom:6px">CERTIFICATIONS</div>';
+    trainHtml += d.certifications.map(c => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span>${c.name} <span style="color:var(--muted)">${c.member_name}</span></span>
+      ${badge(c.status)}
+    </div>`).join('');
+  }
+  if (d.training.length > 0) {
+    trainHtml += '<div style="font-size:11px;color:var(--muted);margin:12px 0 6px">PROGRAM PROGRESS</div>';
+    d.training.forEach(t => {
+      trainHtml += `<div style="font-size:12px;font-weight:bold;padding:4px 0">${t.program} <span style="color:var(--muted);font-weight:normal">${t.provider || ''}</span></div>`;
+      t.members.forEach(m => {
+        trainHtml += `<div style="padding:4px 0 8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px"><span>${m.name}</span><span style="color:var(--muted)">${m.pct}% (${m.done}/${m.total})</span></div>
+          <div class="progress-bar" style="margin-top:4px"><div class="progress-fill" style="width:${m.pct}%"></div></div>
+        </div>`;
+      });
+    });
+  }
+  if (!trainHtml) trainHtml = '<p style="color:var(--muted);font-size:13px">No training data</p>';
+  $('#review-training').innerHTML = trainHtml;
+
+  // Top Clients
+  if (d.clients.topClients.length === 0) {
+    $('#review-clients').innerHTML = '<p style="color:var(--muted);font-size:13px">No active clients</p>';
+  } else {
+    $('#review-clients').innerHTML = `<table style="width:100%;font-size:12px">
+      <thead><tr><th style="text-align:left;padding:4px 0">Company</th><th style="text-align:left">Industry</th><th style="text-align:right">Lifetime Rev</th></tr></thead>
+      <tbody>${d.clients.topClients.map(c => `<tr>
+        <td style="padding:6px 0"><strong>${c.company_name}</strong></td>
+        <td style="color:var(--muted)">${c.industry || '—'}</td>
+        <td style="text-align:right" class="money">${fmt(c.lifetime_revenue || 0)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+    if (d.clients.newThisWeek > 0) {
+      $('#review-clients').innerHTML += `<div style="font-size:12px;color:var(--green);margin-top:10px">+${d.clients.newThisWeek} new client${d.clients.newThisWeek > 1 ? 's' : ''} this week</div>`;
+    }
+  }
+
+  // Recent Activity
+  if (d.activity.length === 0) {
+    $('#review-activity').innerHTML = '<p style="color:var(--muted);font-size:13px">No recent activity</p>';
+  } else {
+    $('#review-activity').innerHTML = d.activity.map(a => `
+      <div class="timeline-item">
+        <div class="timeline-dot ${a.action}"></div>
+        <div class="timeline-content">
+          ${a.summary}
+          <div class="meta">${a.action} &middot; ${fmtDate(a.logged_at?.split(' ')[0] || a.logged_at?.split('T')[0])}</div>
+        </div>
+      </div>
+    `).join('');
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════
