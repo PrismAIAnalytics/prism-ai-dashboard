@@ -510,9 +510,25 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Tags (comma-separated)</label>
             <input id="doc-tags" type="text" placeholder="e.g. brand, logo, guidelines" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
           </div>
-          <div style="margin-bottom:14px">
-            <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Linked Date (associate with a daily review)</label>
-            <input id="doc-linked-date" type="date" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div>
+              <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Linked Date</label>
+              <input id="doc-linked-date" type="date" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;font-family:inherit">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px">Review Section</label>
+              <select id="doc-review-section" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px;cursor:pointer">
+                <option value="">— None —</option>
+                <option value="clients_revenue">Clients & Revenue</option>
+                <option value="sprint_progress">Sprint Progress</option>
+                <option value="development">Development</option>
+                <option value="marketing">Marketing</option>
+                <option value="training">Training & Certifications</option>
+                <option value="services_pricing">Services & Pricing</option>
+                <option value="infrastructure">Infrastructure & Operations</option>
+                <option value="other_milestones">Other Milestones</option>
+              </select>
+            </div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
             <button onclick="closeDocModal()" class="btn-sm" style="padding:9px 18px;font-size:13px">Cancel</button>
@@ -1545,29 +1561,56 @@ loaders.services = async () => {
 
 // ═══════════════════════════════════════════════════════════════
 // --- DAILY REVIEW ---
-function renderReviewSection(label, icon, content, color) {
-  if (!content) return '';
-  return `<div style="margin-bottom:14px">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${color || 'var(--sky)'};margin-bottom:6px">${icon} ${label}</div>
-    <div style="font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap">${content}</div>
+const REVIEW_SECTIONS = [
+  { key: 'clients_revenue', label: 'Clients & Revenue', icon: '&#9673;', color: 'var(--green)' },
+  { key: 'sprint_progress', label: 'Sprint Progress', icon: '&#9656;', color: 'var(--purple)' },
+  { key: 'development', label: 'Development', icon: '&#9635;', color: 'var(--blue)' },
+  { key: 'marketing', label: 'Marketing', icon: '&#9830;', color: '#4A6DB5' },
+  { key: 'training', label: 'Training & Certifications', icon: '&#9733;', color: 'var(--amber)' },
+  { key: 'services_pricing', label: 'Services & Pricing', icon: '&#9881;', color: 'var(--sky)' },
+  { key: 'infrastructure', label: 'Infrastructure & Operations', icon: '&#8853;', color: 'var(--muted)' },
+  { key: 'other_milestones', label: 'Other Milestones', icon: '&#9671;', color: 'var(--sky)' },
+  { key: 'reminders', label: 'Upcoming Reminders', icon: '&#9888;', color: 'var(--red)' },
+];
+
+function renderInlineDoc(d) {
+  const vis = DOC_VISIBILITY[d.visibility] || DOC_VISIBILITY.internal;
+  const icon = DOC_TYPE_ICONS[d.doc_type] || '&#128196;';
+  const openBtn = d.drive_url ? `<a href="${d.drive_url}" target="_blank" style="color:var(--royal);text-decoration:none;font-size:11px">&#8599; Open</a>` : '';
+  return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin-top:4px;background:rgba(74,109,181,0.06);border-radius:6px;border-left:2px solid var(--royal);font-size:12px">
+    <span style="opacity:0.6">${icon}</span>
+    <span style="font-weight:600;color:var(--text)">${d.title}</span>
+    ${renderDocBadge(vis.label, vis.bg, vis.color)}
+    ${renderDocBadge(d.doc_type, 'rgba(136,136,170,0.15)', 'var(--muted)')}
+    ${openBtn}
+    <button class="btn-sm" onclick="openDocModal(${d.id})" style="font-size:10px;padding:1px 6px;margin-left:auto">&#9998;</button>
   </div>`;
 }
 
-function renderReviewCard(r) {
+function renderReviewSection(label, icon, content, color, sectionKey, reviewDate, docs) {
+  const sectionDocs = (docs || []).filter(d => d.review_section === sectionKey && d.linked_date === reviewDate);
+  if (!content && sectionDocs.length === 0) return '';
+
+  const contentHtml = content ? `<div style="font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap">${content}</div>` : '';
+  const docsHtml = sectionDocs.length > 0 ? sectionDocs.map(d => renderInlineDoc(d)).join('') : '';
+  const addBtn = `<button class="btn-sm" onclick="openDocModalForDate('${reviewDate}','${sectionKey}')" style="font-size:9px;padding:1px 6px;opacity:0.5" title="Link a document to this section">+</button>`;
+
+  return `<div style="margin-bottom:14px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${color || 'var(--sky)'};margin-bottom:6px;display:flex;align-items:center;gap:6px">${icon} ${label} ${addBtn}</div>
+    ${contentHtml}
+    ${docsHtml}
+  </div>`;
+}
+
+function renderReviewCard(r, docs) {
   const d = new Date(r.review_date + 'T12:00:00');
   const dayName = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const sprintInfo = r.sprint_day ? `Sprint Day ${r.sprint_day}` + (r.sprint_week ? `, Week ${r.sprint_week}` : '') : '';
 
   let sections = '';
-  sections += renderReviewSection('Clients & Revenue', '&#9673;', r.clients_revenue, 'var(--green)');
-  sections += renderReviewSection('Sprint Progress', '&#9656;', r.sprint_progress, 'var(--purple)');
-  sections += renderReviewSection('Development', '&#9635;', r.development, 'var(--blue)');
-  sections += renderReviewSection('Marketing', '&#9830;', r.marketing, '#4A6DB5');
-  sections += renderReviewSection('Training & Certifications', '&#9733;', r.training, 'var(--amber)');
-  sections += renderReviewSection('Services & Pricing', '&#9881;', r.services_pricing, 'var(--sky)');
-  sections += renderReviewSection('Infrastructure & Operations', '&#8853;', r.infrastructure, 'var(--muted)');
-  sections += renderReviewSection('Other Milestones', '&#9671;', r.other_milestones, 'var(--sky)');
-  sections += renderReviewSection('Upcoming Reminders', '&#9888;', r.reminders, 'var(--red)');
+  for (const s of REVIEW_SECTIONS) {
+    sections += renderReviewSection(s.label, s.icon, r[s.key], s.color, s.key, r.review_date, docs);
+  }
 
   if (!sections) sections = '<div style="color:var(--muted);font-size:13px">No updates recorded for this day.</div>';
 
@@ -1585,6 +1628,21 @@ function renderReviewCard(r) {
     ${r.summary ? `<div style="font-size:14px;color:var(--text);margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--royal)">${r.summary}</div>` : ''}
     ${sections}
     <div id="review-docs-${r.review_date}" style="margin-top:16px"></div>
+  </div>`;
+}
+
+// Render docs that are linked to a date but have NO section (general/unsectioned artifacts)
+function renderUnsectionedDocs(date, docs) {
+  const container = document.getElementById('review-docs-' + date);
+  if (!container) return;
+  const unsectioned = docs.filter(d => d.linked_date === date && !d.review_section);
+  if (unsectioned.length === 0) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:12px">
+    <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;font-weight:600">
+      &#128206; General Artifacts <span class="badge" style="font-size:10px;background:var(--royal);color:var(--white);padding:1px 7px;border-radius:10px;font-weight:500">${unsectioned.length}</span>
+    </div>
+    ${unsectioned.map(d => renderInlineDoc(d)).join('')}
   </div>`;
 }
 
@@ -1663,44 +1721,9 @@ function renderDocLibrary() {
 // Render mini doc list under a daily review card
 const DOC_TYPE_ICONS = { 'PDF': '&#128459;', 'Word Doc': '&#128196;', 'Spreadsheet': '&#128202;', 'Presentation': '&#128202;', 'Image/Design': '&#127912;', 'Video': '&#127916;', 'Other': '&#128196;' };
 
-function renderLinkedDocs(date, docs) {
-  const container = document.getElementById('review-docs-' + date);
-  if (!container) return;
-  const linked = docs.filter(d => d.linked_date === date);
-  if (linked.length === 0) { container.innerHTML = ''; return; }
+// renderLinkedDocs replaced by inline section rendering + renderUnsectionedDocs
 
-  container.innerHTML = `<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;display:flex;align-items:center;gap:6px;font-weight:600">
-        &#128206; Linked Artifacts <span class="badge" style="font-size:10px;background:var(--royal);color:var(--white);padding:1px 7px;border-radius:10px;font-weight:500">${linked.length}</span>
-      </div>
-      <button class="btn-sm" onclick="openDocModalForDate('${date}')" style="font-size:10px;padding:3px 8px">+ Add</button>
-    </div>
-    ${linked.map(d => {
-      const vis = DOC_VISIBILITY[d.visibility] || DOC_VISIBILITY.internal;
-      const icon = DOC_TYPE_ICONS[d.doc_type] || '&#128196;';
-      const openBtn = d.drive_url ? `<a href="${d.drive_url}" target="_blank" class="btn-sm" style="font-size:10px;padding:2px 8px;text-decoration:none">&#8599; Drive</a>` : '';
-      const desc = d.description ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35">${d.description}</div>` : '';
-      const tags = d.tags ? `<div style="margin-top:3px;display:flex;gap:4px;flex-wrap:wrap">${d.tags.split(',').map(t => `<span style="font-size:9px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--muted)">${t.trim()}</span>`).join('')}</div>` : '';
-      return `<div style="display:flex;gap:10px;padding:10px 12px;margin-bottom:6px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--royal)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="font-size:20px;opacity:0.6;flex-shrink:0;padding-top:2px">${icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-weight:600;font-size:12px;color:var(--text)">${d.title}</span>
-            ${renderDocBadge(vis.label, vis.bg, vis.color)}
-            ${renderDocBadge(d.doc_type, 'rgba(136,136,170,0.15)', 'var(--muted)')}
-          </div>
-          ${desc}
-          ${tags}
-        </div>
-        <div style="display:flex;align-items:flex-start;gap:4px;flex-shrink:0">
-          ${openBtn}
-          <button class="btn-sm" onclick="openDocModal(${d.id})" style="font-size:10px;padding:2px 8px">&#9998;</button>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
-}
+function todayISO() { return new Date().toISOString().split('T')[0]; }
 
 function openDocModal(editId) {
   const overlay = $('#doc-modal-overlay');
@@ -1719,6 +1742,7 @@ function openDocModal(editId) {
       $('#doc-drive-url').value = doc.drive_url || '';
       $('#doc-tags').value = doc.tags || '';
       $('#doc-linked-date').value = doc.linked_date || '';
+      $('#doc-review-section').value = doc.review_section || '';
     }
   } else {
     $('#doc-title').value = '';
@@ -1728,14 +1752,16 @@ function openDocModal(editId) {
     $('#doc-type').value = 'Word Doc';
     $('#doc-drive-url').value = '';
     $('#doc-tags').value = '';
-    $('#doc-linked-date').value = '';
+    $('#doc-linked-date').value = todayISO();
+    $('#doc-review-section').value = '';
   }
   setTimeout(() => $('#doc-title').focus(), 80);
 }
 
-function openDocModalForDate(date) {
+function openDocModalForDate(date, section) {
   openDocModal();
   $('#doc-linked-date').value = date;
+  if (section) $('#doc-review-section').value = section;
 }
 
 function scrollToReview(date) {
@@ -1757,7 +1783,8 @@ async function saveDocument() {
     doc_type: $('#doc-type').value,
     drive_url: $('#doc-drive-url').value.trim(),
     tags: $('#doc-tags').value.trim(),
-    linked_date: $('#doc-linked-date').value || null
+    linked_date: $('#doc-linked-date').value || todayISO(),
+    review_section: $('#doc-review-section').value || null
   };
 
   const editId = $('#doc-edit-id').value;
@@ -1804,10 +1831,10 @@ loaders['daily-review'] = async () => {
     return;
   }
 
-  $('#daily-review-list').innerHTML = reviews.map(r => renderReviewCard(r)).join('');
+  $('#daily-review-list').innerHTML = reviews.map(r => renderReviewCard(r, allDocuments)).join('');
 
-  // Render linked documents under each review card
-  reviews.forEach(r => renderLinkedDocs(r.review_date, allDocuments));
+  // Render unsectioned docs (linked to date but no specific section) under each review card
+  reviews.forEach(r => renderUnsectionedDocs(r.review_date, allDocuments));
 };
 
 // ═══════════════════════════════════════════════════════════════

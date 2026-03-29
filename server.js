@@ -420,6 +420,7 @@ function initDB() {
       drive_url TEXT,
       tags TEXT,
       linked_date TEXT,
+      review_section TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -1709,12 +1710,14 @@ app.post('/api/documents', [
   body('title').trim().notEmpty().withMessage('title is required'),
 ], handleValidation, (req, res) => {
   try {
-    const { title, description, category, visibility, doc_type, drive_url, tags, linked_date } = req.body;
+    const { title, description, category, visibility, doc_type, drive_url, tags, linked_date, review_section } = req.body;
+    // Auto-set linked_date to today if not provided
+    const effectiveDate = linked_date || new Date().toISOString().split('T')[0];
     const result = db.prepare(`INSERT INTO documents
-      (title, description, category, visibility, doc_type, drive_url, tags, linked_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      (title, description, category, visibility, doc_type, drive_url, tags, linked_date, review_section)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       title, description || null, category || 'brand', visibility || 'internal',
-      doc_type || 'Word Doc', drive_url || null, tags || null, linked_date || null
+      doc_type || 'Word Doc', drive_url || null, tags || null, effectiveDate, review_section || null
     );
     const created = db.prepare('SELECT * FROM documents WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ ok: true, document: created });
@@ -1726,7 +1729,7 @@ app.post('/api/documents', [
 // PATCH — update a document
 app.patch('/api/documents/:id', requireAuth, (req, res) => {
   try {
-    const allowed = ['title', 'description', 'category', 'visibility', 'doc_type', 'drive_url', 'tags', 'linked_date'];
+    const allowed = ['title', 'description', 'category', 'visibility', 'doc_type', 'drive_url', 'tags', 'linked_date', 'review_section'];
     const updates = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
