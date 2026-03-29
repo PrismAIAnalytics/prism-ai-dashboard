@@ -433,6 +433,34 @@ function initDB() {
   }
   // Auth tables
   db.exec(`
+    CREATE TABLE IF NOT EXISTS tickets (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      ticket_type TEXT NOT NULL DEFAULT 'internal',
+      category TEXT DEFAULT 'general',
+      status TEXT NOT NULL DEFAULT 'backlog',
+      priority TEXT NOT NULL DEFAULT 'medium',
+      assigned_to TEXT REFERENCES team_members(id),
+      client_id TEXT REFERENCES clients(id),
+      project_id TEXT REFERENCES projects(id),
+      due_date TEXT,
+      completed_date TEXT,
+      created_by TEXT,
+      tags TEXT,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS ticket_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id TEXT NOT NULL REFERENCES tickets(id),
+      author TEXT,
+      comment TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
@@ -1761,6 +1789,241 @@ app.delete('/api/documents/:id', requireAuth, (req, res) => {
     const result = db.prepare('DELETE FROM documents WHERE id = ?').run(req.params.id);
     if (result.changes === 0) return res.status(404).json({ ok: false, error: 'Document not found' });
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ─── Skilljar API (CCA Certification Tracking) ─────────────────────────────
+const SKILLJAR_API_KEY = process.env.SKILLJAR_API_KEY || '';
+const SKILLJAR_DOMAIN = process.env.SKILLJAR_DOMAIN || '';
+const SKILLJAR_EMAILS = (process.env.SKILLJAR_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+
+async function skilljarGet(endpoint, params) {
+  const url = new URL(`https://api.skilljar.com/v1${endpoint}`);
+  if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const resp = await fetch(url.toString(), {
+    headers: { 'Authorization': 'Basic ' + Buffer.from(SKILLJAR_API_KEY + ':').toString('base64') }
+  });
+  if (!resp.ok) throw new Error(`Skilljar API ${resp.status}: ${resp.statusText}`);
+  return resp.json();
+}
+
+async function skilljarPaginate(endpoint, params) {
+  const all = [];
+  let page = 1;
+  while (true) {
+    const data = await skilljarGet(endpoint, { ...(params || {}), page });
+    all.push(...(data.results || []));
+    if (!data.next) break;
+    page++;
+  }
+  return all;
+}
+
+// GET /api/skilljar/progress — full team progress report
+app.get('/api/skilljar/progress', requireAuth, async (req, res) => {
+  try {
+    if (!SKILLJAR_API_KEY || !SKILLJAR_DOMAIN) {
+      return res.json({ ok: true, configured: false, message: 'Skilljar not configured. Set SKILLJAR_API_KEY and SKILLJAR_DOMAIN in .env' });
+    }
+
+    // Find users by email
+    const allUsers = await skilljarPaginate(`/domains/${SKILLJAR_DOMAIN}/users`);
+    const emailSet = new Set(SKILLJAR_EMAILS.map(e => e.toLowerCase()));
+    const matchedUsers = [];
+    for (const record of allUsers) {
+      const user = record.user || record;
+      if (emailSet.has((user.email || '').toLowerCase())) {
+        matchedUsers.push({ id: user.id, first_name: user.first_name || '', last_name: user.last_name || '', email: (user.email || '').toLowerCase() });
+      }
+    }
+
+    // Get enrollments + lesson progress per user
+    const teamProgress = [];
+    for (const user of matchedUsers) {
+      const enrollments = await skilljarPaginate(`/users/${user.id}/published-courses`);
+      const courses = [];
+      for (const enrollment of enrollments) {
+        const courseId = enrollment.id || enrollment.published_course_id;
+        const courseTitle = enrollment.title || (enrollment.course || {}).title || 'Unknown Course';
+        let lessons = [];
+        try { lessons = await skilljarPaginate(`/users/${user.id}/published-courses/${courseId}/lessons`); } catch(e) {}
+        const total = lessons.length;
+        const completed = lessons.filter(l => l.completed_at != null).length;
+        const pct = total > 0 ? Math.round(completed / total * 100) : 0;
+        courses.push({
+          id: courseId,
+          title: courseTitle,
+          completed,
+          total,
+          pct,
+          status: pct === 100 ? 'completed' : pct > 0 ? 'in_progress' : 'not_started',
+          lessons: lessons.map(l => ({
+            id: l.id,
+            title: l.title || l.name || 'Untitled',
+            completed: l.completed_at != null,
+            completed_at: l.completed_at
+          }))
+        });
+      }
+      const totalLessons = courses.reduce((s, c) => s + c.total, 0);
+      const completedLessons = courses.reduce((s, c) => s + c.completed, 0);
+      const overallPct = totalLessons > 0 ? Math.round(completedLessons / totalLessons * 100) : 0;
+      teamProgress.push({
+        user,
+        courses,
+        overall: { completed: completedLessons, total: totalLessons, pct: overallPct }
+      });
+    }
+
+    res.json({ ok: true, configured: true, generated_at: new Date().toISOString(), domain: SKILLJAR_DOMAIN, teamProgress });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ─── Tickets API ────────────────────────────────────────────────────────────
+
+// GET — list tickets with filters
+app.get('/api/tickets', requireAuth, (req, res) => {
+  try {
+    const { status, priority, ticket_type, assigned_to, client_id, project_id } = req.query;
+    let where = [];
+    let params = [];
+    if (status) { where.push('t.status = ?'); params.push(status); }
+    if (priority) { where.push('t.priority = ?'); params.push(priority); }
+    if (ticket_type) { where.push('t.ticket_type = ?'); params.push(ticket_type); }
+    if (assigned_to) { where.push('t.assigned_to = ?'); params.push(assigned_to); }
+    if (client_id) { where.push('t.client_id = ?'); params.push(client_id); }
+    if (project_id) { where.push('t.project_id = ?'); params.push(project_id); }
+    const clause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const rows = db.prepare(`
+      SELECT t.*,
+        tm.first_name || ' ' || tm.last_name as assignee_name,
+        c.company_name as client_name,
+        p.name as project_name
+      FROM tickets t
+      LEFT JOIN team_members tm ON t.assigned_to = tm.id
+      LEFT JOIN clients c ON t.client_id = c.id
+      LEFT JOIN projects p ON t.project_id = p.id
+      ${clause}
+      ORDER BY
+        CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
+        t.sort_order, t.created_at DESC
+    `).all(...params);
+    res.json({ ok: true, tickets: rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET — ticket dashboard summary
+app.get('/api/tickets/summary', requireAuth, (req, res) => {
+  try {
+    const byStatus = db.prepare("SELECT status, COUNT(*) as count FROM tickets GROUP BY status").all();
+    const byPriority = db.prepare("SELECT priority, COUNT(*) as count FROM tickets GROUP BY priority").all();
+    const byType = db.prepare("SELECT ticket_type, COUNT(*) as count FROM tickets GROUP BY ticket_type").all();
+    const overdue = db.prepare("SELECT COUNT(*) as count FROM tickets WHERE due_date < date('now') AND status NOT IN ('done', 'cancelled')").get();
+    const completedThisWeek = db.prepare("SELECT COUNT(*) as count FROM tickets WHERE completed_date >= date('now', '-7 days')").get();
+    const total = db.prepare("SELECT COUNT(*) as count FROM tickets").get();
+    const open = db.prepare("SELECT COUNT(*) as count FROM tickets WHERE status NOT IN ('done', 'cancelled')").get();
+    res.json({ ok: true, byStatus, byPriority, byType, overdue: overdue.count, completedThisWeek: completedThisWeek.count, total: total.count, open: open.count });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST — create ticket
+app.post('/api/tickets', requireAuth, [
+  body('title').trim().notEmpty().withMessage('Title is required'),
+  body('ticket_type').optional().isIn(['client', 'internal']),
+  body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
+  body('status').optional().isIn(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const id = uuid();
+    const { title, description, ticket_type, category, status, priority, assigned_to, client_id, project_id, due_date, tags } = req.body;
+    db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, assigned_to, client_id, project_id, due_date, tags, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      id, title, description || null, ticket_type || 'internal', category || 'general',
+      status || 'backlog', priority || 'medium', assigned_to || null, client_id || null,
+      project_id || null, due_date || null, tags || null, req.user?.username || 'system'
+    );
+    const ticket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id);
+    res.status(201).json({ ok: true, ticket });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// PATCH — update ticket
+app.patch('/api/tickets/:id', requireAuth, (req, res) => {
+  try {
+    const allowed = ['title', 'description', 'ticket_type', 'category', 'status', 'priority', 'assigned_to', 'client_id', 'project_id', 'due_date', 'tags', 'sort_order'];
+    const updates = {};
+    for (const k of allowed) {
+      if (req.body[k] !== undefined) updates[k] = req.body[k];
+    }
+    if (req.body.status === 'done' && !req.body.completed_date) {
+      updates.completed_date = new Date().toISOString().split('T')[0];
+    }
+    if (req.body.status && req.body.status !== 'done') {
+      updates.completed_date = null;
+    }
+    updates.updated_at = new Date().toISOString();
+    if (Object.keys(updates).length <= 1) return res.status(400).json({ ok: false, error: 'No valid fields' });
+    const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+    const result = db.prepare(`UPDATE tickets SET ${setClause} WHERE id = ?`).run(...Object.values(updates), req.params.id);
+    if (result.changes === 0) return res.status(404).json({ ok: false, error: 'Ticket not found' });
+    const ticket = db.prepare(`
+      SELECT t.*, tm.first_name || ' ' || tm.last_name as assignee_name, c.company_name as client_name, p.name as project_name
+      FROM tickets t LEFT JOIN team_members tm ON t.assigned_to = tm.id LEFT JOIN clients c ON t.client_id = c.id LEFT JOIN projects p ON t.project_id = p.id
+      WHERE t.id = ?`).get(req.params.id);
+    res.json({ ok: true, ticket });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// DELETE — remove ticket
+app.delete('/api/tickets/:id', requireAuth, (req, res) => {
+  try {
+    db.prepare('DELETE FROM ticket_comments WHERE ticket_id = ?').run(req.params.id);
+    const result = db.prepare('DELETE FROM tickets WHERE id = ?').run(req.params.id);
+    if (result.changes === 0) return res.status(404).json({ ok: false, error: 'Ticket not found' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET — ticket comments
+app.get('/api/tickets/:id/comments', requireAuth, (req, res) => {
+  try {
+    const comments = db.prepare('SELECT * FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC').all(req.params.id);
+    res.json({ ok: true, comments });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST — add comment
+app.post('/api/tickets/:id/comments', requireAuth, [
+  body('comment').trim().notEmpty()
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const ticket = db.prepare('SELECT id FROM tickets WHERE id = ?').get(req.params.id);
+    if (!ticket) return res.status(404).json({ ok: false, error: 'Ticket not found' });
+    db.prepare('INSERT INTO ticket_comments (ticket_id, author, comment) VALUES (?, ?, ?)').run(
+      req.params.id, req.user?.username || req.body.author || 'system', req.body.comment
+    );
+    const comments = db.prepare('SELECT * FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC').all(req.params.id);
+    res.json({ ok: true, comments });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

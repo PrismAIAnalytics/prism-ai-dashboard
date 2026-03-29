@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Prism AI Analytics — Dashboard</title>
+<link rel="icon" type="image/png" href="/prism-mark.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root {
@@ -154,6 +155,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .domain-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
 .domain-header .dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
 .domain-header .domain-name { font-weight:600; font-size:14px; }
+.domain-header.collapsible { cursor:pointer; user-select:none; }
+.domain-header.collapsible:hover { opacity:0.85; }
+.domain-header .chevron { font-size:12px; transition:transform 0.2s; margin-right:4px; color:var(--muted); }
+.domain-header .chevron.open { transform:rotate(90deg); }
+.domain-body { overflow:hidden; transition:max-height 0.3s ease, opacity 0.2s ease; }
+.domain-body.collapsed { max-height:0 !important; opacity:0; margin:0; padding:0; }
 .domain-header .domain-pct { font-size:13px; color:var(--muted); margin-left:auto; }
 .domain-header .domain-weight { font-size:11px; color:var(--muted); }
 .topic-row { display:flex; align-items:center; gap:10px; padding:6px 0 6px 22px; font-size:13px; }
@@ -172,6 +179,87 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .text-green { color: var(--green); }
 .text-red { color: var(--red); }
 .text-amber { color: var(--amber); }
+
+/* ─── Tickets / Kanban ─── */
+.ticket-views { display: flex; gap: 8px; }
+.ticket-views button {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); padding: 6px 14px; font-size: 12px; cursor: pointer; transition: all 0.2s;
+}
+.ticket-views button:hover { color: var(--text); border-color: var(--royal); }
+.ticket-views button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
+.ticket-kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
+@media (max-width: 1200px) { .ticket-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px) { .ticket-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+.kanban-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; min-height: 400px; }
+.kanban-board::-webkit-scrollbar { height: 6px; }
+.kanban-board::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.kanban-col {
+  min-width: 240px; max-width: 280px; flex: 1;
+  background: rgba(255,255,255,0.02); border-radius: 10px; padding: 12px;
+  display: flex; flex-direction: column;
+}
+.kanban-col-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border);
+}
+.kanban-col-header .col-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 600; }
+.kanban-col-header .col-count { font-size: 10px; background: var(--border); color: var(--text); padding: 2px 8px; border-radius: 10px; }
+.kanban-col.col-backlog .kanban-col-header { border-bottom-color: var(--muted); }
+.kanban-col.col-todo .kanban-col-header { border-bottom-color: var(--purple); }
+.kanban-col.col-in_progress .kanban-col-header { border-bottom-color: var(--blue); }
+.kanban-col.col-review .kanban-col-header { border-bottom-color: var(--amber); }
+.kanban-col.col-done .kanban-col-header { border-bottom-color: var(--green); }
+.kanban-cards { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 500px; }
+.kanban-cards::-webkit-scrollbar { width: 3px; }
+.kanban-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.ticket-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; cursor: pointer; transition: all 0.2s; position: relative;
+}
+.ticket-card:hover { border-color: var(--royal); transform: translateY(-1px); }
+.ticket-card .ticket-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+.ticket-card .ticket-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ticket-card .ticket-meta .tag {
+  font-size: 10px; padding: 2px 7px; border-radius: 6px; font-weight: 500;
+}
+.tag-urgent { background: rgba(248,113,113,0.2); color: var(--red); }
+.tag-high { background: rgba(251,191,36,0.2); color: var(--amber); }
+.tag-medium { background: rgba(74,109,181,0.2); color: var(--blue); }
+.tag-low { background: rgba(136,136,170,0.2); color: var(--muted); }
+.tag-client { background: rgba(52,211,153,0.15); color: var(--green); }
+.tag-internal { background: rgba(167,139,250,0.15); color: var(--purple); }
+.ticket-card .ticket-due { font-size: 10px; color: var(--muted); }
+.ticket-card .ticket-due.overdue { color: var(--red); font-weight: 600; }
+.ticket-card .ticket-assignee { font-size: 10px; color: var(--muted); margin-top: 6px; }
+.ticket-card .ticket-client-tag { font-size: 10px; color: var(--sky); margin-top: 4px; }
+/* Ticket detail modal */
+.ticket-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.ticket-modal {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  width: 600px; max-width: 95vw; max-height: 85vh; overflow-y: auto; padding: 28px;
+}
+.ticket-modal h3 { font-size: 18px; margin-bottom: 16px; }
+.ticket-modal label { display: block; font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 4px; margin-top: 14px; }
+.ticket-modal input, .ticket-modal select, .ticket-modal textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 12px; font-size: 13px; font-family: inherit;
+}
+.ticket-modal input:focus, .ticket-modal select:focus, .ticket-modal textarea:focus { outline: none; border-color: var(--royal); }
+.ticket-modal textarea { min-height: 80px; resize: vertical; }
+.ticket-modal .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ticket-modal .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.ticket-comments { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.ticket-comments .comment { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.ticket-comments .comment:last-child { border-bottom: none; }
+.ticket-comments .comment .comment-meta { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.ticket-status-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.ticket-status-pills button {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); padding: 5px 12px; font-size: 11px; cursor: pointer; transition: all 0.2s;
+}
+.ticket-status-pills button:hover { color: var(--text); border-color: var(--royal); }
+.ticket-status-pills button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
 
 /* ─── CRM Page ─── */
 .crm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
@@ -297,12 +385,21 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 <div class="shell">
   <nav>
     <div class="logo" style="display:flex;align-items:center;gap:10px">
-      <img src="/prism-mark.png" alt="" style="width:28px;height:28px">
-      <div><h1 style="font-size:14px;letter-spacing:0.5px">PRISM AI</h1><span>Analytics</span></div>
+      <img src="/prism-mark.png" alt="" style="width:24px;height:24px">
+      <div style="line-height:1.2">
+        <div style="font-size:15px;font-weight:700;color:var(--white);letter-spacing:1px">PRISM</div>
+        <div style="font-size:11px;font-weight:500;color:var(--sky);letter-spacing:0.5px">AI Analytics</div>
+      </div>
     </div>
     <div class="nav-section">Overview</div>
     <a href="javascript:void(0)" class="active" data-page="dashboard" onclick="showPage('dashboard', this)">&#9671; Dashboard</a>
     <a href="javascript:void(0)" data-page="daily-review" onclick="showPage('daily-review', this)">&#9783; Daily Review</a>
+    <div class="nav-section">Operations</div>
+    <a href="javascript:void(0)" data-page="tickets" onclick="showPage('tickets', this)">&#9776; Tickets</a>
+    <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">&#9881; Services</a>
+    <a href="javascript:void(0)" data-page="drive" onclick="showPage('drive', this)">&#9744; Prism Shared Drive</a>
+    <div class="nav-section">Team</div>
+    <a href="javascript:void(0)" data-page="training" onclick="showPage('training', this)">&#9733; Training</a>
     <div class="nav-section">Business</div>
     <a href="javascript:void(0)" data-page="clients" onclick="showPage('clients', this)">&#9673; Clients</a>
     <a href="javascript:void(0)" data-page="crm" onclick="showPage('crm', this)">&#9830; CRM</a>
@@ -312,11 +409,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <a href="javascript:void(0)" data-page="invoices" onclick="showPage('invoices', this)">&#9633; Invoices</a>
     <a href="javascript:void(0)" data-page="expenses" onclick="showPage('expenses', this)">&#8853; Expenses</a>
     <a href="javascript:void(0)" data-page="time" onclick="showPage('time', this)">&#9201; Time</a>
-    <div class="nav-section">Operations</div>
-    <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">&#9881; Services</a>
-    <a href="javascript:void(0)" data-page="drive" onclick="showPage('drive', this)">&#9744; Prism Shared Drive</a>
-    <div class="nav-section">Team</div>
-    <a href="javascript:void(0)" data-page="training" onclick="showPage('training', this)">&#9733; Training</a>
     <div class="nav-user" id="nav-user" style="display:none">
       <div><span class="name" id="nav-username"></span></div>
       <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
@@ -407,27 +499,35 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="page-training" class="page">
       <div class="page-header">
         <h2>Training Tracker</h2>
-        <p>CCA certification prep and professional development progress</p>
+        <p>Claude Certified Architect — Foundations Certification Progress</p>
       </div>
       <div class="training-member-tabs" id="training-member-tabs"></div>
       <div class="training-stats" id="training-stats"></div>
-      <div class="grid-2">
-        <div class="card">
-          <h3>Certifications</h3>
-          <div id="training-certs" class="scroll-y"></div>
-        </div>
-        <div class="card">
-          <h3>Study Notes <span class="badge" id="training-note-count">0</span></h3>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <textarea id="training-note-input" placeholder="Add a study note..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px"></textarea>
-            <button class="btn-primary" style="white-space:nowrap;align-self:flex-end" onclick="addTrainingNote()">Add</button>
-          </div>
-          <div id="training-notes" class="scroll-y" style="max-height:300px"></div>
-        </div>
-      </div>
-      <div id="training-programs"></div>
+      <div id="training-checklist"></div>
     </div>
     <!-- SERVICES -->
+    <!-- TICKETS -->
+    <div id="page-tickets" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>Tickets</h2><p>Task management — track client and internal work items</p></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="ticket-views" id="ticket-view-toggle">
+            <button class="active" onclick="ticketSetView('kanban', this)">&#9635; Board</button>
+            <button onclick="ticketSetView('list', this)">&#9776; List</button>
+          </div>
+          <button class="btn-primary" onclick="ticketShowCreateModal()">+ New Ticket</button>
+        </div>
+      </div>
+      <div id="ticket-kpis" class="ticket-kpi-grid"></div>
+      <div class="ticket-status-pills" id="ticket-type-filters">
+        <button class="active" onclick="ticketFilterType('all', this)">All</button>
+        <button onclick="ticketFilterType('client', this)">Client</button>
+        <button onclick="ticketFilterType('internal', this)">Internal</button>
+      </div>
+      <div id="tickets-kanban" class="kanban-board"></div>
+      <div id="tickets-list" class="card" style="display:none"><div id="tickets-list-table" class="scroll-y" style="max-height:600px"></div></div>
+    </div>
+
     <div id="page-services" class="page">
       <div class="page-header"><h2>Services</h2><p>Service catalog and pricing</p></div>
       <div class="card"><div id="services-table"></div></div>
@@ -1560,6 +1660,295 @@ async function crmSubmitEdit(id) {
 
 // ═══════════════════════════════════════════════════════════════
 
+// --- TICKETS ---
+let ticketView = 'kanban';
+let ticketTypeFilter = 'all';
+let allTickets = [];
+
+loaders.tickets = async () => {
+  const [ticketRes, summaryRes] = await Promise.all([api('tickets'), api('tickets/summary')]);
+  allTickets = ticketRes.tickets || [];
+  const s = summaryRes;
+
+  // KPIs
+  $('#ticket-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total Tickets</div><div class="value">${s.total || 0}</div></div>
+    <div class="kpi"><div class="label">Open</div><div class="value" style="color:var(--blue)">${s.open || 0}</div></div>
+    <div class="kpi"><div class="label">Overdue</div><div class="value text-red">${s.overdue || 0}</div></div>
+    <div class="kpi"><div class="label">Done This Week</div><div class="value text-green">${s.completedThisWeek || 0}</div></div>
+    <div class="kpi"><div class="label">Client Tasks</div><div class="value" style="color:var(--green)">${(s.byType || []).find(t => t.ticket_type === 'client')?.count || 0}</div></div>
+    <div class="kpi"><div class="label">Internal Tasks</div><div class="value" style="color:var(--purple)">${(s.byType || []).find(t => t.ticket_type === 'internal')?.count || 0}</div></div>
+  `;
+
+  ticketRender();
+};
+
+function ticketRender() {
+  const filtered = ticketTypeFilter === 'all' ? allTickets : allTickets.filter(t => t.ticket_type === ticketTypeFilter);
+  if (ticketView === 'kanban') {
+    $('#tickets-kanban').style.display = 'flex';
+    $('#tickets-list').style.display = 'none';
+    ticketRenderKanban(filtered);
+  } else {
+    $('#tickets-kanban').style.display = 'none';
+    $('#tickets-list').style.display = 'block';
+    ticketRenderList(filtered);
+  }
+}
+
+function ticketSetView(view, el) {
+  ticketView = view;
+  $$('#ticket-view-toggle button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  ticketRender();
+}
+
+function ticketFilterType(type, el) {
+  ticketTypeFilter = type;
+  $$('#ticket-type-filters button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  ticketRender();
+}
+
+function ticketCard(t) {
+  const today = new Date().toISOString().split('T')[0];
+  const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
+  return `<div class="ticket-card" onclick="ticketShowDetail('${t.id}')">
+    <div class="ticket-title">${t.title}</div>
+    <div class="ticket-meta">
+      <span class="tag tag-${t.priority}">${t.priority}</span>
+      <span class="tag tag-${t.ticket_type}">${t.ticket_type}</span>
+      ${t.due_date ? `<span class="ticket-due ${isOverdue ? 'overdue' : ''}">${isOverdue ? '⚠ ' : ''}${fmtDate(t.due_date)}</span>` : ''}
+    </div>
+    ${t.client_name ? `<div class="ticket-client-tag">↳ ${t.client_name}${t.project_name ? ' / ' + t.project_name : ''}</div>` : ''}
+    ${t.assignee_name ? `<div class="ticket-assignee">→ ${t.assignee_name}</div>` : ''}
+  </div>`;
+}
+
+function ticketRenderKanban(tickets) {
+  const cols = ['backlog', 'todo', 'in_progress', 'review', 'done'];
+  const labels = { backlog: 'Backlog', todo: 'To Do', in_progress: 'In Progress', review: 'Review', done: 'Done' };
+  let html = '';
+  for (const col of cols) {
+    const items = tickets.filter(t => t.status === col);
+    html += `<div class="kanban-col col-${col}">
+      <div class="kanban-col-header">
+        <span class="col-title">${labels[col]}</span>
+        <span class="col-count">${items.length}</span>
+      </div>
+      <div class="kanban-cards" data-status="${col}"
+        ondragover="event.preventDefault(); this.style.background='rgba(74,109,181,0.08)'"
+        ondragleave="this.style.background=''"
+        ondrop="ticketDrop(event, '${col}'); this.style.background=''">
+        ${items.map(t => `<div draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${t.id}')">${ticketCard(t)}</div>`).join('')}
+      </div>
+    </div>`;
+  }
+  $('#tickets-kanban').innerHTML = html;
+}
+
+function ticketRenderList(tickets) {
+  if (!tickets.length) { $('#tickets-list-table').innerHTML = '<p style="color:var(--muted);padding:20px">No tickets yet — create your first one.</p>'; return; }
+  const today = new Date().toISOString().split('T')[0];
+  let html = `<table><thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Client / Project</th><th>Due</th><th></th></tr></thead><tbody>`;
+  for (const t of tickets) {
+    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
+    html += `<tr style="cursor:pointer" onclick="ticketShowDetail('${t.id}')">
+      <td style="font-weight:600">${t.title}</td>
+      <td><span class="tag tag-${t.ticket_type}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.ticket_type}</span></td>
+      <td>${badge(t.status)}</td>
+      <td><span class="tag tag-${t.priority}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.priority}</span></td>
+      <td style="color:var(--muted)">${t.assignee_name || '—'}</td>
+      <td style="color:var(--sky)">${t.client_name || '—'}${t.project_name ? ' / ' + t.project_name : ''}</td>
+      <td class="${isOverdue ? 'text-red' : ''}">${t.due_date ? fmtDate(t.due_date) : '—'}</td>
+      <td><button class="btn-sm btn-danger" onclick="event.stopPropagation();ticketDelete('${t.id}')">✕</button></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  $('#tickets-list-table').innerHTML = html;
+}
+
+async function ticketDrop(event, newStatus) {
+  event.preventDefault();
+  const id = event.dataTransfer.getData('text/plain');
+  if (!id) return;
+  const res = await fetch('/api/tickets/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SESSION_TOKEN}` },
+    body: JSON.stringify({ status: newStatus })
+  });
+  const data = await res.json();
+  if (data.ok) { toast(`Moved to ${newStatus.replace(/_/g, ' ')}`); loaders.tickets(); }
+}
+
+async function ticketShowCreateModal() {
+  // Fetch clients, projects, team members for dropdowns
+  const [clientsRes, projectsRes] = await Promise.all([api('crm'), api('projects')]);
+  const clients = (clientsRes.customers || clientsRes.clients || []).filter(c => c.is_active !== 0);
+  const projects = projectsRes.projects || [];
+  // Try team members
+  let teamMembers = [];
+  try { const tmRes = await api('team'); teamMembers = tmRes.members || tmRes || []; } catch(e) {}
+
+  const modal = document.createElement('div');
+  modal.id = 'ticket-create-modal';
+  modal.className = 'ticket-modal-overlay';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div class="ticket-modal">
+    <h3>New Ticket</h3>
+    <label>Title *</label>
+    <input id="tk-title" placeholder="What needs to be done?">
+    <label>Description</label>
+    <textarea id="tk-desc" placeholder="Details, context, acceptance criteria..."></textarea>
+    <div class="modal-row">
+      <div><label>Type</label><select id="tk-type"><option value="internal">Internal</option><option value="client">Client</option></select></div>
+      <div><label>Priority</label><select id="tk-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+    </div>
+    <div class="modal-row">
+      <div><label>Status</label><select id="tk-status"><option value="backlog">Backlog</option><option value="todo" selected>To Do</option><option value="in_progress">In Progress</option></select></div>
+      <div><label>Due Date</label><input id="tk-due" type="date"></div>
+    </div>
+    <div class="modal-row">
+      <div><label>Client (optional)</label><select id="tk-client"><option value="">— None —</option>${clients.map(c => `<option value="${c.id}">${c.company_name || c.crm_contact_name || c.id}</option>`).join('')}</select></div>
+      <div><label>Project (optional)</label><select id="tk-project"><option value="">— None —</option>${projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-row">
+      <div><label>Assigned To</label><select id="tk-assign"><option value="">— Unassigned —</option>${Array.isArray(teamMembers) ? teamMembers.map(m => `<option value="${m.id}">${m.first_name} ${m.last_name}</option>`).join('') : ''}</select></div>
+      <div><label>Category</label><select id="tk-cat"><option value="general">General</option><option value="development">Development</option><option value="marketing">Marketing</option><option value="sales">Sales</option><option value="admin">Admin</option><option value="support">Support</option><option value="training">Training</option></select></div>
+    </div>
+    <label>Tags (comma-separated)</label>
+    <input id="tk-tags" placeholder="e.g. urgent, sprint-3, onboarding">
+    <div class="modal-actions">
+      <button class="btn-sm" style="padding:9px 18px;font-size:13px" onclick="document.getElementById('ticket-create-modal').remove()">Cancel</button>
+      <button class="btn-primary" style="padding:9px 22px;font-size:13px" onclick="ticketCreate()">Create Ticket</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('tk-title').focus();
+}
+
+async function ticketCreate() {
+  const title = document.getElementById('tk-title').value.trim();
+  if (!title) { toast('Title is required', true); return; }
+  const body = {
+    title,
+    description: document.getElementById('tk-desc').value.trim() || null,
+    ticket_type: document.getElementById('tk-type').value,
+    priority: document.getElementById('tk-priority').value,
+    status: document.getElementById('tk-status').value,
+    due_date: document.getElementById('tk-due').value || null,
+    client_id: document.getElementById('tk-client').value || null,
+    project_id: document.getElementById('tk-project').value || null,
+    assigned_to: document.getElementById('tk-assign').value || null,
+    category: document.getElementById('tk-cat').value,
+    tags: document.getElementById('tk-tags').value.trim() || null,
+  };
+  const res = await fetch('/api/tickets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SESSION_TOKEN}` },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.ok) {
+    document.getElementById('ticket-create-modal').remove();
+    toast('Ticket created');
+    loaders.tickets();
+  } else {
+    toast(data.error || 'Failed to create ticket', true);
+  }
+}
+
+async function ticketShowDetail(id) {
+  const ticket = allTickets.find(t => t.id === id);
+  if (!ticket) return;
+  // Load comments
+  let comments = [];
+  try { const cRes = await api(`tickets/${id}/comments`); comments = cRes.comments || []; } catch(e) {}
+
+  const statuses = ['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'];
+  const priorities = ['low', 'medium', 'high', 'urgent'];
+
+  const modal = document.createElement('div');
+  modal.id = 'ticket-detail-modal';
+  modal.className = 'ticket-modal-overlay';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div class="ticket-modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <h3 style="flex:1;margin-right:12px">${ticket.title}</h3>
+      <button class="btn-sm btn-danger" onclick="ticketDelete('${id}');document.getElementById('ticket-detail-modal')?.remove()">Delete</button>
+    </div>
+    ${ticket.description ? `<p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">${ticket.description}</p>` : ''}
+    <div class="modal-row">
+      <div><label>Status</label><select id="td-status" onchange="ticketQuickUpdate('${id}','status',this.value)">${statuses.map(s => `<option value="${s}" ${s === ticket.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}</select></div>
+      <div><label>Priority</label><select id="td-priority" onchange="ticketQuickUpdate('${id}','priority',this.value)">${priorities.map(p => `<option value="${p}" ${p === ticket.priority ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-row" style="margin-top:10px">
+      <div><label>Type</label><span class="tag tag-${ticket.ticket_type}" style="font-size:12px;padding:3px 10px;border-radius:6px">${ticket.ticket_type}</span></div>
+      <div><label>Due Date</label><span style="font-size:13px">${ticket.due_date ? fmtDate(ticket.due_date) : '—'}</span></div>
+    </div>
+    ${ticket.client_name ? `<div style="margin-top:10px"><label>Client</label><span style="font-size:13px;color:var(--sky)">${ticket.client_name}${ticket.project_name ? ' → ' + ticket.project_name : ''}</span></div>` : ''}
+    ${ticket.assignee_name ? `<div style="margin-top:10px"><label>Assigned To</label><span style="font-size:13px">${ticket.assignee_name}</span></div>` : ''}
+    ${ticket.tags ? `<div style="margin-top:10px"><label>Tags</label><span style="font-size:12px;color:var(--muted)">${ticket.tags}</span></div>` : ''}
+    <div style="margin-top:10px;font-size:11px;color:var(--muted)">Created ${fmtDate(ticket.created_at?.split('T')[0])}${ticket.created_by ? ' by ' + ticket.created_by : ''}</div>
+
+    <div class="ticket-comments">
+      <h3 style="font-size:13px;margin-bottom:10px">Comments</h3>
+      <div id="td-comments">
+        ${comments.length ? comments.map(c => `<div class="comment"><div class="comment-meta">${c.author || 'system'} · ${fmtDate(c.created_at?.split('T')[0])}</div>${c.comment}</div>`).join('') : '<p style="color:var(--muted);font-size:12px">No comments yet</p>'}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="td-new-comment" placeholder="Add a comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit">
+        <button class="btn-primary" style="padding:8px 16px;font-size:12px" onclick="ticketAddComment('${id}')">Post</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-sm" style="padding:9px 18px;font-size:13px" onclick="document.getElementById('ticket-detail-modal').remove()">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function ticketQuickUpdate(id, field, value) {
+  const res = await fetch('/api/tickets/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SESSION_TOKEN}` },
+    body: JSON.stringify({ [field]: value })
+  });
+  const data = await res.json();
+  if (data.ok) { toast(`Updated ${field.replace(/_/g, ' ')}`); loaders.tickets(); }
+}
+
+async function ticketAddComment(id) {
+  const input = document.getElementById('td-new-comment');
+  const comment = input.value.trim();
+  if (!comment) return;
+  const res = await fetch(`/api/tickets/${id}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SESSION_TOKEN}` },
+    body: JSON.stringify({ comment })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    input.value = '';
+    const commentsHtml = (data.comments || []).map(c => `<div class="comment"><div class="comment-meta">${c.author || 'system'} · ${fmtDate(c.created_at?.split('T')[0])}</div>${c.comment}</div>`).join('');
+    document.getElementById('td-comments').innerHTML = commentsHtml || '<p style="color:var(--muted);font-size:12px">No comments yet</p>';
+    toast('Comment posted');
+  }
+}
+
+async function ticketDelete(id) {
+  if (!confirm('Delete this ticket?')) return;
+  const res = await fetch('/api/tickets/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${SESSION_TOKEN}` }
+  });
+  const data = await res.json();
+  if (data.ok) { toast('Ticket deleted'); loaders.tickets(); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+
 // --- SERVICES ---
 loaders.services = async () => {
   const svcs = await api('services');
@@ -1920,97 +2309,274 @@ loaders['daily-review'] = async () => {
 // ═══════════════════════════════════════════════════════════════
 // --- TRAINING ---
 let trainingMembers = [];
-let trainingSelectedMember = null;
+let trainingSelectedMember = 'michele';
+const ccaCollapsed = {};
+
+const CCA_CHECKLIST = {
+  members: [
+    { id: 'michele', name: 'Michele Fisher' },
+    { id: 'izayah', name: 'Izayah Fisher' }
+  ],
+  domains: [
+    { id: 'agentic', name: 'Agentic Architecture & Orchestration', weight: 27, color: 'var(--blue)', items: [
+      'Multi-step agent workflow design',
+      'Autonomous system architecture',
+      'Hub-and-spoke orchestration models',
+      'Task decomposition patterns',
+      'Agent handoff and delegation',
+      'Error recovery in agent pipelines',
+      'Parallel vs sequential agent execution'
+    ]},
+    { id: 'claude_code', name: 'Claude Code Configuration & Workflows', weight: 20, color: 'var(--green)', items: [
+      'CLAUDE.md hierarchy and configuration',
+      'Custom slash commands',
+      'CI/CD pipeline integration',
+      'Development environment setup',
+      'Hooks and automation',
+      'Claude Code SDK usage',
+      'Automated workflow patterns'
+    ]},
+    { id: 'prompt_eng', name: 'Prompt Engineering & Structured Output', weight: 20, color: 'var(--purple)', items: [
+      'JSON schema enforcement',
+      'Few-shot technique mastery',
+      'Validation and retry loops',
+      'Structured response formatting',
+      'System prompt design patterns',
+      'Chain-of-thought prompting',
+      'Output reliability strategies'
+    ]},
+    { id: 'mcp', name: 'Tool Design & MCP Integration', weight: 18, color: 'var(--amber)', items: [
+      'MCP server architecture',
+      'Tool boundary design',
+      'Preventing reasoning overload',
+      'MCP protocol fundamentals',
+      'Tool input/output schemas',
+      'Server deployment patterns',
+      'Multi-tool coordination'
+    ]},
+    { id: 'context', name: 'Context Management & Reliability', weight: 15, color: 'var(--red)', items: [
+      'Long-context preservation',
+      'Handoff patterns',
+      'Confidence calibration',
+      'Context window optimization',
+      'Failure handling strategies',
+      'System consistency techniques',
+      'Memory and state management'
+    ]}
+  ],
+  courses: [
+    { id: 'ai_fluency', name: 'AI Fluency: Framework & Foundations', provider: 'Anthropic Academy', hours: 4, enrolled: '2025-10-13', totalLessons: 15 },
+    { id: 'api_apps', name: 'Building with the Claude API', provider: 'Anthropic Academy', hours: 5, enrolled: '2026-03-27', totalLessons: 85 },
+    { id: 'claude101', name: 'Claude 101', provider: 'Anthropic Academy', hours: 3, enrolled: '2026-03-27', totalLessons: 14 },
+    { id: 'claude_code_dev', name: 'Claude Code in Action', provider: 'Anthropic Academy', hours: 6, enrolled: '2026-03-27', totalLessons: 21 },
+    { id: 'intro_cowork', name: 'Introduction to Claude Cowork', provider: 'Anthropic Academy', hours: 2, enrolled: '2026-03-27', totalLessons: 11 },
+  ]
+};
+
+function getTrainingState() {
+  try { return JSON.parse(localStorage.getItem('prism_cca_progress') || '{}'); } catch(e) { return {}; }
+}
+function saveTrainingState(state) {
+  localStorage.setItem('prism_cca_progress', JSON.stringify(state));
+}
+function getCustomCourses() {
+  try { return JSON.parse(localStorage.getItem('prism_custom_courses') || '[]'); } catch(e) { return []; }
+}
+function saveCustomCourses(list) {
+  localStorage.setItem('prism_custom_courses', JSON.stringify(list));
+}
+function getCourseList() {
+  const hidden = JSON.parse(localStorage.getItem('prism_hidden_courses') || '[]');
+  const defaults = CCA_CHECKLIST.courses.filter(function(c) { return hidden.indexOf(c.id) === -1; });
+  return defaults.concat(getCustomCourses());
+}
+
+function showAddRegistration() {
+  const overlay = document.createElement('div');
+  overlay.className = 'ticket-modal-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  const today = new Date().toISOString().split('T')[0];
+  overlay.innerHTML = '<div class="ticket-modal" style="max-width:440px">' +
+    '<div class="ticket-modal-header"><h3>Add Registration</h3><span class="ticket-modal-close" onclick="this.closest(\'.ticket-modal-overlay\').remove()">&times;</span></div>' +
+    '<div class="ticket-modal-body">' +
+    '<div class="form-group"><label>Course Name *</label><input type="text" id="reg-name" class="form-control" placeholder="e.g. Advanced Prompt Engineering"></div>' +
+    '<div class="form-group"><label>Provider</label><input type="text" id="reg-provider" class="form-control" value="Anthropic Academy" placeholder="e.g. Anthropic Academy"></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">' +
+    '<div class="form-group"><label>Total Lessons</label><input type="number" id="reg-lessons" class="form-control" value="10" min="1"></div>' +
+    '<div class="form-group"><label>Hours</label><input type="number" id="reg-hours" class="form-control" value="3" min="1"></div>' +
+    '<div class="form-group"><label>Enrolled</label><input type="date" id="reg-date" class="form-control" value="' + today + '"></div>' +
+    '</div>' +
+    '</div>' +
+    '<div class="ticket-modal-footer"><button class="btn-primary" onclick="addRegistration()">Add Course</button></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  setTimeout(function() { document.getElementById('reg-name').focus(); }, 100);
+}
+
+function addRegistration() {
+  const name = document.getElementById('reg-name').value.trim();
+  if (!name) { alert('Course name is required'); return; }
+  const provider = document.getElementById('reg-provider').value.trim() || 'Custom';
+  const totalLessons = parseInt(document.getElementById('reg-lessons').value, 10) || 10;
+  const hours = parseInt(document.getElementById('reg-hours').value, 10) || 3;
+  const enrolled = document.getElementById('reg-date').value || new Date().toISOString().split('T')[0];
+  const id = 'custom_' + Date.now();
+  const custom = getCustomCourses();
+  custom.push({ id: id, name: name, provider: provider, hours: hours, enrolled: enrolled, totalLessons: totalLessons });
+  saveCustomCourses(custom);
+  document.querySelector('.ticket-modal-overlay').remove();
+  loaders.training();
+}
+
+function removeRegistration(courseId) {
+  if (!confirm('Remove this registration?')) return;
+  // If it's a custom course, remove from custom list
+  if (courseId.startsWith('custom_')) {
+    const custom = getCustomCourses().filter(function(c) { return c.id !== courseId; });
+    saveCustomCourses(custom);
+  } else {
+    // For default courses, store a hidden flag
+    const hidden = JSON.parse(localStorage.getItem('prism_hidden_courses') || '[]');
+    if (hidden.indexOf(courseId) === -1) hidden.push(courseId);
+    localStorage.setItem('prism_hidden_courses', JSON.stringify(hidden));
+  }
+  // Clean up progress data for this course
+  const state = getTrainingState();
+  Object.keys(state).forEach(function(memberId) {
+    delete state[memberId]['c_' + courseId];
+    delete state[memberId]['c_' + courseId + '_lessons'];
+  });
+  saveTrainingState(state);
+  loaders.training();
+}
 
 loaders.training = async () => {
-  const programsRes = await api('training/programs');
-  if (!programsRes.programs) return;
-  const programs = programsRes.programs;
+  const state = getTrainingState();
+  const memberId = trainingSelectedMember;
+  const ms = state[memberId] || {};
 
-  if (programs.length > 0) {
-    const compareRes = await api('training/compare/' + programs[0].id);
-    if (compareRes.comparison) trainingMembers = compareRes.comparison.map(c => c.member);
-  }
-
-  if (trainingMembers.length > 0 && !trainingSelectedMember) trainingSelectedMember = trainingMembers[0].id;
-  $('#training-member-tabs').innerHTML = trainingMembers.map(m =>
-    '<button class="' + (m.id === trainingSelectedMember ? 'active' : '') + '" onclick="selectTrainingMember(\'' + m.id + '\')">' + m.first_name + ' ' + m.last_name + '</button>'
+  // Member tabs
+  $('#training-member-tabs').innerHTML = CCA_CHECKLIST.members.map(m =>
+    '<button class="' + (m.id === memberId ? 'active' : '') + '" onclick="selectTrainingMember(\'' + m.id + '\')">' + m.name + '</button>'
   ).join('');
 
-  if (!trainingSelectedMember) return;
-
-  // Certs
-  const certsRes = await api('certifications');
-  const allCerts = certsRes.certifications || [];
-  const myCerts = allCerts.filter(c => c.team_member_id === trainingSelectedMember);
-  $('#training-certs').innerHTML = myCerts.length === 0
-    ? '<div style="color:var(--muted);padding:12px;font-size:13px">No certifications yet</div>'
-    : myCerts.map(c => '<div class="cert-card"><div><div class="cert-name">' + c.name + '</div><div class="cert-provider">' + (c.provider||'') + '</div></div><div style="margin-left:auto">' + badge(c.status) + '</div></div>').join('');
-
-  // Notes
-  if (programs.length > 0) {
-    const notesRes = await api('training/notes/' + programs[0].id + '/' + trainingSelectedMember);
-    const notes = notesRes.notes || [];
-    $('#training-note-count').textContent = notes.length;
-    $('#training-notes').innerHTML = notes.length === 0
-      ? '<div style="color:var(--muted);font-size:13px;padding:8px 0">No notes yet</div>'
-      : notes.map(n => '<div style="padding:10px 0;border-bottom:1px solid var(--border);font-size:13px"><div>' + n.note + '</div><div style="font-size:11px;color:var(--muted);margin-top:4px;display:flex;gap:10px;align-items:center">' + badge(n.domain_tag) + ' <span>' + fmtDate((n.created_at||'').split('T')[0]) + '</span> <button class="btn-sm btn-danger" onclick="deleteTrainingNote(\'' + n.id + '\')">Delete</button></div></div>').join('');
-  }
-
-  // Programs
-  let programsHtml = '';
-  for (const prog of programs) {
-    const fullRes = await api('training/programs/' + prog.id);
-    if (!fullRes.program) continue;
-    const progressRes = await api('training/progress/' + prog.id + '/' + trainingSelectedMember);
-    const doneSet = new Set((progressRes.completed || []).map(c => c.topic_id));
-    let tTotal = 0, tDone = 0;
-    let domHtml = '';
-    (fullRes.domains || []).forEach(d => {
-      const dTopics = (fullRes.topics || []).filter(t => t.domain_id === d.id);
-      const dDone = dTopics.filter(t => doneSet.has(t.id)).length;
-      tTotal += dTopics.length; tDone += dDone;
-      const pct = dTopics.length > 0 ? Math.round(dDone/dTopics.length*100) : 0;
-      domHtml += '<div class="domain-section"><div class="domain-header"><div class="dot" style="background:' + (d.color||'var(--royal)') + '"></div><span class="domain-name">' + d.name + '</span><span class="domain-weight">' + d.weight + '%</span><span class="domain-pct">' + dDone + '/' + dTopics.length + ' (' + pct + '%)</span></div><div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%;background:' + (d.color||'var(--royal)') + '"></div></div><div style="margin-top:8px">';
-      dTopics.forEach(t => {
-        const done = doneSet.has(t.id);
-        domHtml += '<div class="topic-row"><input type="checkbox" id="tp-' + t.id + '" ' + (done?'checked':'') + ' onchange="toggleTopic(\'' + t.id + '\',this.checked)"><label for="tp-' + t.id + '" class="' + (done?'done':'') + '">' + t.name + '</label></div>';
-      });
-      domHtml += '</div></div>';
+  // Count totals
+  let totalItems = 0, doneItems = 0;
+  CCA_CHECKLIST.domains.forEach(d => {
+    d.items.forEach((item, i) => {
+      totalItems++;
+      if (ms['d_' + d.id + '_' + i]) doneItems++;
     });
-    const oPct = tTotal > 0 ? Math.round(tDone/tTotal*100) : 0;
-    programsHtml += '<div class="card" style="margin-top:16px"><h3>' + prog.name + ' <span class="badge">' + oPct + '%</span></h3><p style="font-size:12px;color:var(--muted);margin-bottom:16px">' + (prog.description||'') + '</p><div class="progress-bar" style="margin-bottom:16px"><div class="progress-fill" style="width:' + oPct + '%"></div></div>' + domHtml + '</div>';
-  }
+  });
+  const allCoursesForCount = getCourseList();
+  allCoursesForCount.forEach(c => {
+    totalItems++;
+    if (ms['c_' + c.id]) doneItems++;
+  });
+  const overallPct = totalItems > 0 ? Math.round(doneItems / totalItems * 100) : 0;
+
+  // Count domain + course completion
+  let domainsComplete = 0;
+  CCA_CHECKLIST.domains.forEach(d => {
+    const all = d.items.every((_, i) => ms['d_' + d.id + '_' + i]);
+    if (all) domainsComplete++;
+  });
+  let coursesComplete = 0;
+  allCoursesForCount.forEach(c => { if (ms['c_' + c.id]) coursesComplete++; });
 
   // Stats
-  const st = programs[0] ? await api('training/compare/' + programs[0].id) : { comparison: [] };
-  const my = (st.comparison||[]).find(c => c.member.id === trainingSelectedMember);
-  const sDone = my ? my.totalDone : 0, sTotal = my ? my.totalTopics : 0;
-  const sPct = sTotal > 0 ? Math.round(sDone/sTotal*100) : 0;
-  $('#training-stats').innerHTML = '<div class="training-stat"><div class="stat-value">' + sPct + '%</div><div class="stat-label">Overall Progress</div></div><div class="training-stat"><div class="stat-value">' + sDone + '/' + sTotal + '</div><div class="stat-label">Topics Completed</div></div><div class="training-stat"><div class="stat-value">' + myCerts.length + '</div><div class="stat-label">Certifications</div></div><div class="training-stat"><div class="stat-value">' + myCerts.filter(c=>c.status==='completed').length + '</div><div class="stat-label">Certs Earned</div></div>';
-  $('#training-programs').innerHTML = programsHtml;
+  $('#training-stats').innerHTML =
+    '<div class="training-stat"><div class="stat-value">' + overallPct + '%</div><div class="stat-label">Overall Progress</div></div>' +
+    '<div class="training-stat"><div class="stat-value">' + doneItems + '/' + totalItems + '</div><div class="stat-label">Items Complete</div></div>' +
+    '<div class="training-stat"><div class="stat-value">' + domainsComplete + '/5</div><div class="stat-label">Domains Mastered</div></div>' +
+    '<div class="training-stat"><div class="stat-value">' + coursesComplete + '/5</div><div class="stat-label">Courses Done</div></div>';
+
+  // Registrations table (top)
+  let coursesHtml = '<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">Registrations <span class="badge">' + coursesComplete + '/' + CCA_CHECKLIST.courses.length + ' complete</span></h3><button class="btn-primary" onclick="showAddRegistration()" style="font-size:12px;padding:6px 14px">+ Add Registration</button></div>';
+  coursesHtml += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  coursesHtml += '<thead><tr style="border-bottom:1px solid var(--border);text-align:left">';
+  coursesHtml += '<th style="padding:8px 10px;color:var(--muted);font-weight:500;width:30px"></th>';
+  coursesHtml += '<th style="padding:8px 10px;color:var(--muted);font-weight:500">Course</th>';
+  coursesHtml += '<th style="padding:8px 10px;color:var(--muted);font-weight:500">Enrolled</th>';
+  coursesHtml += '<th style="padding:8px 10px;color:var(--muted);font-weight:500">Lessons</th>';
+  coursesHtml += '<th style="padding:8px 10px;color:var(--muted);font-weight:500">Status</th>';
+  coursesHtml += '<th style="padding:8px 10px;color:var(--muted);font-weight:500;text-align:right">Hours</th>';
+  coursesHtml += '<th style="padding:8px 10px;width:30px"></th>';
+  coursesHtml += '</tr></thead><tbody>';
+  const allCourses = getCourseList();
+  allCourses.forEach(c => {
+    const checked = ms['c_' + c.id] ? 'checked' : '';
+    const lessonsComplete = ms['c_' + c.id + '_lessons'] || 0;
+    const lessonPct = c.totalLessons > 0 ? Math.round(lessonsComplete / c.totalLessons * 100) : 0;
+    const isComplete = ms['c_' + c.id];
+    const statusBadge = isComplete ? '<span style="color:var(--green);font-weight:600">Complete</span>' : (lessonsComplete > 0 ? '<span style="color:var(--amber)">In Progress</span>' : '<span style="color:var(--muted)">Not Started</span>');
+    const enrollDate = c.enrolled ? new Date(c.enrolled).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '--';
+    coursesHtml += '<tr style="border-bottom:1px solid var(--border)">';
+    coursesHtml += '<td style="padding:10px"><input type="checkbox" id="cc-' + c.id + '" ' + checked + ' onchange="toggleCCA(\'' + memberId + '\',\'c_' + c.id + '\',this.checked)" style="margin:0"></td>';
+    coursesHtml += '<td style="padding:10px;font-weight:500">' + c.name + '</td>';
+    coursesHtml += '<td style="padding:10px;color:var(--muted)">' + enrollDate + '</td>';
+    coursesHtml += '<td style="padding:10px;min-width:150px">';
+    coursesHtml += '<div onclick="editLessonCount(\'' + memberId + '\',\'' + c.id + '\',' + c.totalLessons + ',' + lessonsComplete + ')" style="cursor:pointer" title="Click to update">';
+    coursesHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px;color:var(--muted)"><span>' + lessonsComplete + ' of ' + c.totalLessons + '</span><span>' + lessonPct + '%</span></div>';
+    coursesHtml += '<div class="progress-bar" style="height:5px"><div class="progress-fill" style="width:' + lessonPct + '%;background:var(--blue)"></div></div>';
+    coursesHtml += '</div></td>';
+    coursesHtml += '<td style="padding:10px">' + statusBadge + '</td>';
+    coursesHtml += '<td style="padding:10px;color:var(--muted);text-align:right">' + c.hours + 'h</td>';
+    coursesHtml += '<td style="padding:10px;text-align:center"><span onclick="removeRegistration(\'' + c.id + '\')" style="cursor:pointer;color:var(--muted);font-size:14px;opacity:0.5" title="Remove" onmouseover="this.style.opacity=1;this.style.color=\'var(--red)\'" onmouseout="this.style.opacity=0.5;this.style.color=\'var(--muted)\'">&times;</span></td>';
+    coursesHtml += '</tr>';
+  });
+  coursesHtml += '</tbody></table></div>';
+
+  // Domain cards
+  let domainsHtml = '';
+  CCA_CHECKLIST.domains.forEach(d => {
+    let dDone = 0;
+    d.items.forEach((_, i) => { if (ms['d_' + d.id + '_' + i]) dDone++; });
+    const dPct = d.items.length > 0 ? Math.round(dDone / d.items.length * 100) : 0;
+
+    const collapsed = ccaCollapsed[d.id] ? 'collapsed' : '';
+    const chevronCls = ccaCollapsed[d.id] ? 'chevron' : 'chevron open';
+    domainsHtml += '<div class="card" style="margin-top:16px"><div class="domain-header collapsible" onclick="toggleDomainCollapse(\'' + d.id + '\')"><span class="' + chevronCls + '">&#9654;</span><div class="dot" style="background:' + d.color + '"></div><span class="domain-name">' + d.name + '</span><span class="domain-weight">' + d.weight + '% of exam</span><span class="domain-pct">' + dDone + '/' + d.items.length + ' (' + dPct + '%)</span></div>';
+    domainsHtml += '<div class="progress-bar" style="margin-bottom:12px"><div class="progress-fill" style="width:' + dPct + '%;background:' + d.color + '"></div></div>';
+    domainsHtml += '<div class="domain-body ' + collapsed + '" style="max-height:500px">';
+    d.items.forEach((item, i) => {
+      const key = 'd_' + d.id + '_' + i;
+      const checked = ms[key] ? 'checked' : '';
+      domainsHtml += '<div class="topic-row"><input type="checkbox" id="ct-' + key + '" ' + checked + ' onchange="toggleCCA(\'' + memberId + '\',\'' + key + '\',this.checked)"><label for="ct-' + key + '" class="' + (checked ? 'done' : '') + '">' + item + '</label></div>';
+    });
+    domainsHtml += '</div></div>';
+  });
+
+  $('#training-checklist').innerHTML = coursesHtml + domainsHtml;
 };
 
 function selectTrainingMember(id) { trainingSelectedMember = id; loaders.training(); }
 
-async function toggleTopic(topicId, completed) {
-  await apiWrite('training/progress', 'POST', { team_member_id: trainingSelectedMember, topic_id: topicId, completed: completed });
+function toggleCCA(memberId, key, checked) {
+  const state = getTrainingState();
+  if (!state[memberId]) state[memberId] = {};
+  state[memberId][key] = checked;
+  saveTrainingState(state);
   loaders.training();
 }
 
-async function addTrainingNote() {
-  const input = $('#training-note-input');
-  const note = input.value.trim();
-  if (!note) return;
-  const pr = await api('training/programs');
-  const pid = pr.programs && pr.programs[0] ? pr.programs[0].id : null;
-  if (!pid) return;
-  await apiWrite('training/notes', 'POST', { team_member_id: trainingSelectedMember, program_id: pid, domain_tag: 'general', note: note });
-  input.value = '';
+function editLessonCount(memberId, courseId, totalLessons, currentCount) {
+  const input = prompt('Lessons completed for this course (out of ' + totalLessons + '):', currentCount);
+  if (input === null) return;
+  const val = parseInt(input, 10);
+  if (isNaN(val) || val < 0 || val > totalLessons) { alert('Please enter a number between 0 and ' + totalLessons); return; }
+  const state = getTrainingState();
+  if (!state[memberId]) state[memberId] = {};
+  state[memberId]['c_' + courseId + '_lessons'] = val;
+  if (val === totalLessons) state[memberId]['c_' + courseId] = true;
+  saveTrainingState(state);
   loaders.training();
 }
 
-async function deleteTrainingNote(id) { await apiWrite('training/notes/' + id, 'DELETE'); loaders.training(); }
+function toggleDomainCollapse(domainId) {
+  ccaCollapsed[domainId] = !ccaCollapsed[domainId];
+  loaders.training();
+}
 
 // ═══════════════════════════════════════════════════════════════
 // --- LOGIN / SESSION ---
