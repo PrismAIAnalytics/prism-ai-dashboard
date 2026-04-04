@@ -36,7 +36,16 @@ nav a:hover { color: var(--white); background: rgba(255,255,255,0.04); }
 nav a.active { color: var(--white); border-left-color: var(--blue); background: rgba(74,109,181,0.1); }
 nav .nav-section { font-size: 10px; text-transform: uppercase; color: var(--muted); padding: 16px 20px 6px; letter-spacing: 1px; }
 
-main { margin-left: 220px; flex: 1; padding: 24px 32px; }
+main { margin-left: 220px; flex: 1; padding: 24px 32px; min-width: 0; overflow: hidden; }
+
+/* Column resize handles */
+th.resizable { position: relative; }
+th.resizable .col-resize-handle {
+  position: absolute; right: -2px; top: 0; bottom: 0; width: 5px;
+  cursor: col-resize; z-index: 10; background: transparent;
+}
+th.resizable .col-resize-handle:hover,
+th.resizable .col-resize-handle.dragging { background: var(--blue); opacity: 0.6; }
 .page { display: none; }
 .page.active { display: block; }
 .page-header { margin-bottom: 24px; }
@@ -405,6 +414,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <a href="javascript:void(0)" data-page="crm" onclick="showPage('crm', this)">&#9830; CRM</a>
     <a href="javascript:void(0)" data-page="pipeline" onclick="showPage('pipeline', this)">&#9656; Pipeline</a>
     <a href="javascript:void(0)" data-page="projects" onclick="showPage('projects', this)">&#9635; Projects</a>
+    <div class="nav-section">Compliance</div>
+    <a href="javascript:void(0)" data-page="compliance" onclick="showPage('compliance', this)">&#9878; Security Baselines</a>
     <div class="nav-section">Finance</div>
     <a href="javascript:void(0)" data-page="invoices" onclick="showPage('invoices', this)">&#9633; Invoices</a>
     <a href="javascript:void(0)" data-page="expenses" onclick="showPage('expenses', this)">&#8853; Expenses</a>
@@ -526,6 +537,32 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       </div>
       <div id="tickets-kanban" class="kanban-board"></div>
       <div id="tickets-list" class="card" style="display:none"><div id="tickets-list-table" class="scroll-y" style="max-height:600px"></div></div>
+    </div>
+
+    <!-- SECURITY COMPLIANCE -->
+    <div id="page-compliance" class="page">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>Security Baseline Parameters</h2>
+          <p>CIS Benchmark &amp; DISA STIG product coverage, drift detection, and automation analysis</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="compliance-search" type="text" placeholder="Search products..." oninput="renderComplianceTable()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;width:220px;font-family:inherit">
+        </div>
+      </div>
+
+      <!-- KPI Summary -->
+      <div id="compliance-kpis" class="kpi-grid" style="grid-template-columns:repeat(6,1fr)"></div>
+
+      <!-- Main Table -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="compliance-table" style="overflow-x:auto;max-width:100%"></div>
+      </div>
+
+      <!-- Detail Panel (slide-in) -->
+      <div class="detail-overlay" id="compliance-overlay" onclick="complianceCloseDetail()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:89"></div>
+      <div id="compliance-detail" style="display:none;position:fixed;top:0;right:0;bottom:0;width:560px;background:var(--card);border-left:1px solid var(--border);z-index:90;overflow-y:auto;padding:28px;transition:transform 0.3s ease">
+      </div>
     </div>
 
     <div id="page-services" class="page">
@@ -1962,6 +1999,722 @@ loaders.services = async () => {
     </tr>`).join('')}</tbody>
   </table>`;
 };
+
+// ═══════════════════════════════════════════════════════════════
+// --- SECURITY COMPLIANCE ---
+// ═══════════════════════════════════════════════════════════════
+
+let complianceData = [];
+// Filter state (search only — category moved to table column)
+
+const driftColors = {
+  built_in: 'var(--green)', limited: 'var(--amber)', audit_log_only: 'var(--purple)',
+  none: 'var(--red)', immutable: 'var(--blue)'
+};
+const driftLabels = {
+  built_in: 'Built-In', limited: 'Limited', audit_log_only: 'Audit Log Only',
+  none: 'None', immutable: 'Immutable'
+};
+const automationColors = { full: 'var(--green)', partial: 'var(--amber)', manual_heavy: 'var(--red)' };
+const automationLabels = { full: 'Full', partial: 'Partial', manual_heavy: 'Manual-Heavy' };
+const cisLabels = { yes: 'Yes', no: 'No', archived: 'Archived' };
+const cisColors = { yes: 'var(--green)', no: 'var(--red)', archived: 'var(--muted)' };
+
+function complianceBadge(val, labels, colors) {
+  const label = labels[val] || val || '—';
+  const color = colors[val] || 'var(--muted)';
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:500;background:${color}22;color:${color}">${label}</span>`;
+}
+
+loaders.compliance = async () => {
+  const res = await api('benchmark-products');
+  complianceData = res.products || [];
+  renderComplianceKPIs();
+  renderComplianceTable();
+};
+
+function renderComplianceKPIs() {
+  const d = complianceData;
+  const cisYes = d.filter(p => p.cis_benchmark === 'yes').length;
+  const stigYes = d.filter(p => p.disa_stig === 'yes').length;
+  const driftBuiltIn = d.filter(p => p.drift_detection_capability === 'built_in' || p.drift_detection_capability === 'immutable').length;
+  const driftNone = d.filter(p => p.drift_detection_capability === 'none').length;
+  const autoFull = d.filter(p => p.automation_ceiling === 'full').length;
+  const cats = [...new Set(d.map(p => p.category))].length;
+
+  $('#compliance-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total Products</div><div class="value">${d.length}</div><div class="sub">${cats} categories</div></div>
+    <div class="kpi"><div class="label">CIS Benchmarks</div><div class="value text-green">${cisYes}</div><div class="sub">${Math.round(cisYes/d.length*100)}% coverage</div></div>
+    <div class="kpi"><div class="label">DISA STIGs</div><div class="value text-green">${stigYes}</div><div class="sub">${Math.round(stigYes/d.length*100)}% coverage</div></div>
+    <div class="kpi"><div class="label">Built-In Drift</div><div class="value" style="color:var(--blue)">${driftBuiltIn}</div><div class="sub">built-in or immutable</div></div>
+    <div class="kpi"><div class="label">No Drift Detection</div><div class="value text-red">${driftNone}</div><div class="sub">${Math.round(driftNone/d.length*100)}% unmonitored</div></div>
+    <div class="kpi"><div class="label">Fully Automatable</div><div class="value text-green">${autoFull}</div><div class="sub">${Math.round(autoFull/d.length*100)}% of products</div></div>
+  `;
+}
+
+function getFilteredCompliance() {
+  const search = ($('#compliance-search')?.value || '').toLowerCase();
+  return complianceData.filter(p => {
+    if (search && !p.product_name.toLowerCase().includes(search) &&
+        !p.vendor.toLowerCase().includes(search) &&
+        !(p.category || '').toLowerCase().includes(search) &&
+        !(p.notes || '').toLowerCase().includes(search) &&
+        !(p.applicable_frameworks || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+let complianceSort = { col: 'product_name', dir: 'asc' };
+
+function complianceSortBy(col) {
+  if (complianceSort.col === col) complianceSort.dir = complianceSort.dir === 'asc' ? 'desc' : 'asc';
+  else { complianceSort.col = col; complianceSort.dir = 'asc'; }
+  renderComplianceTable();
+}
+
+function getFilteredSortedCompliance() {
+  const filtered = getFilteredCompliance();
+  const { col, dir } = complianceSort;
+  const m = dir === 'asc' ? 1 : -1;
+  return filtered.sort((a, b) => {
+    const av = (a[col] || '').toString().toLowerCase();
+    const bv = (b[col] || '').toString().toLowerCase();
+    return av < bv ? -1 * m : av > bv ? 1 * m : 0;
+  });
+}
+
+function sortIcon(col) {
+  if (complianceSort.col !== col) return '<span style="opacity:0.3;margin-left:3px">&#8597;</span>';
+  return complianceSort.dir === 'asc' ? '<span style="margin-left:3px">&#9650;</span>' : '<span style="margin-left:3px">&#9660;</span>';
+}
+
+// Column definitions for compliance matrix
+const complianceCols = [
+  { key: 'product_name', label: 'Product', align: 'left', pct: 26, sortable: true, sticky: true, required: true },
+  { key: 'active_rule_count', label: 'Active Rules', align: 'center', pct: 5, sortable: true },
+  { key: 'category', label: 'Category', align: 'left', pct: 7, sortable: true },
+  { key: 'subcategory', label: 'Subcategory', align: 'left', pct: 7, sortable: true },
+  { key: 'vendor', label: 'Vendor', align: 'left', pct: 7, sortable: true },
+  { key: 'version', label: 'Version', align: 'left', pct: 3, sortable: true },
+  { key: 'cis_benchmark', label: 'CIS', align: 'center', pct: 5, sortable: true },
+  { key: 'cis_benchmark_version', label: 'CIS Version', align: 'left', pct: 6, sortable: true },
+  { key: 'disa_stig', label: 'STIG', align: 'center', pct: 5, sortable: true, defaultHidden: true },
+  { key: 'disa_stig_id', label: 'STIG ID', align: 'left', pct: 7, sortable: true },
+  { key: 'discovery_method', label: 'Discovery', align: 'left', pct: 7, sortable: true },
+  { key: 'drift_detection_capability', label: 'Drift Detection', align: 'left', pct: 7, sortable: true },
+  { key: 'drift_detection_details', label: 'Drift Details', align: 'left', pct: 8, sortable: false },
+  { key: 'external_tools_needed', label: 'External Tools', align: 'left', pct: 7, sortable: false },
+  { key: 'architecture_type', label: 'Architecture', align: 'left', pct: 7, sortable: true },
+  { key: 'automation_ceiling', label: 'Automation', align: 'left', pct: 7, sortable: true },
+  { key: 'service_approach', label: 'Service Approach', align: 'left', pct: 8, sortable: true },
+  { key: 'applicable_frameworks', label: 'Frameworks', align: 'left', pct: 8, sortable: false },
+  { key: 'notes', label: 'Notes', align: 'left', pct: 10, sortable: false }
+];
+
+// Column visibility — use saved state, but if column count changed, reset
+const _savedColVis = JSON.parse(localStorage.getItem('compColVis2') || 'null');
+let complianceColVisible = (_savedColVis && _savedColVis.length === complianceCols.length)
+  ? _savedColVis
+  : complianceCols.map(c => !c.defaultHidden);
+
+// Persisted column widths (pixels)
+const _defaultColWidths = complianceCols.map(c => c.pct * 14);
+const _savedColWidths = JSON.parse(localStorage.getItem('compColWidths') || 'null');
+let complianceColWidths = (_savedColWidths && _savedColWidths.length === complianceCols.length)
+  ? _savedColWidths
+  : [..._defaultColWidths];
+
+function saveColWidths() {
+  localStorage.setItem('compColWidths', JSON.stringify(complianceColWidths));
+}
+
+function resetColWidths() {
+  complianceColWidths = [..._defaultColWidths];
+  saveColWidths();
+  renderComplianceTable();
+}
+
+function toggleComplianceCol(idx) {
+  if (complianceCols[idx].required) return;
+  complianceColVisible[idx] = !complianceColVisible[idx];
+  localStorage.setItem('compColVis2', JSON.stringify(complianceColVisible));
+  renderComplianceTable();
+}
+
+function complianceResetCols() {
+  complianceColVisible = complianceCols.map(c => !c.defaultHidden);
+  localStorage.setItem('compColVis2', JSON.stringify(complianceColVisible));
+  renderComplianceTable();
+}
+
+function getVisibleColPcts() {
+  const visible = complianceCols.map((c, i) => complianceColVisible[i] ? c.pct : 0);
+  const total = visible.reduce((a, b) => a + b, 0);
+  return visible.map(v => v ? Math.round((v / total) * 100) : 0);
+}
+
+function renderComplianceTable() {
+  const filtered = getFilteredSortedCompliance();
+  const countLabel = filtered.length === complianceData.length ? `${filtered.length} products` : `${filtered.length} of ${complianceData.length} products`;
+  const pcts = getVisibleColPcts();
+  const hiddenCount = complianceColVisible.filter(v => !v).length;
+
+  const colToggles = complianceCols.map((c, i) => {
+    const active = complianceColVisible[i];
+    const disabled = c.required;
+    return `<button onclick="${disabled ? '' : `toggleComplianceCol(${i})`}" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid ${active ? 'var(--blue)' : 'var(--border)'};background:${active ? 'rgba(74,109,181,0.15)' : 'transparent'};color:${active ? 'var(--blue)' : 'var(--muted)'};cursor:${disabled ? 'default' : 'pointer'};opacity:${disabled ? '0.6' : '1'};white-space:nowrap">${c.label}</button>`;
+  }).join('');
+
+  $('#compliance-table').innerHTML = `
+    <div style="padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px">
+      <span style="font-size:12px;color:var(--muted)">${countLabel}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:10px;color:var(--muted);margin-right:2px">Columns:</span>
+        ${colToggles}
+        ${hiddenCount > 0 ? `<button onclick="complianceResetCols()" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--amber);cursor:pointer;white-space:nowrap">Reset All</button>` : ''}
+        <span style="width:1px;height:16px;background:var(--border);margin:0 4px"></span>
+        <button onclick="complianceCollapseAll()" style="font-size:10px;padding:2px 8px;border-radius:4px;background:var(--bg);color:var(--muted);border:1px solid var(--border);cursor:pointer">Collapse All</button>
+      </div>
+    </div>
+    <table style="table-layout:fixed;border-collapse:collapse" id="compliance-matrix-table">
+      <colgroup>
+        ${complianceCols.map((c, i) => complianceColVisible[i] ? `<col style="width:${complianceColWidths[i]}px">` : '').join('')}
+      </colgroup>
+      <thead><tr style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px" id="compliance-header-row">
+        ${complianceCols.map((c, i) => {
+          if (!complianceColVisible[i]) return '';
+          const sticky = c.sticky ? 'position:sticky;left:0;background:var(--card);z-index:4;' : '';
+          const click = c.sortable ? `onclick="complianceSortBy('${c.key}')"` : '';
+          const icon = c.sortable ? sortIcon(c.key) : '';
+          return `<th class="resizable" data-col-idx="${i}" style="${sticky}text-align:${c.align};cursor:${c.sortable ? 'pointer' : 'default'};padding:8px 8px;border-bottom:2px solid var(--border);position:relative;user-select:none" ${click}>${c.label} ${icon}<div class="col-resize-handle" data-col-idx="${i}"></div></th>`;
+        }).join('')}
+      </tr></thead>
+      <tbody>${filtered.map(p => {
+        const fws = (p.applicable_frameworks||'').split(',').map(f=>f.trim()).filter(Boolean);
+        const td = 'padding:4px 6px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        const cells = [
+          /* 0: Product */ `<td style="position:sticky;left:0;background:var(--card);z-index:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 6px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="matrix-chev" onclick="event.stopPropagation();matrixToggleProduct(${p.id},this)" style="cursor:pointer;font-size:10px;color:var(--muted);width:14px;text-align:center;user-select:none;flex-shrink:0">&#9654;</span>
+              <strong onclick="complianceOpenDetail(${p.id})" style="cursor:pointer;color:var(--text);font-size:12px;overflow:hidden;text-overflow:ellipsis">${p.product_name}</strong>
+            </div>
+          </td>`,
+          /* 1: Active Rules */ `<td style="text-align:center;padding:4px 6px"><span style="font-size:11px;font-weight:600;color:${(p.active_rule_count||0) > 0 ? 'var(--green)' : 'var(--muted)'}">${p.active_rule_count || 0}</span></td>`,
+          /* 2: Category */ `<td style="${td}"><span style="font-size:10px;background:rgba(74,109,181,0.15);color:var(--blue);padding:2px 6px;border-radius:6px;white-space:nowrap">${p.category||''}</span></td>`,
+          /* 2: Subcategory */ `<td style="${td}">${p.subcategory||'—'}</td>`,
+          /* 3: Vendor */ `<td style="${td}">${p.vendor||''}</td>`,
+          /* 4: Version */ `<td style="${td}">${p.version||'—'}</td>`,
+          /* 5: CIS */ `<td style="text-align:center;padding:4px 6px">${complianceBadge(p.cis_benchmark, cisLabels, cisColors)}</td>`,
+          /* 6: CIS Version */ `<td style="${td}">${p.cis_benchmark_version||'—'}</td>`,
+          /* 7: STIG */ `<td style="text-align:center;padding:4px 6px">${complianceBadge(p.disa_stig, {yes:'Yes',no:'No'}, {yes:'var(--green)',no:'var(--red)'})}</td>`,
+          /* 8: STIG ID */ `<td style="${td}" title="${(p.disa_stig_id||'').replace(/"/g,'&quot;')}">${p.disa_stig_id||'—'}</td>`,
+          /* 9: Discovery */ `<td style="${td}">${p.discovery_method||'—'}</td>`,
+          /* 10: Drift Detection */ `<td style="${td}">${complianceBadge(p.drift_detection_capability, driftLabels, driftColors)}</td>`,
+          /* 11: Drift Details */ `<td style="${td}" title="${(p.drift_detection_details||'').replace(/"/g,'&quot;')}">${p.drift_detection_details||'—'}</td>`,
+          /* 12: External Tools */ `<td style="${td}" title="${(p.external_tools_needed||'').replace(/"/g,'&quot;')}">${p.external_tools_needed||'—'}</td>`,
+          /* 13: Architecture */ `<td style="${td}">${p.architecture_type||'—'}</td>`,
+          /* 14: Automation */ `<td style="${td}">${complianceBadge(p.automation_ceiling, automationLabels, automationColors)}</td>`,
+          /* 15: Service Approach */ `<td style="${td}">${p.service_approach||'—'}</td>`,
+          /* 16: Frameworks */ `<td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 6px">${fws.length ? fws.slice(0,3).map(f=>`<span style="display:inline-block;font-size:9px;background:rgba(255,255,255,0.06);color:var(--text);padding:1px 4px;border-radius:3px;margin:0 1px;border:1px solid var(--border)">${f}</span>`).join('') + (fws.length > 3 ? `<span style="font-size:9px;color:var(--muted)"> +${fws.length-3}</span>` : '') : '—'}</td>`,
+          /* 17: Notes */ `<td style="${td}" title="${(p.notes||'').replace(/"/g,'&quot;')}">${p.notes||'—'}</td>`
+        ];
+        return `<tr data-product-id="${p.id}" data-level="product" class="matrix-product-row" style="cursor:pointer;border-bottom:1px solid var(--border)">
+          ${cells.filter((_, i) => complianceColVisible[i]).join('')}
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  `;
+  setTimeout(initColResize, 0);
+}
+
+// ─── Matrix Drill-Down — Product → Rules (flat) ─────────────────────────────
+const _matrixCache = {};
+
+let showDocRef = JSON.parse(localStorage.getItem('compShowDocRef') || 'false');
+
+function toggleDocRef() {
+  showDocRef = !showDocRef;
+  localStorage.setItem('compShowDocRef', JSON.stringify(showDocRef));
+  // Re-expand any currently expanded products by collapsing and re-rendering
+  complianceCollapseAll();
+}
+
+function visibleColCount() { return complianceColVisible.filter(v => v).length; }
+
+function cisUID(productId, ruleSeq) {
+  return 'CIS-2026-' + String(productId).padStart(5,'0') + '.' + String(ruleSeq).padStart(3,'0');
+}
+
+function buildRuleCells(cells) {
+  return cells.filter((_, i) => complianceColVisible[i]).join('');
+}
+
+// ─── Column Resize (Excel-style drag) ───────────────────────────────────────
+function initColResize() {
+  const table = document.getElementById('compliance-matrix-table');
+  if (!table) return;
+
+  // Use event delegation on the table for all resize handles (current + future)
+  if (table._resizeInit) return;
+  table._resizeInit = true;
+
+  table.addEventListener('mousedown', (e) => {
+    const handle = e.target.closest('.col-resize-handle');
+    if (!handle) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const colIdx = parseInt(handle.dataset.colIdx);
+    const cols = table.querySelectorAll('colgroup col');
+    let visIdx = 0;
+    for (let i = 0; i < colIdx; i++) { if (complianceColVisible[i]) visIdx++; }
+    const col = cols[visIdx];
+    if (!col) return;
+
+    const startX = e.pageX;
+    const startWidth = complianceColWidths[colIdx];
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev) => {
+      const diff = ev.pageX - startX;
+      const newWidth = Math.max(40, startWidth + diff);
+      col.style.width = newWidth + 'px';
+      complianceColWidths[colIdx] = newWidth;
+    };
+
+    const onUp = () => {
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      saveColWidths();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+// ── Level 1: Product Detail Expand ──────────────────────────────────────────
+function matrixToggleProduct(productId, chevEl) {
+  const table = document.querySelector('#compliance-matrix-table tbody');
+  const productRow = table.querySelector(`tr[data-product-id="${productId}"][data-level="product"]`);
+  if (!productRow) return;
+
+  // Collapse: remove everything
+  if (productRow.dataset.expanded === 'true') {
+    table.querySelectorAll(`tr[data-parent-product="${productId}"]`).forEach(r => r.remove());
+    productRow.dataset.expanded = 'false';
+    chevEl.innerHTML = '&#9654;';
+    return;
+  }
+
+  // Expand: show product detail card
+  productRow.dataset.expanded = 'true';
+  chevEl.innerHTML = '&#9660;';
+
+  const p = complianceData.find(x => x.id === productId);
+  if (!p) return;
+
+  const vc = visibleColCount();
+  const detailRow = document.createElement('tr');
+  detailRow.dataset.parentProduct = productId;
+  detailRow.dataset.level = 'rule';
+
+  const fws = (p.applicable_frameworks||'').split(',').map(f=>f.trim()).filter(Boolean);
+  const ruleCount = _matrixCache[productId] ? _matrixCache[productId].length : '...';
+
+  const field = (label, value) => {
+    if (!value || value === '—') return '';
+    return `<div style="display:flex;gap:4px;margin-bottom:1px;line-height:1.3">
+      <span style="font-size:9px;text-transform:uppercase;letter-spacing:0.3px;color:var(--muted);font-weight:600;white-space:nowrap">${label}:</span>
+      <span style="font-size:11px;color:var(--text);white-space:normal;word-wrap:break-word">${value}</span>
+    </div>`;
+  };
+
+  const badge = (val, color) => val ? `<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;background:${color}22;color:${color};font-weight:500">${val}</span>` : '—';
+
+  detailRow.innerHTML = `<td colspan="${vc}" style="padding:0;border-bottom:1px solid var(--border)">
+    <div style="background:rgba(74,109,181,0.04);padding:6px 16px 6px 36px;border-left:3px solid var(--blue);display:flex;flex-wrap:wrap;gap:2px 20px;align-items:flex-start">
+      <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:1px 18px">
+        ${field('Product', p.product_name)}
+        ${field('Vendor', p.vendor)}
+        ${field('Version', p.version)}
+        ${field('Category', p.category)}
+        ${field('Subcategory', p.subcategory)}
+        ${field('Architecture', p.architecture_type)}
+      </div>
+      <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:1px 18px">
+        ${field('CIS', badge(p.cis_benchmark === 'yes' ? 'Yes' : p.cis_benchmark === 'partial' ? 'Partial' : 'No', p.cis_benchmark === 'yes' ? 'var(--green)' : p.cis_benchmark === 'partial' ? 'var(--amber)' : 'var(--red)'))}
+        ${field('CIS Version', p.cis_benchmark_version)}
+        ${field('DISA STIG', badge(p.disa_stig === 'yes' ? 'Yes' : 'No', p.disa_stig === 'yes' ? 'var(--green)' : 'var(--red)'))}
+        ${field('STIG ID', p.disa_stig_id)}
+      </div>
+      <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:1px 18px">
+        ${field('Discovery', p.discovery_method)}
+        ${field('Drift Detection', p.drift_detection_capability)}
+        ${field('Drift Details', p.drift_detection_details)}
+        ${field('External Tools', p.external_tools_needed)}
+      </div>
+      <div style="flex:0 0 auto;display:flex;flex-wrap:wrap;gap:1px 18px">
+        ${field('Automation', p.automation_ceiling)}
+        ${field('Service Approach', p.service_approach)}
+        ${field('Frameworks', fws.length ? fws.map(f => `<span style="display:inline-block;font-size:9px;background:rgba(255,255,255,0.06);color:var(--text);padding:1px 4px;border-radius:3px;margin:0 1px;border:1px solid var(--border)">${f}</span>`).join('') : '')}
+      </div>
+      ${p.notes ? `<div style="flex:1 1 100%">${field('Notes', p.notes)}</div>` : ''}
+      <div style="flex:1 1 100%;margin-top:3px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.06)">
+        <button onclick="matrixExpandRules(${productId}, this)" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--blue);background:rgba(74,109,181,0.1);color:var(--blue);cursor:pointer;font-weight:500">
+          <span class="rules-chev" style="font-size:9px">&#9654;</span>
+          View Benchmark Rules <span style="font-size:9px;opacity:0.7">(${ruleCount})</span>
+        </button>
+      </div>
+    </div>
+  </td>`;
+  productRow.after(detailRow);
+
+  // Pre-fetch rules in background
+  if (!_matrixCache[productId]) {
+    api(`benchmark-products/${productId}/rules?rule_type=rule`).then(res => {
+      _matrixCache[productId] = res.rules || [];
+      const countSpan = detailRow.querySelector('.rules-chev')?.parentElement?.querySelector('span:last-child');
+      if (countSpan) countSpan.textContent = `(${_matrixCache[productId].length})`;
+    });
+  }
+}
+
+// ── Level 2: Rules Expand ──────────────────────────────────────────────────
+async function matrixExpandRules(productId, btnEl) {
+  const table = document.querySelector('#compliance-matrix-table tbody');
+
+  // If rules already expanded, collapse them
+  const existingRules = table.querySelectorAll(`tr[data-parent-product="${productId}"][data-level="rulerow"], tr[data-parent-product="${productId}"][data-level="ruleheader"]`);
+  if (existingRules.length > 0) {
+    existingRules.forEach(r => r.remove());
+    btnEl.querySelector('.rules-chev').innerHTML = '&#9654;';
+    return;
+  }
+
+  btnEl.querySelector('.rules-chev').innerHTML = '&#9660;';
+
+  const vc = visibleColCount();
+
+  // Find the detail row to insert after
+  const detailRow = table.querySelector(`tr[data-parent-product="${productId}"][data-level="rule"]`);
+  if (!detailRow) return;
+
+  if (!_matrixCache[productId]) {
+    const res = await api(`benchmark-products/${productId}/rules?rule_type=rule`);
+    _matrixCache[productId] = res.rules || [];
+  }
+
+  const rules = _matrixCache[productId];
+
+  if (rules.length === 0) {
+    const r = document.createElement('tr');
+    r.dataset.parentProduct = productId; r.dataset.level = 'rulerow';
+    r.innerHTML = `<td colspan="${vc}" style="padding:6px 20px 6px 36px;font-size:11px;color:var(--muted);font-style:italic;background:var(--bg)">No benchmark rules imported</td>`;
+    detailRow.after(r);
+    return;
+  }
+
+  // Sub-header
+  const thS = 'font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600;padding:6px 8px;white-space:nowrap';
+  const subHeader = document.createElement('tr');
+  subHeader.dataset.parentProduct = productId; subHeader.dataset.level = 'ruleheader';
+  subHeader.style.background = 'rgba(74,109,181,0.08)';
+  const rh = (idx) => `<div class="col-resize-handle" data-col-idx="${idx}"></div>`;
+  const subCells = complianceCols.map((c, i) => {
+    const label = i === 0 ? 'CIS UID · Rule Title'
+      : c.key === 'category' ? (showDocRef ? 'Doc Ref' : '')
+      : c.key === 'subcategory' ? 'Section'
+      : c.key === 'version' ? 'Bench Ver.'
+      : c.key === 'drift_detection_capability' ? 'Hardening Level'
+      : c.key === 'drift_detection_details' ? 'Check'
+      : c.key === 'automation_ceiling' ? 'Status'
+      : '';
+    const align = ['drift_detection_capability','drift_detection_details','automation_ceiling'].includes(c.key) ? 'center' : 'left';
+    const stickyS = c.sticky ? 'position:sticky;left:0;background:rgba(74,109,181,0.08);z-index:1;padding:6px 8px 6px 36px;' : '';
+    return `<th class="resizable" style="${stickyS}${thS};text-align:${align};position:relative">${label}${rh(i)}</th>`;
+  });
+  subHeader.innerHTML = buildRuleCells(subCells);
+  detailRow.after(subHeader);
+
+  // Rule rows
+  let insertAfter = subHeader;
+  rules.forEach((r, idx) => {
+    const ruleRow = document.createElement('tr');
+    ruleRow.dataset.parentProduct = productId; ruleRow.dataset.level = 'rulerow';
+    const bg = r.benchmark_status === 'archive' ? 'rgba(248,113,113,0.02)' : 'rgba(255,255,255,0.008)';
+    ruleRow.style.background = bg;
+    ruleRow.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
+    if (r.benchmark_status === 'archive') ruleRow.style.opacity = '0.5';
+
+    const checkBg = r.check_type === 'automated' ? 'rgba(52,211,153,0.15)' : r.check_type === 'manual' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)';
+    const checkClr = r.check_type === 'automated' ? 'var(--green)' : r.check_type === 'manual' ? 'var(--red)' : 'var(--amber)';
+    const statusBg = r.benchmark_status === 'archive' ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)';
+    const statusClr = r.benchmark_status === 'archive' ? 'var(--red)' : 'var(--green)';
+    const uid = r.cis_uid || cisUID(productId, idx + 1);
+
+    const rc = 'padding:4px 8px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    const ruleCellMap = {
+      'product_name': `<td style="position:sticky;left:0;background:${bg};z-index:1;padding:4px 8px 4px 36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(r.title||'').replace(/"/g,'&quot;')}">
+        <span style="font-family:monospace;font-size:11px;color:var(--blue);margin-right:6px">${uid}</span>
+        <span style="font-size:12px;color:var(--text)">${r.title}</span>
+      </td>`,
+      'category': `<td style="font-family:monospace;${rc}" title="${r.rule_id || ''}">${showDocRef ? (r.rule_id || '') : ''}</td>`,
+      'subcategory': `<td style="${rc}" title="${(r.section||'').replace(/"/g,'&quot;')}">${r.section || ''}</td>`,
+      'version': `<td style="${rc}">${r.benchmark_version || ''}</td>`,
+      'drift_detection_capability': `<td style="text-align:center;padding:4px 8px">${r.cis_profile ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(74,109,181,0.15);color:var(--blue)">${r.cis_profile}</span>` : ''}</td>`,
+      'drift_detection_details': `<td style="text-align:center;padding:4px 8px">${r.check_type ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${checkBg};color:${checkClr}">${r.check_type}</span>` : ''}</td>`,
+      'automation_ceiling': `<td style="text-align:center;padding:4px 8px">${r.benchmark_status ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${statusBg};color:${statusClr}">${r.benchmark_status}</span>` : ''}</td>`
+    };
+    const ruleCells = complianceCols.map(c => ruleCellMap[c.key] || '<td></td>');
+    ruleRow.innerHTML = buildRuleCells(ruleCells);
+    insertAfter.after(ruleRow);
+    insertAfter = ruleRow;
+  });
+}
+
+function complianceCollapseAll() {
+  const table = document.querySelector('#compliance-matrix-table tbody');
+  if (!table) return;
+  table.querySelectorAll('tr[data-level="rule"], tr[data-level="rulerow"], tr[data-level="ruleheader"], tr[data-level="loading"]').forEach(r => r.remove());
+  table.querySelectorAll('tr[data-level="product"]').forEach(r => {
+    r.dataset.expanded = 'false';
+    const chev = r.querySelector('.matrix-chev');
+    if (chev) chev.innerHTML = '&#9654;';
+  });
+}
+
+let complianceDetailProduct = null;
+
+function complianceOpenDetail(id) {
+  const p = complianceData.find(x => x.id === id);
+  if (!p) return;
+  complianceDetailProduct = p;
+
+  const frameworks = (p.applicable_frameworks || '').split(',').map(f => f.trim()).filter(Boolean);
+
+  $('#compliance-detail').innerHTML = `
+    <button onclick="complianceCloseDetail()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;padding:4px">&times;</button>
+
+    <div style="margin-bottom:16px">
+      <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">${p.product_name}</h2>
+      <div style="font-size:13px;color:var(--muted)">${p.vendor}${p.version ? ` &middot; v${p.version}` : ''}</div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <span style="font-size:11px;background:rgba(74,109,181,0.15);color:var(--blue);padding:3px 10px;border-radius:8px">${p.category}</span>
+        ${p.subcategory ? `<span style="font-size:11px;background:rgba(255,255,255,0.06);color:var(--muted);padding:3px 10px;border-radius:8px">${p.subcategory}</span>` : ''}
+        <span style="font-size:11px;background:rgba(255,255,255,0.06);color:var(--muted);padding:3px 10px;border-radius:8px">${p.architecture_type || 'traditional'}</span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button id="tab-overview" onclick="complianceShowTab('overview')" style="background:var(--royal);color:var(--white);border:1px solid var(--royal);border-bottom:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer">Overview</button>
+      <button id="tab-rules" onclick="complianceShowTab('rules')" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-bottom:none;border-radius:8px 8px 0 0;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer">Benchmark Rules</button>
+    </div>
+
+    <div id="compliance-tab-overview">
+      <!-- Benchmark Coverage -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:10px">Benchmark Coverage</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px">CIS Benchmark</div>
+            <div style="font-size:16px;font-weight:600">${complianceBadge(p.cis_benchmark, cisLabels, cisColors)}</div>
+            ${p.cis_benchmark_version ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">${p.cis_benchmark_version}</div>` : ''}
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px">DISA STIG</div>
+            <div style="font-size:16px;font-weight:600">${complianceBadge(p.disa_stig, {yes:'Yes',no:'No'}, {yes:'var(--green)',no:'var(--red)'})}</div>
+            ${p.disa_stig_id ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">${p.disa_stig_id}</div>` : ''}
+          </div>
+        </div>
+      </div>
+      <!-- Drift & Automation -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:10px">Drift Detection &amp; Automation</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Drift Detection</div>
+            <div>${complianceBadge(p.drift_detection_capability, driftLabels, driftColors)}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Automation Ceiling</div>
+            <div>${complianceBadge(p.automation_ceiling, automationLabels, automationColors)}</div>
+          </div>
+        </div>
+      </div>
+      ${p.drift_detection_details ? `<div style="margin-bottom:20px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px">Drift Detection Details</div><div style="font-size:13px;line-height:1.7;color:var(--text);background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">${p.drift_detection_details}</div></div>` : ''}
+      ${p.discovery_method ? `<div style="margin-bottom:20px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px">Discovery Method</div><div style="font-size:13px;line-height:1.7;color:var(--text);background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">${p.discovery_method}</div></div>` : ''}
+      ${p.external_tools_needed ? `<div style="margin-bottom:20px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px">External Tools Needed</div><div style="font-size:13px;line-height:1.7;color:var(--text);background:rgba(255,255,255,0.03);border-radius:10px;padding:14px">${p.external_tools_needed}</div></div>` : ''}
+      ${p.service_approach ? `<div style="margin-bottom:20px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px">Prism Service Approach</div><div style="font-size:13px;line-height:1.7;color:var(--text);background:linear-gradient(135deg, rgba(58,89,152,0.1), rgba(74,109,181,0.1));border:1px solid rgba(74,109,181,0.2);border-radius:10px;padding:14px">${p.service_approach}</div></div>` : ''}
+      ${frameworks.length ? `<div style="margin-bottom:20px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px">Applicable Frameworks</div><div style="display:flex;flex-wrap:wrap;gap:6px">${frameworks.map(f => `<span style="font-size:11px;background:rgba(255,255,255,0.06);color:var(--text);padding:4px 10px;border-radius:8px;border:1px solid var(--border)">${f}</span>`).join('')}</div></div>` : ''}
+      ${p.notes ? `<div style="margin-bottom:20px"><div style="font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:0.5px;margin-bottom:8px">Notes</div><div style="font-size:12px;color:var(--muted);font-style:italic;line-height:1.6">${p.notes}</div></div>` : ''}
+    </div>
+
+    <div id="compliance-tab-rules" style="display:none">
+      <div style="text-align:center;padding:40px 0;color:var(--muted)">Loading rules...</div>
+    </div>
+  `;
+
+  $('#compliance-overlay').style.display = 'block';
+  $('#compliance-detail').style.display = 'block';
+}
+
+function complianceShowTab(tab) {
+  const tabs = ['overview', 'rules'];
+  tabs.forEach(t => {
+    const btn = $(`#tab-${t}`);
+    const panel = $(`#compliance-tab-${t}`);
+    if (t === tab) {
+      btn.style.background = 'var(--royal)'; btn.style.color = 'var(--white)'; btn.style.borderColor = 'var(--royal)';
+      panel.style.display = 'block';
+    } else {
+      btn.style.background = 'transparent'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)';
+      panel.style.display = 'none';
+    }
+  });
+  if (tab === 'rules' && complianceDetailProduct) {
+    loadComplianceRules(complianceDetailProduct.id);
+  }
+}
+
+async function loadComplianceRules(productId, versionFilter) {
+  const panel = $('#compliance-tab-rules');
+  panel.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--muted)">Loading...</div>';
+  window._complianceRulesProductId = productId;
+  window._complianceVersionFilter = versionFilter || '';
+
+  // Fetch only section headers first (fast)
+  const secRes = await api(`benchmark-products/${productId}/rules?rule_type=section`);
+  const sectionHeaders = secRes.rules || [];
+
+  // Fetch summary for counts (includes version breakdown)
+  const summaryRes = await api(`benchmark-products/${productId}/rules/summary`);
+  const versions = summaryRes.byVersion || [];
+  const totalRules = (summaryRes.total || 0) - sectionHeaders.length;
+  const rulesBySection = {};
+  (summaryRes.bySection || []).forEach(s => { rulesBySection[s.section] = s.n; });
+  // Subtract section headers from counts
+  sectionHeaders.forEach(s => { if (rulesBySection[s.section]) rulesBySection[s.section]--; });
+
+  // Count active vs archive
+  let activeCount = 0, archiveCount = 0;
+  versions.forEach(v => {
+    if (v.benchmark_status === 'archive') archiveCount += v.n;
+    else activeCount += v.n;
+  });
+
+  if (sectionHeaders.length === 0 && totalRules === 0) {
+    panel.innerHTML = `<div style="text-align:center;padding:40px 20px">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:8px">No benchmark rules loaded yet</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">Import rules via the API:<br><code style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px">POST /api/benchmark-products/${productId}/rules/import</code></div>
+    </div>`;
+    return;
+  }
+
+  // Build version filter dropdown
+  const uniqueVersions = [...new Set(versions.map(v => v.benchmark_version).filter(Boolean))].sort();
+  const versionDropdown = uniqueVersions.length > 1 ? `
+    <select id="compliance-version-filter" onchange="loadComplianceRules(${productId}, this.value)"
+      style="font-size:11px;padding:3px 8px;border-radius:6px;background:var(--card);color:var(--foreground);border:1px solid var(--border);cursor:pointer">
+      <option value="">All versions (${totalRules})</option>
+      ${uniqueVersions.map(v => {
+        const vRules = versions.filter(x => x.benchmark_version === v).reduce((s,x) => s + x.n, 0);
+        const vStatus = versions.find(x => x.benchmark_version === v)?.benchmark_status || 'active';
+        return `<option value="${v}" ${versionFilter === v ? 'selected' : ''}>${v} ${vStatus === 'archive' ? '(Archive)' : ''} — ${vRules} rules</option>`;
+      }).join('')}
+    </select>` : '';
+
+  // Status badges
+  const statusBadges = (activeCount > 0 || archiveCount > 0) ? `
+    <div style="display:flex;gap:6px;align-items:center">
+      ${activeCount > 0 ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(52,211,153,0.15);color:var(--green)">${activeCount.toLocaleString()} active</span>` : ''}
+      ${archiveCount > 0 ? `<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(248,113,113,0.15);color:var(--red)">${archiveCount.toLocaleString()} archive</span>` : ''}
+    </div>` : '';
+
+  panel.innerHTML = `
+    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--muted)">${totalRules.toLocaleString()} rules &middot; ${sectionHeaders.length} sections</span>
+        ${statusBadges}
+      </div>
+      ${versionDropdown}
+    </div>
+    ${sectionHeaders.map((sec, idx) => {
+      const count = rulesBySection[sec.section] || 0;
+      return `
+      <div style="margin-bottom:8px">
+        <div onclick="complianceToggleSection(this, '${sec.section.replace(/'/g, "\\'")}')"
+          style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;cursor:pointer;user-select:none;transition:background 0.15s"
+          onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+          <span class="chev" style="font-size:10px;color:var(--muted);width:12px">&#9654;</span>
+          <span style="font-weight:600;font-size:13px;flex:1">${sec.section}</span>
+          <span style="font-size:10px;background:${count > 0 ? 'var(--royal)' : 'var(--border)'};color:var(--white);padding:1px 8px;border-radius:10px">${count > 0 ? count : 'empty'}</span>
+          <span style="font-size:10px;color:var(--muted)">${sec.source || ''}</span>
+        </div>
+        <div class="rules-body" data-section="${sec.section}" style="display:none;padding-left:22px;margin-top:4px"></div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+async function complianceToggleSection(header, sectionName) {
+  const body = header.nextElementSibling;
+  const chev = header.querySelector('.chev');
+  const vf = window._complianceVersionFilter || '';
+  // Re-fetch if version filter changed since last load
+  const loadKey = `${sectionName}|${vf}`;
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    chev.innerHTML = '&#9660;';
+    // Lazy-fetch children on first expand (or if version filter changed)
+    if (!body.dataset.loaded || body.dataset.loadedKey !== loadKey) {
+      body.innerHTML = '<div style="padding:8px 10px;font-size:12px;color:var(--muted)">Loading...</div>';
+      const pid = window._complianceRulesProductId;
+      let url = `benchmark-products/${pid}/rules?rule_type=rule&section=${encodeURIComponent(sectionName)}`;
+      if (vf) url += `&benchmark_version=${encodeURIComponent(vf)}`;
+      const res = await api(url);
+      const sectionRules = res.rules || [];
+      const checkBadge = ct => ct ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${ct==='automated'?'rgba(52,211,153,0.15)':ct==='manual'?'rgba(248,113,113,0.15)':'rgba(251,191,36,0.15)'};color:${ct==='automated'?'var(--green)':ct==='manual'?'var(--red)':'var(--amber)'}">${ct}</span>` : '';
+      const statusBadge = s => s === 'archive' ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(248,113,113,0.15);color:var(--red)">archive</span>` : '';
+      const versionBadge = v => v ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(74,109,181,0.1);color:var(--muted)">${v}</span>` : '';
+      if (sectionRules.length > 0) {
+        body.innerHTML = sectionRules.map(r => `
+          <div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px${r.benchmark_status === 'archive' ? ';opacity:0.6' : ''}">
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              ${r.rule_id ? `<span style="font-family:monospace;font-size:11px;color:var(--blue);min-width:50px">${r.rule_id}</span>` : ''}
+              <span style="flex:1;line-height:1.5">${r.title}</span>
+              ${versionBadge(r.benchmark_version)}
+              ${statusBadge(r.benchmark_status)}
+              ${r.cis_profile ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(74,109,181,0.15);color:var(--blue)">${r.cis_profile}</span>` : ''}
+              ${checkBadge(r.check_type)}
+            </div>
+            ${r.config_parameter ? `<div style="margin-top:4px;font-size:11px;color:var(--muted)"><span style="font-family:monospace;background:var(--bg);padding:1px 6px;border-radius:3px">${r.config_parameter}</span></div>` : ''}
+          </div>`).join('');
+      } else {
+        body.innerHTML = '<div style="padding:12px 10px;font-size:12px;color:var(--muted);font-style:italic">No individual rules loaded yet for this section/version.</div>';
+      }
+      body.dataset.loaded = 'true';
+      body.dataset.loadedKey = loadKey;
+    }
+  } else {
+    body.style.display = 'none';
+    chev.innerHTML = '&#9654;';
+  }
+}
+
+function complianceCloseDetail() {
+  $('#compliance-overlay').style.display = 'none';
+  $('#compliance-detail').style.display = 'none';
+  complianceDetailProduct = null;
+  window._complianceRulesProductId = null;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // --- DAILY REVIEW ---

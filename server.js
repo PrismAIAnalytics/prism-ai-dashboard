@@ -476,6 +476,59 @@ function initDB() {
       created_at TEXT DEFAULT (datetime('now')),
       expires_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS benchmark_products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_name TEXT NOT NULL,
+      vendor TEXT NOT NULL,
+      version TEXT,
+      category TEXT NOT NULL,
+      subcategory TEXT,
+      cis_benchmark TEXT NOT NULL DEFAULT 'no',
+      cis_benchmark_version TEXT,
+      disa_stig TEXT NOT NULL DEFAULT 'no',
+      disa_stig_id TEXT,
+      discovery_method TEXT,
+      drift_detection_capability TEXT NOT NULL DEFAULT 'none',
+      drift_detection_details TEXT,
+      external_tools_needed TEXT,
+      architecture_type TEXT,
+      automation_ceiling TEXT NOT NULL DEFAULT 'partial',
+      service_approach TEXT,
+      applicable_frameworks TEXT,
+      notes TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS benchmark_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL REFERENCES benchmark_products(id),
+      rule_id TEXT,
+      title TEXT NOT NULL,
+      section TEXT,
+      subsection TEXT,
+      level INTEGER DEFAULT 0,
+      rule_type TEXT DEFAULT 'rule',
+      source TEXT,
+      severity TEXT,
+      cis_profile TEXT,
+      check_type TEXT,
+      description TEXT,
+      rationale TEXT,
+      remediation TEXT,
+      audit_command TEXT,
+      default_value TEXT,
+      recommended_value TEXT,
+      config_parameter TEXT,
+      config_location TEXT,
+      benchmark_version TEXT,
+      benchmark_status TEXT DEFAULT 'active',
+      cis_uid TEXT,
+      is_automatable INTEGER DEFAULT 1,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -510,6 +563,14 @@ function seedIfEmpty() {
     ['AI Starter Kit for Small Business','productized',499,499,'fixed'],
     ['Data Health Audit','productized',750,1200,'fixed'],
     ['Lunch & Learn Workshop','workshop',500,800,'per_session'],
+    // Compliance & Security Services
+    ['CIS/STIG Coverage Gap Assessment','project',5000,15000,'fixed'],
+    ['Drift Detection Blueprint','project',8000,20000,'fixed'],
+    ['Remediation Automation Sprint','project',10000,30000,'fixed'],
+    ['Compliance Data Hub','project',15000,40000,'fixed'],
+    ['Managed Compliance Engineering','retainer',3000,8500,'per_month'],
+    ['Audit Evidence Automation','project',5000,15000,'fixed'],
+    ['AI Governance & Hardening Assessment','project',8000,20000,'fixed'],
   ];
   const insSvc = db.prepare('INSERT INTO services (name, service_type, price_min, price_max, price_unit) VALUES (?,?,?,?,?)');
   svcs.forEach(s => insSvc.run(...s));
@@ -745,6 +806,24 @@ function migrateCRMColumns() {
 }
 migrateCRMColumns();
 
+// Add category column to services table
+(function migrateServicesCategory() {
+  const cols = db.prepare("PRAGMA table_info(services)").all().map(r => r.name);
+  if (!cols.includes('category')) {
+    db.exec("ALTER TABLE services ADD COLUMN category TEXT DEFAULT 'Data & Analytics'");
+    db.exec("UPDATE services SET category = 'Compliance & Security' WHERE name IN ('CIS/STIG Coverage Gap Assessment','Drift Detection Blueprint','Remediation Automation Sprint','Compliance Data Hub','Managed Compliance Engineering','Audit Evidence Automation','AI Governance & Hardening Assessment')");
+  }
+})();
+
+// Add benchmark_version + benchmark_status columns to benchmark_rules
+(function migrateBenchmarkRulesColumns() {
+  try {
+    const cols = db.prepare("PRAGMA table_info(benchmark_rules)").all().map(r => r.name);
+    if (!cols.includes('benchmark_version')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN benchmark_version TEXT");
+    if (!cols.includes('benchmark_status')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN benchmark_status TEXT DEFAULT 'active'");
+    if (!cols.includes('cis_uid')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN cis_uid TEXT");
+  } catch(e) { /* table may not exist yet on first run */ }
+})();
 
 // Auth helpers
 function hashPassword(password, salt) {
@@ -777,6 +856,1104 @@ function seedUsersIfEmpty() {
 
 seedIfEmpty();
 seedUsersIfEmpty();
+
+// ─── Benchmark Products Seed ────────────────────────────────────────────────
+function seedBenchmarkProducts() {
+  const count = db.prepare('SELECT COUNT(*) as n FROM benchmark_products').get().n;
+  if (count > 0) return;
+
+  const ins = db.prepare(`INSERT INTO benchmark_products
+    (product_name, vendor, version, category, subcategory,
+     cis_benchmark, cis_benchmark_version, disa_stig, disa_stig_id,
+     discovery_method, drift_detection_capability, drift_detection_details,
+     external_tools_needed, architecture_type, automation_ceiling,
+     service_approach, applicable_frameworks, notes)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+  const products = [
+    // ── Cloud Providers ──────────────────────────────────────────────────────
+    ['Amazon Web Services (AWS)','Amazon','Foundations 3.0','Cloud','Public Cloud',
+     'yes','v3.0.0','yes','AWS STIG',
+     'AWS Organizations, AWS Config, AWS CLI (aws ec2 describe-instances), CSPM tools',
+     'built_in','AWS Config Rules + Security Hub continuously evaluate resource configs against baselines. AWS Config records config changes with timeline.',
+     'Native tools sufficient; CSPM (Wiz, Prisma Cloud) for cross-cloud correlation','managed','full',
+     'Configure and tune AWS Config Rules, Security Hub standards, and GuardDuty. Build cross-account compliance dashboards.',
+     'CIS,DISA STIG,FedRAMP,HIPAA,PCI-DSS,SOC 2,NIST 800-53,CMMC','Market leader in cloud compliance tooling'],
+
+    ['Microsoft Azure','Microsoft','Foundations 3.0','Cloud','Public Cloud',
+     'yes','v3.0.0','yes','Azure STIG',
+     'Azure Resource Graph, Azure CLI (az resource list), Microsoft Defender for Cloud, CSPM tools',
+     'built_in','Microsoft Defender for Cloud continuously assesses against CIS benchmarks and regulatory standards. Azure Policy enforces desired state with auto-remediation.',
+     'Native tools sufficient; CSPM for multi-cloud','managed','full',
+     'Configure Defender for Cloud regulatory compliance, Azure Policy initiatives, and Sentinel alerting.',
+     'CIS,DISA STIG,FedRAMP,HIPAA,PCI-DSS,SOC 2,NIST 800-53,CMMC','Strong native compliance suite'],
+
+    ['Google Cloud Platform (GCP)','Google','Foundations 3.0','Cloud','Public Cloud',
+     'yes','v3.0.0','yes','GCP STIG',
+     'GCP Asset Inventory, gcloud CLI, Security Command Center, CSPM tools',
+     'built_in','Security Command Center (SCC) Premium provides continuous compliance monitoring against CIS benchmarks. Organization Policy Service enforces constraints.',
+     'Native SCC sufficient; CSPM for multi-cloud','managed','full',
+     'Configure SCC Premium compliance module, Organization Policies, and BigQuery audit log exports.',
+     'CIS,DISA STIG,FedRAMP,HIPAA,PCI-DSS,SOC 2,NIST 800-53','SCC Premium required for full CIS coverage'],
+
+    ['DigitalOcean','DigitalOcean','Foundations 1.0','Cloud','Public Cloud',
+     'yes','v1.0.0 (2025)','no',null,
+     'DigitalOcean API (doctl compute droplet list), Cloud Console inventory',
+     'limited','Basic monitoring and alerting. No native CIS benchmark scanning or configuration baseline comparison.',
+     'Third-party CSPM, OpenSCAP on droplets, custom API scripting','managed','partial',
+     'Deploy scanning agents on droplets, build custom compliance checks via API, implement FIM.',
+     'CIS,SOC 2','New benchmark released 2025; limited native compliance tooling'],
+
+    ['Tencent Cloud','Tencent','Foundations 1.0','Cloud','Public Cloud',
+     'yes','v1.0.0','no',null,
+     'Tencent Cloud API (DescribeInstances), Cloud Console, Cloud Workload Protection (CWP)',
+     'limited','Cloud Workload Protection has basic baseline checks. Less mature than AWS Config/Azure Policy.',
+     'Third-party CSPM with Tencent connector, custom API scripting','managed','partial',
+     'Deploy CWP agents, build custom compliance validation via Tencent API, integrate with CSPM platform.',
+     'CIS','Immature compliance ecosystem compared to AWS/Azure/GCP'],
+
+    // ── Operating Systems — Server ───────────────────────────────────────────
+    ['Windows Server 2025','Microsoft','2025','OS','Server',
+     'yes','v1.0.0 (2025)','yes','Windows Server 2025 STIG',
+     'Active Directory, SCCM/Intune, PowerShell (Get-ComputerInfo), network scanning',
+     'limited','Group Policy with RSOP reporting. Windows Security Compliance Toolkit provides baselines. No continuous drift detection natively.',
+     'CIS-CAT Pro, PowerSTIG, SCCM compliance, third-party FIM','traditional','full',
+     'Apply CIS/STIG GPOs, deploy PowerSTIG for validation, configure FIM for continuous monitoring.',
+     'CIS,DISA STIG,CMMC,FedRAMP,HIPAA,PCI-DSS,NIST 800-53','New benchmark 2025; PowerSTIG support expected'],
+
+    ['Windows Server 2022','Microsoft','2022','OS','Server',
+     'yes','v2.0.0','yes','Windows Server 2022 STIG',
+     'Active Directory, SCCM/Intune, PowerShell, network scanning',
+     'limited','Group Policy with RSOP. Security Compliance Toolkit baselines available.',
+     'CIS-CAT Pro, PowerSTIG, SCCM compliance, FIM tools','traditional','full',
+     'Apply CIS/STIG GPOs, deploy PowerSTIG, configure continuous monitoring with FIM.',
+     'CIS,DISA STIG,CMMC,FedRAMP,HIPAA,PCI-DSS,NIST 800-53','Mature benchmark and STIG coverage'],
+
+    ['Windows Server 2019','Microsoft','2019','OS','Server',
+     'yes','v2.0.0','yes','Windows Server 2019 STIG',
+     'Active Directory, SCCM/Intune, PowerShell, network scanning',
+     'limited','Group Policy with RSOP. Security Compliance Toolkit baselines available.',
+     'CIS-CAT Pro, PowerSTIG, SCCM compliance, FIM tools','traditional','full',
+     'Apply CIS/STIG GPOs, deploy PowerSTIG, configure continuous monitoring with FIM.',
+     'CIS,DISA STIG,CMMC,FedRAMP,HIPAA,PCI-DSS,NIST 800-53','Still widely deployed; approaching end-of-mainstream support'],
+
+    ['Red Hat Enterprise Linux 10','Red Hat','10','OS','Server',
+     'yes','v1.0.0 (2025)','yes','RHEL 10 STIG',
+     'Red Hat Satellite/Insights, SSH banner, subscription-manager, network scanning',
+     'limited','Red Hat Insights compliance service checks against OpenSCAP profiles. RHEL has built-in OpenSCAP scanner (oscap).',
+     'OpenSCAP, Red Hat Satellite, Ansible playbooks, CIS-CAT Pro','traditional','full',
+     'Deploy OpenSCAP profiles, configure Satellite compliance policies, build Ansible remediation playbooks.',
+     'CIS,DISA STIG,CMMC,FedRAMP,HIPAA,PCI-DSS,NIST 800-53','New benchmark 2025; strong OpenSCAP integration'],
+
+    ['Red Hat Enterprise Linux 9','Red Hat','9','OS','Server',
+     'yes','v2.0.0','yes','RHEL 9 STIG',
+     'Red Hat Satellite/Insights, SSH banner, subscription-manager, network scanning',
+     'limited','Red Hat Insights compliance + OpenSCAP (oscap) built-in.',
+     'OpenSCAP, Red Hat Satellite, Ansible playbooks, CIS-CAT Pro','traditional','full',
+     'Deploy OpenSCAP profiles, configure Satellite compliance, Ansible remediation.',
+     'CIS,DISA STIG,CMMC,FedRAMP,HIPAA,PCI-DSS,NIST 800-53','Mature CIS + STIG coverage'],
+
+    ['Red Hat Enterprise Linux 8','Red Hat','8','OS','Server',
+     'yes','v3.0.0','yes','RHEL 8 STIG',
+     'Red Hat Satellite/Insights, SSH banner, subscription-manager, network scanning',
+     'limited','Red Hat Insights compliance + OpenSCAP built-in.',
+     'OpenSCAP, Red Hat Satellite, Ansible playbooks, CIS-CAT Pro','traditional','full',
+     'Deploy OpenSCAP profiles, Ansible remediation playbooks, FIM for drift.',
+     'CIS,DISA STIG,CMMC,FedRAMP,HIPAA,PCI-DSS,NIST 800-53','Widely deployed; approaching maintenance phase'],
+
+    ['Ubuntu Linux','Canonical','24.04 LTS','OS','Server',
+     'yes','v1.0.0','yes','Ubuntu STIG',
+     'Landscape, SSH banner, apt package queries, network scanning',
+     'limited','Ubuntu Pro includes USG (Ubuntu Security Guide) with CIS/DISA profile auto-apply and check.',
+     'OpenSCAP, CIS-CAT Pro, Ansible, Ubuntu Pro USG','traditional','full',
+     'Deploy USG profiles (Ubuntu Pro), OpenSCAP scanning, Ansible remediation.',
+     'CIS,DISA STIG,FedRAMP,HIPAA,SOC 2,NIST 800-53','Ubuntu Pro USG provides strong native CIS/STIG tooling'],
+
+    ['Debian Linux','Debian Project','12','OS','Server',
+     'yes','v1.0.0','yes','Debian STIG',
+     'SSH banner, dpkg/apt queries, network scanning',
+     'none','No built-in compliance or drift detection features.',
+     'OpenSCAP, CIS-CAT Pro, Ansible, FIM tools','traditional','full',
+     'Build OpenSCAP profiles, Ansible hardening playbooks, deploy FIM agents.',
+     'CIS,DISA STIG,HIPAA,SOC 2,NIST 800-53','Community-maintained; less enterprise tooling than RHEL/Ubuntu'],
+
+    ['SUSE Linux Enterprise','SUSE','15','OS','Server',
+     'yes','v1.0.0','yes','SLES STIG',
+     'SUSE Manager, SSH banner, zypper queries, network scanning',
+     'limited','SUSE Manager provides compliance checking with OpenSCAP integration.',
+     'OpenSCAP, SUSE Manager, CIS-CAT Pro, Ansible','traditional','full',
+     'Configure SUSE Manager compliance policies, OpenSCAP profiles, Ansible playbooks.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Strong in SAP and enterprise Linux environments'],
+
+    ['Rocky Linux 10','Rocky Enterprise Software Foundation','10','OS','Server',
+     'yes','v1.0.0 (2025)','no',null,
+     'SSH banner, dnf/rpm queries, network scanning',
+     'none','No built-in compliance tools. Compatible with RHEL OpenSCAP profiles.',
+     'OpenSCAP (RHEL profiles compatible), CIS-CAT Pro, Ansible','traditional','full',
+     'Apply RHEL-compatible OpenSCAP profiles, Ansible hardening, FIM.',
+     'CIS,HIPAA,SOC 2,NIST 800-53','New benchmark 2025; RHEL binary-compatible'],
+
+    ['AlmaLinux OS 10','AlmaLinux OS Foundation','10','OS','Server',
+     'yes','v1.0.0 (2025)','no',null,
+     'SSH banner, dnf/rpm queries, network scanning',
+     'none','No built-in compliance tools. Compatible with RHEL OpenSCAP profiles.',
+     'OpenSCAP (RHEL profiles compatible), CIS-CAT Pro, Ansible','traditional','full',
+     'Apply RHEL-compatible OpenSCAP profiles, Ansible hardening, FIM.',
+     'CIS,HIPAA,SOC 2,NIST 800-53','New benchmark 2025; RHEL binary-compatible'],
+
+    ['Oracle Linux','Oracle','9','OS','Server',
+     'yes','v1.0.0','yes','Oracle Linux STIG',
+     'SSH banner, dnf/rpm queries, Oracle Enterprise Manager, network scanning',
+     'limited','Ksplice for live patching. OpenSCAP compatible.',
+     'OpenSCAP, CIS-CAT Pro, Ansible, Oracle Enterprise Manager','traditional','full',
+     'Deploy OpenSCAP profiles, Ansible remediation, integrate with Oracle EM for monitoring.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Strong in Oracle DB environments'],
+
+    ['Amazon Linux 2023','Amazon','2023','OS','Server',
+     'yes','v1.0.0','yes','Amazon Linux 2 STIG',
+     'AWS SSM inventory, SSH banner, EC2 instance metadata, AWS Config',
+     'limited','AWS SSM Patch Manager and State Manager can enforce configurations. AWS Inspector scans.',
+     'AWS SSM, Inspector, CIS-CAT Pro, Ansible','traditional','full',
+     'Configure SSM State Manager documents, Inspector scans, Ansible hardening.',
+     'CIS,DISA STIG,FedRAMP,HIPAA,NIST 800-53','Tightly integrated with AWS ecosystem'],
+
+    // ── Operating Systems — Desktop ──────────────────────────────────────────
+    ['Windows 11 Enterprise','Microsoft','24H2','OS','Desktop',
+     'yes','v3.0.0','yes','Windows 11 STIG',
+     'Active Directory, Intune/SCCM, PowerShell, endpoint agents',
+     'limited','Intune compliance policies + Group Policy RSOP. Windows Security Compliance Toolkit.',
+     'CIS-CAT Pro, Intune compliance, PowerSTIG, endpoint agents','traditional','full',
+     'Intune compliance policies for cloud-managed, GPO for domain-joined, PowerSTIG validation.',
+     'CIS,DISA STIG,CMMC,HIPAA,PCI-DSS,NIST 800-53','High volume; Intune + GPO hybrid common'],
+
+    ['Windows 10 Enterprise','Microsoft','22H2','OS','Desktop',
+     'yes','v3.0.0','yes','Windows 10 STIG',
+     'Active Directory, Intune/SCCM, PowerShell, endpoint agents',
+     'limited','Intune compliance policies + GPO RSOP.',
+     'CIS-CAT Pro, Intune, PowerSTIG, endpoint agents','traditional','full',
+     'Intune compliance policies, GPO hardening, PowerSTIG validation.',
+     'CIS,DISA STIG,CMMC,HIPAA,PCI-DSS,NIST 800-53','Still widely deployed; approaching end-of-support Oct 2025'],
+
+    ['macOS (Sequoia)','Apple','15','OS','Desktop',
+     'yes','v1.0.0','yes','macOS STIG',
+     'Jamf Pro, Mosyle, Kandji, Apple Business Manager, MDM enrollment',
+     'limited','MDM profiles enforce settings. Jamf Compliance Editor maps CIS/STIG rules to configuration profiles. mSCP project provides baseline scripts.',
+     'Jamf Pro + Compliance Editor, mSCP scripts, CIS-CAT Pro, Mosyle','traditional','partial',
+     'Deploy mSCP baseline scripts via MDM, Jamf Compliance Editor for CIS/STIG profiles, custom compliance checks.',
+     'CIS,DISA STIG,HIPAA,SOC 2,NIST 800-53','mSCP (macOS Security Compliance Project) is key open-source tool'],
+
+    // ── Operating Systems — Specialized ──────────────────────────────────────
+    ['Bottlerocket','Amazon','1.x','OS','Specialized',
+     'yes','v1.0.0','no',null,
+     'AWS SSM inventory, ECS/EKS node AMI metadata, apiclient on host',
+     'immutable','Read-only root filesystem. Atomic image updates. Drift is architecturally prevented — OS cannot be modified at runtime.',
+     'Validate AMI/image hardening before deployment; no runtime drift monitoring needed','immutable','full',
+     'Harden the image/config before deployment. Validate with CIS-CAT, not monitor at runtime.',
+     'CIS,FedRAMP,HIPAA,SOC 2','Immutable OS; drift prevention by design'],
+
+    ['Talos Linux','Sidero Labs','1.x','OS','Specialized',
+     'yes','v1.0.0','no',null,
+     'talosctl get members, Kubernetes node labels, API-only discovery (no SSH)',
+     'immutable','No SSH, no shell. Entire config is declarative via machine configs. talosctl compares current state to declared desired state.',
+     'Validate machine config before deployment; talosctl for state comparison','immutable','full',
+     'Harden machine config definitions. Validate with talosctl, not runtime agents.',
+     'CIS,SOC 2','Immutable API-only OS; no shell access'],
+
+    ['Wind River eLxr 12','Wind River','12','OS','Specialized',
+     'no',null,'no',null,
+     'Asset management/CMDB, SNMP, network scanning (Nmap OS fingerprint), Wind River Studio',
+     'none','No native compliance or drift features. Embedded/real-time Linux.',
+     'OpenSCAP, custom scripts, vendor-specific hardening validation, FIM','traditional','manual_heavy',
+     'Custom hardening scripts, manual validation against vendor guidelines, FIM deployment.',
+     'NIST 800-53','No CIS/STIG coverage; embedded/real-time use case'],
+
+    ['Anduril NixOS','Anduril/NixOS','23.11+','OS','Specialized',
+     'no',null,'no',null,
+     'NixOps fleet inventory, nixos-version, Anduril Lattice platform API',
+     'immutable','System state defined in .nix files. nixos-rebuild detects divergence from declared config. Not security-baseline-aware but config drift is inherently visible.',
+     'Custom Nix-based compliance modules, security scanning of Nix configs','declarative','partial',
+     'Validate Nix configurations against security baselines. Build custom compliance checks for declared state.',
+     'NIST 800-53','Declarative/immutable; no CIS/STIG yet; defense sector use'],
+
+    // ── Operating Systems — Legacy/Enterprise ────────────────────────────────
+    ['IBM AIX 7','IBM','7.3','OS','Legacy',
+     'yes','v1.0.0','yes','AIX STIG',
+     'HMC (Hardware Management Console) inventory, oslevel via SSH, CMDB, PowerVC',
+     'audit_log_only','Security Expert tool sets hardening levels (Low/Medium/High). trustchk validates trusted computing base. Audit subsystem tracks changes.',
+     'OpenSCAP (limited), custom scripts, Ansible for AIX, FIM','traditional','partial',
+     'Security Expert initial hardening, custom audit scripts, Ansible playbooks for ongoing validation.',
+     'CIS,DISA STIG,CMMC,HIPAA,PCI-DSS,NIST 800-53','Legacy platform; requires specialized AIX expertise'],
+
+    ['IBM i (V7R4/V7R5)','IBM','V7R5','OS','Legacy',
+     'yes','v1.0.0','yes','IBM i STIG',
+     'IBM Navigator for i, DSPSFWRSC command, HMC, IBM i Access Client',
+     'audit_log_only','SECCHK command audits security settings. System values compared to standards. Audit journal (QAUDJRN) tracks changes.',
+     'Custom CL/RPG programs, IBM i security tools (Powertech, Assure), manual review','traditional','manual_heavy',
+     'SECCHK baseline validation, custom audit programs, third-party IBM i security tools.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Niche platform; very few practitioners available'],
+
+    // ── Mobile ───────────────────────────────────────────────────────────────
+    ['Apple iOS/iPadOS 18','Apple','18','Mobile','Smartphone/Tablet',
+     'yes','v1.0.0 (2025, Intune)','yes','Apple iOS STIG',
+     'MDM enrollment (Jamf, Mosyle, Intune), Apple Business Manager, Apple Configurator',
+     'limited','MDM platforms enforce and monitor configuration profiles continuously. Intune compliance policies flag non-compliant devices.',
+     'Jamf Pro, Intune, Mosyle, Apple Configurator, CIS-CAT Pro','managed','partial',
+     'Deploy CIS-aligned MDM profiles, Intune/Jamf compliance policies, automated remediation via MDM.',
+     'CIS,DISA STIG,HIPAA,NIST 800-53','New CIS benchmark for Intune released 2025'],
+
+    ['Motorola/Honeywell Android 13','Motorola/Honeywell','13','Mobile','Ruggedized',
+     'yes','v1.0.0','yes','Android STIG',
+     'MDM platform (SOTI, Ivanti, VMware WS1), Google Endpoint Management, Honeywell Operational Intelligence',
+     'none','Device has no self-drift detection. MDM platform handles policy enforcement.',
+     'MDM platform (SOTI, WS1, Intune) enforces and monitors policy compliance','managed','partial',
+     'Deploy MDM profiles aligned to CIS/STIG, configure compliance policies, automated wipe/lock on violation.',
+     'CIS,DISA STIG,HIPAA,NIST 800-53','Ruggedized devices; SOTI or Honeywell OI for fleet management'],
+
+    // ── Containers / Orchestration ───────────────────────────────────────────
+    ['Docker','Docker Inc.','27.x','Container','Runtime',
+     'yes','v1.7.0','yes','Docker STIG',
+     'docker info, docker ps, container runtime inspection, Kubernetes node inventory',
+     'none','No built-in compliance scanning. Docker Scout provides vulnerability scanning but not CIS compliance.',
+     'Docker Bench for Security (CIS script), Aqua, Prisma Cloud, Sysdig, OpenSCAP','traditional','full',
+     'Run Docker Bench for Security, deploy Aqua/Prisma runtime agents, Ansible hardening for daemon config.',
+     'CIS,DISA STIG,SOC 2,PCI-DSS,NIST 800-53','Docker Bench for Security is the standard CIS validation tool'],
+
+    ['Kubernetes','CNCF','1.31','Container','Orchestration',
+     'yes','v1.9.0','yes','Kubernetes STIG',
+     'kubectl get nodes, Kubernetes API, cloud provider console (EKS/AKS/GKE)',
+     'limited','OPA/Gatekeeper enforces admission policies. Kube-bench (Aqua) scans against CIS. No native benchmark scanner.',
+     'kube-bench, OPA Gatekeeper, Falco, Aqua, Prisma Cloud, Sysdig','declarative','full',
+     'Deploy kube-bench scans, OPA Gatekeeper policies, Falco runtime monitoring, CIS-aligned admission controllers.',
+     'CIS,DISA STIG,SOC 2,PCI-DSS,NIST 800-53','kube-bench is de facto CIS scanner; managed K8s (EKS/AKS/GKE) may limit control-plane checks'],
+
+    // ── Databases ────────────────────────────────────────────────────────────
+    ['Oracle Database 23ai','Oracle','23ai','Database','Relational',
+     'yes','v1.0.0 (2025)','yes','Oracle DB STIG',
+     'Oracle Enterprise Manager, tnsnames.ora scan, port scan (1521), CMDB',
+     'limited','Oracle Audit Vault and Database Firewall tracks changes. Enterprise Manager provides some compliance checking.',
+     'CIS-CAT Pro, Oracle Audit Vault, DBSAT (Database Security Assessment Tool), custom SQL scripts','traditional','partial',
+     'Deploy DBSAT for assessment, configure Audit Vault, custom SQL compliance scripts, Oracle EM monitoring.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,SOC 2,NIST 800-53','New benchmark 2025; Oracle DBSAT is free assessment tool'],
+
+    ['Microsoft SQL Server','Microsoft','2022','Database','Relational',
+     'yes','v1.0.0','yes','SQL Server STIG',
+     'SQL Server Management Studio, port scan (1433), Active Directory, SCCM',
+     'limited','SQL Server Audit feature tracks changes. Vulnerability Assessment in SSMS scans against baselines.',
+     'CIS-CAT Pro, PowerSTIG, SQL Vulnerability Assessment, custom T-SQL scripts','traditional','full',
+     'SSMS Vulnerability Assessment, PowerSTIG SQL modules, custom T-SQL compliance checks, audit configuration.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,SOC 2,NIST 800-53','Good native assessment tooling via SSMS'],
+
+    ['PostgreSQL','PostgreSQL Global Development Group','16','Database','Relational',
+     'yes','v1.0.0','yes','PostgreSQL STIG',
+     'Port scan (5432), pg_isready, service discovery, CMDB',
+     'none','No built-in compliance scanning. PostgreSQL has audit logging extensions (pgAudit) but no baseline comparison.',
+     'CIS-CAT Pro, OpenSCAP, pgAudit extension, custom SQL scripts, Ansible','traditional','full',
+     'Deploy pgAudit, CIS-CAT scanning, custom SQL compliance checks, Ansible hardening playbooks.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,SOC 2,NIST 800-53','pgAudit extension essential for compliance logging'],
+
+    ['MySQL','Oracle','8.4','Database','Relational',
+     'yes','v1.0.0','yes','MySQL STIG',
+     'Port scan (3306), mysql --version, service discovery, CMDB',
+     'none','No built-in compliance features. Enterprise Edition has audit plugin.',
+     'CIS-CAT Pro, MySQL Enterprise Audit, custom SQL scripts, Ansible','traditional','full',
+     'Deploy audit plugin (Enterprise) or MariaDB Audit Plugin, CIS-CAT scanning, Ansible hardening.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,SOC 2,NIST 800-53','Enterprise vs Community licensing affects audit capabilities'],
+
+    ['MongoDB','MongoDB Inc.','7.x','Database','NoSQL',
+     'yes','v1.0.0','yes','MongoDB STIG',
+     'Port scan (27017), mongosh, service discovery, CMDB, MongoDB Atlas console',
+     'none','No built-in CIS compliance. MongoDB Atlas has some security configuration recommendations.',
+     'CIS-CAT Pro, custom mongosh scripts, Ansible, MongoDB Atlas security features','traditional','partial',
+     'Custom mongosh compliance scripts, CIS-CAT scanning, Ansible hardening, Atlas security configuration.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,SOC 2,NIST 800-53','Atlas vs self-hosted changes the scope significantly'],
+
+    ['IBM Db2 12.1','IBM','12.1','Database','Relational',
+     'yes','v1.0.0','yes','Db2 STIG',
+     'db2ls on host, port scan (50000), CMDB, db2licm -l',
+     'audit_log_only','db2audit tracks security events. Security plugins enforce policies. Data governance tools available.',
+     'CIS-CAT Pro, custom SQL scripts, db2audit configuration, Ansible','traditional','partial',
+     'Configure db2audit, custom SQL compliance scripts, Ansible hardening, manual review of authorization settings.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Niche expertise required; fewer practitioners available'],
+
+    ['Apache Cassandra 5.0','Apache Software Foundation','5.0','Database','NoSQL',
+     'yes','v1.0.0','no',null,
+     'Port scan (9042 CQL, 7199 JMX), nodetool status, service discovery (Consul/K8s)',
+     'none','File-based config (cassandra.yaml). No compliance features.',
+     'FIM on config files, Ansible/Chef desired-state enforcement, custom validation scripts','traditional','manual_heavy',
+     'FIM on cassandra.yaml, Ansible desired-state playbooks, custom cqlsh compliance scripts.',
+     'CIS,HIPAA,SOC 2','No DISA STIG; limited tooling ecosystem'],
+
+    ['SingleStore','SingleStore Inc.','8.x','Database','NewSQL',
+     'no',null,'no',null,
+     'Port scan (3306), SingleStore Studio, Kubernetes service labels, cloud marketplace logs',
+     'none','No compliance or drift features.',
+     'Custom SQL scripts, FIM, Ansible desired-state enforcement','traditional','manual_heavy',
+     'Custom security validation scripts, FIM on config, Ansible hardening, manual baseline documentation.',
+     'HIPAA,SOC 2','No CIS/STIG coverage; apply general database hardening principles'],
+
+    ['YugabyteDB','Yugabyte Inc.','2.x','Database','NewSQL',
+     'no',null,'no',null,
+     'Port scan (5433/9042), yb-admin, Kubernetes service labels, cloud marketplace logs',
+     'none','No compliance or drift features.',
+     'Custom SQL scripts, FIM, Ansible desired-state enforcement','traditional','manual_heavy',
+     'Custom security validation scripts, FIM on config, Ansible hardening, manual baseline documentation.',
+     'HIPAA,SOC 2','No CIS/STIG coverage; PostgreSQL-compatible so some PG controls may apply'],
+
+    // ── Network Devices ──────────────────────────────────────────────────────
+    ['Cisco IOS XE','Cisco','17.x','Network','Router/Switch',
+     'yes','v2.0.0','yes','Cisco IOS XE STIG',
+     'SNMP, CDP/LLDP neighbor tables, Cisco DNA Center, Cisco Prime, network scanning',
+     'limited','Cisco DNA Center provides compliance checking against golden configs. Smart Licensing tracks deployments.',
+     'CIS-CAT Pro, Cisco DNA Center, Ansible (cisco.ios collection), OpenSCAP, custom scripts','appliance','full',
+     'Configure DNA Center compliance policies, Ansible network automation playbooks, CIS-CAT scanning.',
+     'CIS,DISA STIG,CMMC,HIPAA,PCI-DSS,NIST 800-53','Dominant network platform; strong Ansible automation support'],
+
+    ['FortiGate 7.4.x','Fortinet','7.4','Network','Firewall',
+     'yes','v1.0.0 (2025)','yes','FortiGate STIG',
+     'FortiManager, FortiAnalyzer, SNMP, Nmap service detection, FortiCloud',
+     'limited','FortiManager provides config revision history and compliance checking. FortiAnalyzer tracks changes.',
+     'CIS-CAT Pro, FortiManager, Ansible (fortinet.fortios collection), custom API scripts','appliance','partial',
+     'FortiManager compliance baselines, Ansible hardening playbooks, CIS-CAT scanning.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','New CIS benchmark 2025'],
+
+    ['Check Point Firewall','Check Point','R81.x','Network','Firewall',
+     'archived',null,'yes','Check Point STIG',
+     'SmartConsole/Management Server API, SNMP, Nmap service detection',
+     'built_in','Compliance Blade checks running config against CIS best practices and regulatory templates (PCI, HIPAA, NIST). Continuous monitoring with alerts.',
+     'SmartConsole Compliance Blade (built-in), custom API scripts','appliance','partial',
+     'Configure Compliance Blade policies, custom SmartConsole API monitoring, STIG validation scripts.',
+     'DISA STIG,HIPAA,PCI-DSS,NIST 800-53','CIS benchmark archived mid-2025 due to lack of SME support'],
+
+    ['F5 Networks (BIG-IP)','F5 Networks','17.x','Network','ADC/Load Balancer',
+     'yes','v1.0.0','yes','F5 BIG-IP STIG',
+     'BIG-IP iControl REST API, SNMP, F5 BIG-IQ centralized management',
+     'built_in','BIG-IQ provides config diff against stored baselines, change tracking, and audit comparison across device fleet.',
+     'BIG-IQ (requires separate license), Ansible (f5networks.f5_modules), custom iControl scripts','appliance','partial',
+     'Configure BIG-IQ baseline monitoring, Ansible automation, iControl REST compliance scripts.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','BIG-IQ required for drift detection; standalone BIG-IP only has audit logs'],
+
+    ['Arista MLS EOS 4.X','Arista Networks','4.x','Network','Switch',
+     'yes','v1.0.0','yes','Arista STIG',
+     'Arista CloudVision (CVP), eAPI, SNMP, LLDP/CDP neighbor tables',
+     'built_in','CloudVision (CVP) compares running configs against configlet-defined baselines. Flags deviations, supports rollback.',
+     'CloudVision (CVP, separate license), Ansible (arista.eos collection), custom eAPI scripts','appliance','full',
+     'Configure CVP configlets as compliance baselines, Ansible playbooks, eAPI compliance scripts.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','CVP required for drift detection; without it no native baseline comparison'],
+
+    ['Juniper JunOS','Juniper Networks','23.x','Network','Router/Switch',
+     'archived',null,'yes','Juniper STIG',
+     'Junos Space, SNMP, NETCONF/YANG, network scanning',
+     'limited','Junos Space provides config comparison. Commit confirmed model allows rollback.',
+     'Junos Space, Ansible (junipernetworks.junos collection), OpenConfig/NETCONF scripts','appliance','partial',
+     'Ansible network automation, Junos Space compliance, NETCONF-based config validation.',
+     'DISA STIG,HIPAA,PCI-DSS,NIST 800-53','CIS benchmark archived mid-2025; STIG still maintained'],
+
+    ['Sophos Firewall v21/v22','Sophos','21/22','Network','Firewall',
+     'no',null,'no',null,
+     'Sophos Central cloud console, SNMP, Sophos Firewall API',
+     'audit_log_only','Sophos Central shows config changes and security status. Audit logs available.',
+     'Custom API scripts, FIM, Ansible automation, manual baseline comparison','appliance','manual_heavy',
+     'Custom Sophos API compliance scripts, manual baseline documentation, FIM on config backups.',
+     'HIPAA,PCI-DSS','No CIS/STIG coverage; apply general firewall hardening principles'],
+
+    ['pfSense','Netgate','2.7.x','Network','Firewall',
+     'no',null,'no',null,
+     'Network scan + web UI fingerprint, SNMP, FauxAPI',
+     'none','No baseline feature. Config backup/restore only.',
+     'External FIM, git-tracked config exports (XML), custom scripts, FauxAPI monitoring','appliance','manual_heavy',
+     'Git-track XML config exports, FIM on config files, custom FauxAPI compliance scripts.',
+     'PCI-DSS','No CIS/STIG; open-source firewall; community hardening guides only'],
+
+    ['OPNsense','Deciso','24.x','Network','Firewall',
+     'no',null,'no',null,
+     'Network scan + web UI fingerprint, SNMP, OPNsense API',
+     'none','No baseline feature. Config backup/restore only.',
+     'External FIM, git-tracked config exports (XML), custom scripts, OPNsense API','appliance','manual_heavy',
+     'Git-track XML config exports, FIM on config files, custom API compliance scripts.',
+     'PCI-DSS','No CIS/STIG; open-source firewall; community hardening guides only'],
+
+    ['Infoblox 8.x DNS','Infoblox','8.x','Network','DNS/DHCP/IPAM',
+     'no',null,'no',null,
+     'Infoblox Grid Manager, WAPI (REST), SNMP',
+     'audit_log_only','Grid Manager tracks config changes with audit trail. Can compare member configs.',
+     'Custom WAPI scripts, FIM, manual baseline comparison','appliance','manual_heavy',
+     'Custom WAPI compliance scripts, Grid Manager audit review, manual baseline documentation.',
+     'HIPAA,PCI-DSS,NIST 800-53','No CIS/STIG; critical infrastructure component often overlooked'],
+
+    ['Forescout','Forescout Technologies','8.x','Network','NAC/Visibility',
+     'no',null,'no',null,
+     'Forescout Enterprise Manager console, eyeSight API',
+     'built_in','eyeInspect assesses device compliance against defined policies. Detects config changes, flags non-compliant devices, blocks network access on violation.',
+     'Forescout is itself a discovery/compliance tool; integrate findings into SIEM/GRC','appliance','partial',
+     'Configure Forescout policies aligned to security baselines, integrate with GRC for evidence, custom eyeSight API reporting.',
+     'HIPAA,PCI-DSS,NIST 800-53','Forescout is a NAC/visibility tool, not benchmark-aware; policies are custom'],
+
+    // ── Browsers ─────────────────────────────────────────────────────────────
+    ['Google Chrome','Google','Enterprise','Browser','Desktop',
+     'yes','v2.0.0','yes','Google Chrome STIG',
+     'Endpoint agents, SCCM/Intune software inventory, Group Policy, Chrome Browser Cloud Management',
+     'limited','Chrome Browser Cloud Management provides policy enforcement and reporting. Group Policy enforces settings.',
+     'CIS-CAT Pro, Chrome Browser Cloud Management, Intune/GPO, endpoint agents','managed','full',
+     'Deploy Chrome ADMX policies via GPO/Intune, Chrome Browser Cloud Management for reporting.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Managed via GPO/Intune; Cloud Management for unmanaged'],
+
+    ['Mozilla Firefox','Mozilla','ESR','Browser','Desktop',
+     'yes','v1.0.0','yes','Firefox STIG',
+     'Endpoint agents, SCCM/Intune software inventory, Group Policy, policies.json',
+     'none','No built-in compliance monitoring. Managed via Group Policy or policies.json.',
+     'CIS-CAT Pro, GPO/Intune, custom scripts checking policies.json, endpoint agents','managed','full',
+     'Deploy Firefox GPO templates or policies.json, CIS-CAT validation.',
+     'CIS,DISA STIG,HIPAA,NIST 800-53','ESR recommended for enterprise; managed via policies.json or GPO'],
+
+    ['Apple Safari','Apple','18','Browser','Desktop/Mobile',
+     'yes','v1.0.0','yes','Safari STIG',
+     'MDM software inventory (Jamf, Mosyle), macOS/iOS device management, endpoint agents',
+     'none','Browser has no self-monitoring. Configuration managed entirely via MDM profiles.',
+     'Jamf Pro, Mosyle, MDM configuration profiles, mSCP scripts','managed','partial',
+     'Deploy MDM configuration profiles aligned to CIS/STIG, Jamf compliance reporting.',
+     'CIS,DISA STIG,HIPAA,NIST 800-53','Managed exclusively via MDM; no standalone enterprise management'],
+
+    ['Microsoft Edge','Microsoft','Enterprise','Browser','Desktop',
+     'yes','v2.0.0','yes','Edge STIG',
+     'Endpoint agents, SCCM/Intune software inventory, Group Policy, Edge management service',
+     'limited','Intune/GPO enforce and report on policy compliance. Microsoft Edge management service provides cloud-based policy.',
+     'CIS-CAT Pro, Intune/GPO, Edge management service, endpoint agents','managed','full',
+     'Deploy Edge ADMX policies via GPO/Intune, Edge management service for cloud-managed devices.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Strong Intune integration; mirrors Chrome management model'],
+
+    // ── SaaS / Identity ──────────────────────────────────────────────────────
+    ['Microsoft 365','Microsoft','E3/E5','SaaS','Productivity',
+     'yes','v3.1.0','yes','Microsoft 365 STIG',
+     'Microsoft 365 Admin Center, Microsoft Graph API, Defender for Cloud Apps',
+     'built_in','Microsoft Secure Score continuously evaluates tenant config against best practices. Defender for Cloud Apps monitors SaaS security posture.',
+     'CIS-CAT Pro, Microsoft Secure Score, Defender for Cloud Apps, custom Graph API scripts','saas','full',
+     'Configure Secure Score recommendations, Defender for Cloud Apps policies, CIS-CAT tenant scanning.',
+     'CIS,DISA STIG,FedRAMP,HIPAA,PCI-DSS,SOC 2,NIST 800-53','Secure Score provides strong native compliance scoring'],
+
+    ['Google Workspace','Google','Enterprise','SaaS','Productivity',
+     'yes','v1.0.0','no',null,
+     'Google Admin Console, Google Workspace Admin SDK, Alert Center',
+     'limited','Admin Console security dashboard shows posture. Alert Center flags security events. No CIS-aligned baseline scanning.',
+     'CIS-CAT Pro, custom Admin SDK scripts, third-party SaaS security (Spin.ai, Adaptive Shield)','saas','partial',
+     'Custom Admin SDK compliance scripts, CIS-CAT scanning, third-party SSPM integration.',
+     'CIS,HIPAA,SOC 2,NIST 800-53','Weaker native compliance tooling than M365'],
+
+    ['Okta IDaaS','Okta','OIE','SaaS','Identity',
+     'no',null,'no',null,
+     'Okta Admin API (/api/v1/apps), SSO login page fingerprint, DNS (check for *.okta.com CNAME)',
+     'limited','HealthInsight dashboard flags security config issues (weak MFA policies, inactive admins, missing session controls). Scores tenant posture.',
+     'Custom Okta API compliance scripts, third-party SSPM (Adaptive Shield, AppOmni)','saas','partial',
+     'Configure HealthInsight recommendations, custom API compliance checks, SSPM integration.',
+     'HIPAA,SOC 2,NIST 800-53','No CIS/STIG; HealthInsight is periodic posture score, not continuous drift'],
+
+    ['Zoom','Zoom Video Communications','6.x','SaaS','Communications',
+     'archived',null,'no',null,
+     'Zoom Admin Portal, Zoom API, SSO federation logs',
+     'none','No built-in compliance scanning or drift detection.',
+     'Custom Zoom API scripts, third-party SaaS security tools','saas','manual_heavy',
+     'Custom API compliance scripts, manual configuration review against archived CIS benchmark.',
+     'HIPAA,SOC 2','CIS benchmark archived mid-2025 due to lack of SME support'],
+
+    // ── Security / Endpoint Platforms ────────────────────────────────────────
+    ['Tanium 7.x','Tanium','7.x','Security Platform','Endpoint',
+     'no',null,'yes','Tanium STIG',
+     'Tanium Console API; Tanium itself discovers endpoints — query its own inventory',
+     'built_in','Tanium Comply module runs CIS and STIG scans on endpoints continuously. Detects drift against benchmark baselines with remediation workflows.',
+     'Tanium Comply (separately licensed module); base Tanium does not include compliance scanning','traditional','full',
+     'Configure Tanium Comply scan profiles, map to CIS/STIG baselines, build remediation workflows.',
+     'DISA STIG,CMMC,HIPAA,PCI-DSS,NIST 800-53','Comply is separately licensed; base platform lacks compliance scanning'],
+
+    ['Dragos Platform 2.x','Dragos Inc.','2.x','Security Platform','OT/ICS',
+     'no',null,'no',null,
+     'Dragos console, OT network isolation means manual inventory or ICS asset management',
+     'audit_log_only','Asset characterization tracks OT device state. Detects anomalous behavior in ICS networks. Baselines are behavioral (traffic patterns), not configuration-level.',
+     'Dragos for OT visibility; complement with ICS-specific hardening tools, manual config review','appliance','manual_heavy',
+     'Dragos for threat detection, manual OT device hardening, ICS-specific baseline documentation.',
+     'NIST 800-82,NIST 800-53','OT/ICS focused; no traditional CIS/STIG; NIST 800-82 for ICS security'],
+
+    ['Xylok Security Suite 20.x','Xylok','20.x','Security Platform','STIG Automation',
+     'no',null,'yes','Multiple STIGs',
+     'Xylok management console, DISA STIG Viewer integration',
+     'built_in','Purpose-built for STIG compliance. Scans, remediates, and monitors drift against DISA STIGs. Continuous monitoring mode.',
+     'Xylok is the drift tool; integrate findings into GRC/SIEM for reporting','traditional','full',
+     'Configure Xylok scan profiles per STIG, continuous monitoring, integrate with GRC for audit evidence.',
+     'DISA STIG,CMMC,NIST 800-53','STIG-only; no CIS Benchmark support; primarily DoD/government'],
+
+    ['Axonius Ax-OS','Axonius','5.x','Security Platform','Asset Management',
+     'no',null,'no',null,
+     'Axonius is the asset discovery platform — query its own API for asset inventory',
+     'built_in','Aggregates compliance state from connected tools. Flags devices that fall out of policy by comparing against defined rules.',
+     'Axonius is a meta-layer; it reports what other tools tell it. Only as good as its integrations.','saas','partial',
+     'Configure Axonius policy rules, integrate all scanning tools, build compliance dashboards from aggregated data.',
+     'HIPAA,SOC 2,NIST 800-53','Axonius discovers and aggregates; does not scan directly'],
+
+    // ── Server Software ──────────────────────────────────────────────────────
+    ['Apache HTTP Server','Apache Software Foundation','2.4','Server Software','Web Server',
+     'yes','v2.0.0','yes','Apache STIG',
+     'Port scan (80/443), httpd -v, process list, service discovery',
+     'none','No built-in compliance features. Configuration is file-based.',
+     'CIS-CAT Pro, OpenSCAP, FIM on config files, Ansible hardening','traditional','full',
+     'CIS-CAT scanning, FIM on httpd.conf, Ansible hardening playbooks, custom config validation.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Widely deployed; straightforward file-based hardening'],
+
+    ['Nginx','F5/Nginx Inc.','1.27','Server Software','Web Server',
+     'yes','v2.0.0','no',null,
+     'Port scan (80/443), nginx -v, process list, service discovery',
+     'none','No built-in compliance features. Configuration is file-based.',
+     'CIS-CAT Pro, FIM on config files, Ansible hardening, custom validation scripts','traditional','full',
+     'CIS-CAT scanning, FIM on nginx.conf, Ansible hardening playbooks.',
+     'CIS,HIPAA,PCI-DSS,SOC 2','Growing market share; no DISA STIG yet'],
+
+    ['Microsoft IIS','Microsoft','10','Server Software','Web Server',
+     'yes','v1.0.0','yes','IIS STIG',
+     'PowerShell (Get-IISSite), SCCM, port scan (80/443), Windows feature inventory',
+     'limited','IIS configuration auditing via PowerShell. Windows Event logs track changes.',
+     'CIS-CAT Pro, PowerSTIG, PowerShell compliance scripts, SCCM','traditional','full',
+     'PowerSTIG IIS module, CIS-CAT scanning, PowerShell compliance scripts.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Managed via PowerShell; PowerSTIG provides good automation'],
+
+    ['Apache Tomcat','Apache Software Foundation','10','Server Software','Application Server',
+     'yes','v1.0.0','yes','Tomcat STIG',
+     'Port scan (8080/8443), process list, service discovery, CMDB',
+     'none','No built-in compliance features. Configuration is file-based (server.xml, web.xml).',
+     'CIS-CAT Pro, FIM on config files, Ansible hardening, custom validation scripts','traditional','full',
+     'CIS-CAT scanning, FIM on server.xml/web.xml, Ansible hardening playbooks.',
+     'CIS,DISA STIG,HIPAA,PCI-DSS,NIST 800-53','Common in Java enterprise; straightforward XML-based hardening'],
+
+    // ── Multi-function Print Devices ─────────────────────────────────────────
+    ['Multi-function Print Devices','Various','Generic','Print','MFP',
+     'yes','v1.0.0','yes','MFP STIG',
+     'SNMP, network scanning, print management console, CMDB',
+     'none','No built-in compliance. Managed via vendor-specific admin consoles.',
+     'SNMP monitoring, vendor admin consoles, custom scripts, network FIM','appliance','manual_heavy',
+     'SNMP-based compliance checks, vendor console hardening, network segmentation validation.',
+     'CIS,DISA STIG,HIPAA,NIST 800-53','Often overlooked; high-risk due to stored documents and network access'],
+
+    // ── Archived / Legacy Products ──────────────────────────────────────────
+    ['Microsoft Windows 7 Workstation','Microsoft','7','Windows','Desktop OS',
+     'yes','v3.2.0','yes','Windows 7 STIG',
+     'Active Directory, SCCM, network scan, WMI query',
+     'audit_log_only','Windows Event Logs only. End-of-life; no security updates.',
+     'CIS-CAT Pro, SCAP Compliance Checker, PowerSTIG','traditional','full',
+     'Legacy — end-of-life Jan 2020. Migration advisory only.',
+     'CIS,DISA STIG,NIST 800-53','ARCHIVE — EOL Jan 2020; migration to Win 10/11 recommended'],
+
+    ['Microsoft Windows 8 Enterprise','Microsoft','8','Windows','Desktop OS',
+     'yes','v1.0.0','yes','Windows 8 STIG',
+     'Active Directory, SCCM, network scan, WMI query',
+     'audit_log_only','Windows Event Logs only. End-of-life; no security updates.',
+     'CIS-CAT Pro, SCAP Compliance Checker, PowerSTIG','traditional','full',
+     'Legacy — end-of-life Jan 2016. Migration advisory only.',
+     'CIS,DISA STIG,NIST 800-53','ARCHIVE — EOL Jan 2016; migration to Win 10/11 recommended'],
+
+    ['Microsoft Windows XP','Microsoft','XP','Windows','Desktop OS',
+     'yes','v3.1.0','yes','Windows XP STIG',
+     'Active Directory, SCCM, network scan, WMI query',
+     'none','No compliance features. Extremely end-of-life.',
+     'CIS-CAT Pro (legacy), SCAP Compliance Checker','traditional','partial',
+     'Legacy — EOL Apr 2014. Immediate migration required.',
+     'CIS,DISA STIG','ARCHIVE — EOL Apr 2014; extreme security risk'],
+
+    ['Aliyun Linux (Alibaba Cloud)','Alibaba Cloud','2','Linux','Server OS',
+     'yes','v1.0.0','no',null,
+     'Alibaba Cloud Console, SSH, cloud inventory API',
+     'limited','Alibaba Cloud Security Center provides basic config scanning.',
+     'CIS-CAT Pro, OpenSCAP, Ansible hardening','cloud','full',
+     'CIS-CAT scanning, OpenSCAP, custom Ansible playbooks for Aliyun Linux.',
+     'CIS,SOC 2,ISO 27001','ARCHIVE — Alibaba Cloud Linux, China market focused'],
+
+    ['Linux Mint','Linux Mint','22','Linux','Desktop OS',
+     'yes','v1.0.0','no',null,
+     'SSH, network scan, CMDB, MDM',
+     'none','No built-in compliance features. Based on Ubuntu.',
+     'CIS-CAT Pro (Ubuntu mappings), OpenSCAP, Ansible','traditional','full',
+     'Use Ubuntu CIS benchmarks as base, customize for Mint-specific config.',
+     'CIS','Consumer-focused Linux; enterprise use is rare but growing'],
+
+    ['IBM z/OS','IBM','2.5','Specialized OS','Mainframe',
+     'yes','v1.0.0','yes','z/OS STIG',
+     'RACF, IBM zSecure, RMF, hardware management console',
+     'built_in','RACF provides comprehensive access control and audit. IBM zSecure provides compliance scanning.',
+     'IBM zSecure, RACF, CA Compliance Manager','mainframe','partial',
+     'RACF hardening, zSecure compliance scanning, SMF audit log analysis.',
+     'CIS,DISA STIG,NIST 800-53,PCI-DSS','Mainframe — specialized skills required; high-value targets'],
+
+    ['FreeBSD','FreeBSD Foundation','14','Specialized OS','Server OS',
+     'yes','v1.0.0','no',null,
+     'SSH, network scan, pkg audit, CMDB',
+     'audit_log_only','Basic audit subsystem. No built-in compliance tooling.',
+     'CIS-CAT Pro, OpenSCAP (limited), custom scripts, Ansible','traditional','full',
+     'CIS-CAT scanning, custom hardening scripts, Ansible playbooks.',
+     'CIS,PCI-DSS,SOC 2','ARCHIVE — Niche BSD; limited enterprise tooling'],
+
+    ['Oracle Cloud Infrastructure (OCI)','Oracle','Foundations 2.0','Cloud','Public Cloud',
+     'yes','v2.0.0','no',null,
+     'OCI CLI, Oracle Cloud Console, Cloud Guard',
+     'built_in','Oracle Cloud Guard provides continuous compliance monitoring and auto-remediation.',
+     'Cloud Guard, Oracle Data Safe, CIS-CAT Pro','managed','full',
+     'Configure Cloud Guard detector/responder recipes, Data Safe assessments.',
+     'CIS,SOC 2,ISO 27001,PCI-DSS,HIPAA','Growing cloud provider; strong native compliance for Oracle workloads'],
+
+    ['Snowflake','Snowflake Inc.','Enterprise','Database','Cloud Data Warehouse',
+     'yes','v1.0.0','no',null,
+     'Snowflake ACCOUNT_USAGE schema, Snowsight console',
+     'limited','Account Usage views track login history, query history, access history. Network policies enforce IP restrictions.',
+     'Snowflake native views, CIS-CAT Pro, custom SQL compliance checks','saas','partial',
+     'CIS benchmark scanning via SQL queries against ACCOUNT_USAGE, network policy hardening.',
+     'CIS,SOC 2,HIPAA,PCI-DSS','Cloud-native DW; CIS benchmark is relatively new'],
+
+    ['Microsoft Dynamics 365','Microsoft','Online','SaaS','Business Applications',
+     'yes','v1.0.0','no',null,
+     'Microsoft 365 Admin Center, Power Platform Admin Center, Azure AD',
+     'limited','Inherits Microsoft 365 compliance center capabilities. Audit logging via Purview.',
+     'Microsoft Compliance Manager, Purview Audit, Power Platform DLP','saas','partial',
+     'Configure Purview compliance policies, Power Platform DLP, security role auditing.',
+     'CIS,SOC 2,HIPAA,ISO 27001','Part of M365 ecosystem; compliance via Purview'],
+
+    ['IBM CICS Transaction Server','IBM','6.2','Server Software','Transaction Processing',
+     'yes','v1.0.0','yes','CICS STIG',
+     'CICS Explorer, CICSPlex SM, RACF, z/OS console',
+     'audit_log_only','CICS audit logging and RACF security integration. No built-in drift detection.',
+     'IBM zSecure, RACF, CICSPlex SM monitoring','mainframe','partial',
+     'RACF-based CICS security hardening, CICSPlex SM monitoring, SMF record analysis.',
+     'CIS,DISA STIG,NIST 800-53,PCI-DSS','Mainframe transaction server — specialized IBM skills required'],
+  ];
+
+  const tx = db.transaction(() => {
+    products.forEach(p => ins.run(...p));
+  });
+  tx();
+  console.log(`Seeded ${products.length} benchmark products`);
+}
+seedBenchmarkProducts();
+
+// ─── Benchmark Rules Seed (Section Headers) ─────────────────────────────────
+function seedBenchmarkRules() {
+  const count = db.prepare('SELECT COUNT(*) as n FROM benchmark_rules').get().n;
+  if (count > 0) return;
+
+  // Map product names to their benchmark section headers
+  // Each entry: [product_name_pattern, source, [[section, subsections...], ...]]
+  const sectionMap = {
+    // ── Cloud Providers ──
+    'Amazon Web Services': { source: 'CIS', sections: [
+      'Identity and Access Management', 'Logging', 'Monitoring', 'Networking',
+      'Storage', 'Compute', 'Database Services', 'Security Hub'
+    ]},
+    'Microsoft Azure': { source: 'CIS', sections: [
+      'Identity and Access Management', 'Microsoft Defender', 'Storage Accounts',
+      'Database Services', 'Logging and Monitoring', 'Networking', 'Virtual Machines',
+      'Key Vault', 'App Service'
+    ]},
+    'Google Cloud Platform': { source: 'CIS', sections: [
+      'Identity and Access Management', 'Logging and Monitoring', 'Networking',
+      'Virtual Machines', 'Storage', 'Cloud SQL', 'BigQuery', 'Cloud DNS'
+    ]},
+    'DigitalOcean': { source: 'CIS', sections: [
+      'Identity and Access Management', 'Networking', 'Logging and Monitoring',
+      'Droplet Configuration', 'Storage', 'Database Clusters'
+    ]},
+    'Tencent Cloud': { source: 'CIS', sections: [
+      'Identity and Access Management', 'Networking', 'Compute', 'Storage',
+      'Logging and Monitoring', 'Database Services'
+    ]},
+    // ── Windows ──
+    'Windows Server 2025': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'Restricted Groups',
+      'System Services', 'Registry', 'File System', 'Windows Firewall',
+      'Advanced Audit Policy Configuration', 'Administrative Templates'
+    ]},
+    'Windows Server 2022': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'Restricted Groups',
+      'System Services', 'Registry', 'File System', 'Windows Firewall',
+      'Advanced Audit Policy Configuration', 'Administrative Templates'
+    ]},
+    'Windows Server 2019': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'Restricted Groups',
+      'System Services', 'Registry', 'File System', 'Windows Firewall',
+      'Advanced Audit Policy Configuration', 'Administrative Templates'
+    ]},
+    'Windows 11': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'System Services',
+      'Registry', 'Windows Firewall', 'Advanced Audit Policy Configuration',
+      'Administrative Templates', 'BitLocker', 'Windows Defender'
+    ]},
+    'Windows 10': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'System Services',
+      'Registry', 'Windows Firewall', 'Advanced Audit Policy Configuration',
+      'Administrative Templates', 'BitLocker', 'Windows Defender'
+    ]},
+    // ── Linux ──
+    'Red Hat Enterprise Linux 10': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'Red Hat Enterprise Linux 9': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'Red Hat Enterprise Linux 8': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'Ubuntu Linux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'AppArmor'
+    ]},
+    'Debian Linux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'AppArmor'
+    ]},
+    'SUSE Linux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'Rocky Linux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'AlmaLinux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'Oracle Linux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'Amazon Linux': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration', 'Software Updates'
+    ]},
+    'macOS': { source: 'CIS', sections: [
+      'Install Updates', 'System Preferences', 'Logging and Auditing',
+      'Network Configuration', 'System Access', 'User Accounts',
+      'Supplemental', 'Bluetooth', 'FileVault'
+    ]},
+    // ── Specialized / Legacy OS ──
+    'Bottlerocket': { source: 'CIS', sections: [
+      'Container Runtime', 'Host Configuration', 'Network Configuration',
+      'Filesystem Integrity', 'API Server Configuration', 'Updates and Patching'
+    ]},
+    'Talos Linux': { source: 'CIS', sections: [
+      'Machine Configuration', 'Network Configuration', 'Cluster Configuration',
+      'API Access Controls', 'Encryption and Secrets', 'Updates and Patching'
+    ]},
+    'Wind River': { source: 'custom', sections: [
+      'Kernel Hardening', 'Filesystem Permissions', 'Network Configuration',
+      'Authentication', 'Logging', 'Real-Time Process Isolation'
+    ]},
+    'Anduril NixOS': { source: 'custom', sections: [
+      'Nix Configuration Integrity', 'Network Configuration', 'Authentication',
+      'Filesystem Permissions', 'Service Hardening', 'Update Policy'
+    ]},
+    'IBM AIX': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Trusted Execution', 'File Permissions'
+    ]},
+    'IBM i': { source: 'CIS', sections: [
+      'System Values', 'User Profiles', 'Object Authority', 'Network Security',
+      'Auditing', 'Communication Security', 'Program Security', 'Exit Programs'
+    ]},
+    // ── Mobile ──
+    'Apple iOS': { source: 'CIS', sections: [
+      'MDM Profile Configuration', 'Passcode Policy', 'Network Configuration',
+      'Privacy and Data Protection', 'App Management', 'Restrictions',
+      'VPN Configuration', 'Mail and Accounts'
+    ]},
+    'Motorola': { source: 'CIS', sections: [
+      'Device Administration', 'Screen Lock and Authentication', 'Network Configuration',
+      'Application Management', 'Encryption', 'Developer Options', 'Logging'
+    ]},
+    // ── Containers ──
+    'Docker': { source: 'CIS', sections: [
+      'Host Configuration', 'Docker Daemon Configuration', 'Docker Daemon Configuration Files',
+      'Container Images and Build File', 'Container Runtime',
+      'Docker Security Operations', 'Docker Swarm Configuration'
+    ]},
+    'Kubernetes': { source: 'CIS', sections: [
+      'Control Plane Components', 'etcd', 'Control Plane Configuration',
+      'Worker Nodes', 'Policies', 'Managed Services'
+    ]},
+    // ── Databases ──
+    'Oracle Database': { source: 'CIS', sections: [
+      'Installation and Patching', 'Oracle Parameter Settings', 'Oracle Connection and Login',
+      'User Account and Privilege', 'Audit and Logging',
+      'Network Configuration', 'Backup and Recovery'
+    ]},
+    'Microsoft SQL Server': { source: 'CIS', sections: [
+      'Installation Updates and Patches', 'Surface Area Reduction', 'Authentication and Authorization',
+      'Password Policies', 'Auditing and Logging',
+      'Application Development', 'Encryption'
+    ]},
+    'PostgreSQL': { source: 'CIS', sections: [
+      'Installation and Permissions', 'Logging and Auditing', 'Connection and Login',
+      'Authentication', 'Access Control', 'Replication',
+      'Special Configuration', 'Backup and Disaster Recovery'
+    ]},
+    'MySQL': { source: 'CIS', sections: [
+      'Operating System Level Configuration', 'Installation and Planning',
+      'File System Permissions', 'General', 'MySQL Permissions Database',
+      'Auditing and Logging', 'Authentication', 'Network', 'Replication'
+    ]},
+    'MongoDB': { source: 'CIS', sections: [
+      'Installation and Patching', 'Authentication', 'Access Control',
+      'Auditing', 'Network and Transport', 'Operating System',
+      'File Permissions', 'Replication'
+    ]},
+    'IBM Db2': { source: 'CIS', sections: [
+      'Installation and Patching', 'Instance-Level Configuration', 'Database-Level Configuration',
+      'User and Privilege Management', 'Auditing', 'Network and Communication',
+      'Backup and Recovery', 'Encryption'
+    ]},
+    'Apache Cassandra': { source: 'CIS', sections: [
+      'Installation', 'Authentication and Authorization', 'Data Encryption',
+      'Auditing and Logging', 'Network Configuration', 'Resource Management',
+      'Backup and Recovery'
+    ]},
+    'SingleStore': { source: 'custom', sections: [
+      'Installation and Patching', 'Authentication', 'Access Control',
+      'Network Configuration', 'Encryption', 'Auditing and Logging',
+      'Backup and Recovery'
+    ]},
+    'YugabyteDB': { source: 'custom', sections: [
+      'Installation and Patching', 'Authentication', 'Access Control',
+      'Network and TLS', 'Auditing', 'Encryption at Rest',
+      'Backup and Recovery'
+    ]},
+    // ── Network Devices ──
+    'Cisco IOS XE': { source: 'CIS', sections: [
+      'Management Plane', 'Control Plane', 'Data Plane',
+      'AAA Services', 'Routing', 'Logging', 'NTP', 'SNMP'
+    ]},
+    'FortiGate': { source: 'CIS', sections: [
+      'System Settings', 'Administrator Accounts', 'Firmware and Updates',
+      'Logging and Monitoring', 'Firewall Policy', 'VPN',
+      'Intrusion Prevention', 'Web Filtering'
+    ]},
+    'Check Point': { source: 'STIG', sections: [
+      'Management Server', 'Security Gateway', 'Logging and Monitoring',
+      'Access Control Policy', 'NAT', 'VPN', 'Identity Awareness',
+      'Threat Prevention'
+    ]},
+    'F5 Networks': { source: 'CIS', sections: [
+      'System Configuration', 'User Management', 'Network Configuration',
+      'SSL/TLS Profiles', 'Logging and Monitoring', 'iRules Security',
+      'Virtual Server Configuration', 'Persistence Profiles'
+    ]},
+    'Arista': { source: 'CIS', sections: [
+      'Management Plane', 'Control Plane', 'Data Plane',
+      'AAA and Authentication', 'Routing Protocols', 'Logging',
+      'NTP', 'SNMP', 'CloudVision'
+    ]},
+    'Juniper': { source: 'STIG', sections: [
+      'Management Plane', 'Control Plane', 'Data Plane',
+      'AAA and Authentication', 'Routing', 'Logging',
+      'NTP', 'SNMP'
+    ]},
+    'Sophos Firewall': { source: 'custom', sections: [
+      'System Settings', 'Administrator Management', 'Network Configuration',
+      'Firewall Rules', 'VPN', 'Web Protection', 'Logging and Reporting',
+      'Firmware and Updates'
+    ]},
+    'pfSense': { source: 'custom', sections: [
+      'System Configuration', 'User Management', 'Firewall Rules',
+      'NAT', 'VPN', 'DNS and DHCP', 'Logging', 'Package Management'
+    ]},
+    'OPNsense': { source: 'custom', sections: [
+      'System Configuration', 'User Management', 'Firewall Rules',
+      'NAT', 'VPN', 'DNS and DHCP', 'Logging', 'Plugin Management'
+    ]},
+    'Infoblox': { source: 'custom', sections: [
+      'Grid Configuration', 'DNS Security', 'DHCP Security',
+      'IPAM Configuration', 'User and Access Management',
+      'Logging and Monitoring', 'Backup and Recovery'
+    ]},
+    'Forescout': { source: 'custom', sections: [
+      'Appliance Configuration', 'Network Integration', 'Policy Configuration',
+      'User and Access Management', 'Module Configuration',
+      'Logging and Reporting', 'Updates and Patching'
+    ]},
+    // ── Browsers ──
+    'Google Chrome': { source: 'CIS', sections: [
+      'Installation and Updates', 'Default Search Provider', 'Content Settings',
+      'Password Manager', 'Network and Proxy', 'Extensions',
+      'Privacy and Security', 'Safe Browsing'
+    ]},
+    'Microsoft Edge': { source: 'CIS', sections: [
+      'Installation and Updates', 'Default Search Provider', 'Content Settings',
+      'Password Manager', 'Network and Proxy', 'Extensions',
+      'Privacy and Security', 'SmartScreen'
+    ]},
+    'Mozilla Firefox': { source: 'CIS', sections: [
+      'Installation and Updates', 'Privacy and Security', 'Content Settings',
+      'Password Manager', 'Network Configuration', 'Extensions',
+      'Certificate Management', 'Telemetry'
+    ]},
+    'Apple Safari': { source: 'CIS', sections: [
+      'General Settings', 'Privacy and Security', 'AutoFill',
+      'Password Management', 'Extensions', 'Search Settings',
+      'Downloads', 'Advanced'
+    ]},
+    // ── SaaS / Identity ──
+    'Microsoft 365': { source: 'CIS', sections: [
+      'Account and Authentication', 'Microsoft Entra ID', 'Exchange Online',
+      'SharePoint and OneDrive', 'Microsoft Teams',
+      'Microsoft Defender', 'Data Loss Prevention', 'Information Protection'
+    ]},
+    'Google Workspace': { source: 'CIS', sections: [
+      'Account and Authentication', 'Gmail', 'Google Drive and Docs',
+      'Calendar', 'Groups', 'Mobile Management',
+      'Marketplace Apps', 'Security and Reporting'
+    ]},
+    'Okta': { source: 'custom', sections: [
+      'Authentication Policies', 'MFA Configuration', 'Application Assignment',
+      'Session Management', 'Admin Roles', 'API Security',
+      'Network Zones', 'System Log and Monitoring'
+    ]},
+    'Zoom': { source: 'custom', sections: [
+      'Account Settings', 'Authentication', 'Meeting Security',
+      'Recording Policies', 'Chat and Channels', 'Phone Settings',
+      'Integration Management', 'Data Governance'
+    ]},
+    // ── Security Platforms ──
+    'Tanium': { source: 'STIG', sections: [
+      'Server Configuration', 'Module Management', 'Endpoint Configuration',
+      'Action Management', 'User Roles and Permissions',
+      'Network Configuration', 'Logging and Monitoring'
+    ]},
+    'Dragos': { source: 'custom', sections: [
+      'Appliance Configuration', 'Network Sensor Deployment', 'Asset Discovery',
+      'Threat Detection Policies', 'User Management',
+      'Integration Configuration', 'Backup and Recovery'
+    ]},
+    'Xylok': { source: 'STIG', sections: [
+      'Server Configuration', 'Scan Profile Management', 'Remediation Policies',
+      'User Roles and Permissions', 'Continuous Monitoring',
+      'Reporting Configuration', 'Update Management'
+    ]},
+    'Axonius': { source: 'custom', sections: [
+      'Adapter Configuration', 'Query and Discovery', 'Enforcement Policies',
+      'User Management', 'Dashboard and Reporting',
+      'Integration Management', 'API Configuration'
+    ]},
+    // ── Server Software ──
+    'Apache HTTP': { source: 'CIS', sections: [
+      'Planning and Installation', 'Minimize Modules', 'Principles Permissions and Ownership',
+      'Apache Access Control', 'Minimize Features', 'Operations Logging and Monitoring',
+      'SSL/TLS Configuration', 'Information Leakage', 'Denial of Service Mitigations'
+    ]},
+    'Nginx': { source: 'CIS', sections: [
+      'Installation', 'Basic Configuration', 'Logging',
+      'SSL/TLS Configuration', 'Request Limits', 'Information Disclosure',
+      'Access Control', 'Proxy Configuration'
+    ]},
+    'Microsoft IIS': { source: 'CIS', sections: [
+      'Basic Configuration', 'Application Pool Configuration', 'Authentication and Authorization',
+      'Request Filtering', 'Logging and Monitoring', 'SSL/TLS Configuration',
+      'Machine Key Configuration', 'Transport Security'
+    ]},
+    'Apache Tomcat': { source: 'CIS', sections: [
+      'Remove Extraneous Resources', 'Limit Server Connectivity',
+      'Protect the Shutdown Port', 'Protect Tomcat Configurations',
+      'Configure Realms', 'Connector Security', 'Logging',
+      'Application Deployment'
+    ]},
+    // ── Print ──
+    'Multi-function Print': { source: 'CIS', sections: [
+      'Physical Security', 'Network Configuration', 'Access Control',
+      'Data Storage and Encryption', 'Firmware Updates',
+      'Logging and Auditing', 'Document Processing Security'
+    ]},
+    // ── Archived / Legacy ──
+    'Windows 7': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'System Services',
+      'Registry', 'Windows Firewall', 'Advanced Audit Policy Configuration',
+      'Administrative Templates'
+    ]},
+    'Windows 8': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'System Services',
+      'Registry', 'Windows Firewall', 'Advanced Audit Policy Configuration',
+      'Administrative Templates'
+    ]},
+    'Windows XP': { source: 'CIS', sections: [
+      'Account Policies', 'Local Policies', 'Event Log', 'System Services',
+      'Registry', 'Windows Firewall', 'Administrative Templates'
+    ]},
+    'Aliyun': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration'
+    ]},
+    'Linux Mint': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration'
+    ]},
+    'IBM z/OS': { source: 'CIS', sections: [
+      'RACF Configuration', 'System Security', 'Network Security',
+      'Logging and Auditing', 'Dataset Protection', 'User Management',
+      'Encryption and Key Management', 'Batch Processing'
+    ]},
+    'FreeBSD': { source: 'CIS', sections: [
+      'Initial Setup', 'Services', 'Network Configuration', 'Logging and Auditing',
+      'Access Authentication and Authorization', 'System Maintenance',
+      'Filesystem Configuration'
+    ]},
+    'Oracle Cloud': { source: 'CIS', sections: [
+      'Identity and Access Management', 'Networking', 'Compute',
+      'Storage', 'Logging and Monitoring', 'Database Services',
+      'Cloud Guard', 'Key Management'
+    ]},
+    'Snowflake': { source: 'CIS', sections: [
+      'Account Configuration', 'Authentication', 'Access Control',
+      'Network Policy', 'Data Protection', 'Monitoring and Auditing',
+      'Sharing and Replication'
+    ]},
+    'Dynamics 365': { source: 'CIS', sections: [
+      'Identity and Access', 'Security Roles', 'Data Protection',
+      'Auditing and Logging', 'Integration Security', 'Environment Configuration'
+    ]},
+    'IBM CICS': { source: 'CIS', sections: [
+      'RACF Security', 'Transaction Security', 'Resource Access Control',
+      'Auditing and Logging', 'Network Security', 'Program Security',
+      'System Configuration'
+    ]},
+  };
+
+  const ins = db.prepare(`INSERT INTO benchmark_rules
+    (product_id, rule_id, title, section, level, rule_type, source, is_automatable)
+    VALUES (?,?,?,?,?,?,?,?)`);
+
+  const allProducts = db.prepare('SELECT id, product_name FROM benchmark_products WHERE is_active = 1').all();
+  let totalSections = 0;
+
+  const tx = db.transaction(() => {
+    allProducts.forEach(prod => {
+      // Find matching section map by product name prefix
+      const key = Object.keys(sectionMap).find(k => prod.product_name.includes(k));
+      if (!key) return;
+      const { source, sections } = sectionMap[key];
+      sections.forEach((sectionName, idx) => {
+        ins.run(prod.id, `${idx + 1}`, sectionName, sectionName, 0, 'section', source, 1);
+        totalSections++;
+      });
+    });
+  });
+  tx();
+  console.log(`Seeded ${totalSections} benchmark rule sections across ${allProducts.length} products`);
+}
+seedBenchmarkRules();
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
@@ -2027,6 +3204,190 @@ app.post('/api/tickets/:id/comments', requireAuth, [
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+// ─── Benchmark Products API ─────────────────────────────────────────────────
+
+// List all products with optional filters
+app.get('/api/benchmark-products', (req, res) => {
+  try {
+    let sql = `SELECT bp.*,
+      (SELECT COUNT(*) FROM benchmark_rules br WHERE br.product_id = bp.id AND br.rule_type = 'rule' AND (br.benchmark_status = 'active' OR br.benchmark_status IS NULL)) as active_rule_count
+      FROM benchmark_products bp WHERE bp.is_active = 1`;
+    const params = [];
+
+    if (req.query.category) {
+      sql += ' AND bp.category = ?';
+      params.push(req.query.category);
+    }
+    if (req.query.subcategory) {
+      sql += ' AND bp.subcategory = ?';
+      params.push(req.query.subcategory);
+    }
+    if (req.query.cis_benchmark) {
+      sql += ' AND bp.cis_benchmark = ?';
+      params.push(req.query.cis_benchmark);
+    }
+    if (req.query.disa_stig) {
+      sql += ' AND bp.disa_stig = ?';
+      params.push(req.query.disa_stig);
+    }
+    if (req.query.drift_detection_capability) {
+      sql += ' AND bp.drift_detection_capability = ?';
+      params.push(req.query.drift_detection_capability);
+    }
+    if (req.query.automation_ceiling) {
+      sql += ' AND bp.automation_ceiling = ?';
+      params.push(req.query.automation_ceiling);
+    }
+    if (req.query.vendor) {
+      sql += ' AND bp.vendor = ?';
+      params.push(req.query.vendor);
+    }
+    if (req.query.search) {
+      sql += ' AND (bp.product_name LIKE ? OR bp.vendor LIKE ? OR bp.notes LIKE ?)';
+      const term = `%${req.query.search}%`;
+      params.push(term, term, term);
+    }
+
+    sql += ' ORDER BY bp.category, bp.subcategory, bp.product_name';
+    const rows = db.prepare(sql).all(...params);
+    res.json({ ok: true, count: rows.length, products: rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Summary stats (must be before :id route)
+app.get('/api/benchmark-products/stats/summary', (req, res) => {
+  try {
+    const total = db.prepare('SELECT COUNT(*) as n FROM benchmark_products WHERE is_active = 1').get().n;
+    const byCIS = db.prepare("SELECT cis_benchmark, COUNT(*) as n FROM benchmark_products WHERE is_active = 1 GROUP BY cis_benchmark").all();
+    const bySTIG = db.prepare("SELECT disa_stig, COUNT(*) as n FROM benchmark_products WHERE is_active = 1 GROUP BY disa_stig").all();
+    const byCategory = db.prepare("SELECT category, COUNT(*) as n FROM benchmark_products WHERE is_active = 1 GROUP BY category ORDER BY n DESC").all();
+    const byDrift = db.prepare("SELECT drift_detection_capability, COUNT(*) as n FROM benchmark_products WHERE is_active = 1 GROUP BY drift_detection_capability ORDER BY n DESC").all();
+    const byAutomation = db.prepare("SELECT automation_ceiling, COUNT(*) as n FROM benchmark_products WHERE is_active = 1 GROUP BY automation_ceiling ORDER BY n DESC").all();
+    const byArchitecture = db.prepare("SELECT architecture_type, COUNT(*) as n FROM benchmark_products WHERE is_active = 1 GROUP BY architecture_type ORDER BY n DESC").all();
+    res.json({ ok: true, total, byCIS, bySTIG, byCategory, byDrift, byAutomation, byArchitecture });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Get single product by ID
+app.get('/api/benchmark-products/:id', (req, res) => {
+  try {
+    const row = db.prepare('SELECT * FROM benchmark_products WHERE id = ?').get(req.params.id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Product not found' });
+    res.json({ ok: true, product: row });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ─── Benchmark Rules API ────────────────────────────────────────────────────
+
+// Rules for a product (with filters)
+app.get('/api/benchmark-products/:id/rules', (req, res) => {
+  try {
+    let sql = 'SELECT * FROM benchmark_rules WHERE product_id = ? AND is_active = 1';
+    const params = [req.params.id];
+    if (req.query.rule_type) { sql += ' AND rule_type = ?'; params.push(req.query.rule_type); }
+    if (req.query.source) { sql += ' AND source = ?'; params.push(req.query.source); }
+    if (req.query.severity) { sql += ' AND severity = ?'; params.push(req.query.severity); }
+    if (req.query.section) { sql += ' AND section = ?'; params.push(req.query.section); }
+    if (req.query.check_type) { sql += ' AND check_type = ?'; params.push(req.query.check_type); }
+    if (req.query.benchmark_version) { sql += ' AND benchmark_version = ?'; params.push(req.query.benchmark_version); }
+    if (req.query.benchmark_status) { sql += ' AND benchmark_status = ?'; params.push(req.query.benchmark_status); }
+    if (req.query.search) {
+      sql += ' AND (title LIKE ? OR description LIKE ? OR config_parameter LIKE ?)';
+      const t = `%${req.query.search}%`; params.push(t, t, t);
+    }
+    sql += ' ORDER BY section, level, rule_id';
+    const rows = db.prepare(sql).all(...params);
+    res.json({ ok: true, count: rows.length, rules: rows });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Rules summary for a product
+app.get('/api/benchmark-products/:id/rules/summary', (req, res) => {
+  try {
+    const pid = req.params.id;
+    const total = db.prepare('SELECT COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1').get(pid).n;
+    const bySection = db.prepare("SELECT section, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 GROUP BY section ORDER BY n DESC").all(pid);
+    const byType = db.prepare("SELECT rule_type, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 GROUP BY rule_type").all(pid);
+    const bySeverity = db.prepare("SELECT severity, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 AND severity IS NOT NULL GROUP BY severity").all(pid);
+    const byCheckType = db.prepare("SELECT check_type, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 AND check_type IS NOT NULL GROUP BY check_type").all(pid);
+    const bySource = db.prepare("SELECT source, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 GROUP BY source").all(pid);
+    const byVersion = db.prepare("SELECT benchmark_version, benchmark_status, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 AND benchmark_version IS NOT NULL GROUP BY benchmark_version, benchmark_status ORDER BY benchmark_version").all(pid);
+    res.json({ ok: true, total, bySection, byType, bySeverity, byCheckType, bySource, byVersion });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Single rule detail
+app.get('/api/benchmark-rules/:ruleId', (req, res) => {
+  try {
+    const row = db.prepare('SELECT r.*, p.product_name, p.vendor FROM benchmark_rules r JOIN benchmark_products p ON r.product_id = p.id WHERE r.id = ?').get(req.params.ruleId);
+    if (!row) return res.status(404).json({ ok: false, error: 'Rule not found' });
+    res.json({ ok: true, rule: row });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Add a single rule
+app.post('/api/benchmark-products/:id/rules', express.json(), (req, res) => {
+  try {
+    const b = req.body;
+    if (!b.title) return res.status(400).json({ ok: false, error: 'Title is required' });
+    // Auto-generate cis_uid if not provided
+    let uid = b.cis_uid || null;
+    if (!uid) {
+      const maxSeq = db.prepare("SELECT COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND rule_type = 'rule'").get(req.params.id).n;
+      uid = `CIS-2026-${String(req.params.id).padStart(5,'0')}.${String(maxSeq + 1).padStart(3,'0')}`;
+    }
+    const result = db.prepare(`INSERT INTO benchmark_rules
+      (product_id, rule_id, title, section, subsection, level, rule_type, source,
+       severity, cis_profile, check_type, description, rationale, remediation,
+       audit_command, default_value, recommended_value, config_parameter, config_location,
+       benchmark_version, benchmark_status, cis_uid, is_automatable)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      req.params.id, b.rule_id||null, b.title, b.section||null, b.subsection||null,
+      b.level||0, b.rule_type||'rule', b.source||null, b.severity||null,
+      b.cis_profile||null, b.check_type||null, b.description||null, b.rationale||null,
+      b.remediation||null, b.audit_command||null, b.default_value||null,
+      b.recommended_value||null, b.config_parameter||null, b.config_location||null,
+      b.benchmark_version||null, b.benchmark_status||'active', uid,
+      b.is_automatable !== undefined ? b.is_automatable : 1
+    );
+    res.json({ ok: true, id: result.lastInsertRowid, cis_uid: uid });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Bulk import rules from JSON array
+app.post('/api/benchmark-products/:id/rules/import', express.json({ limit: '10mb' }), (req, res) => {
+  try {
+    const rules = req.body.rules;
+    if (!Array.isArray(rules) || rules.length === 0) return res.status(400).json({ ok: false, error: 'rules array is required' });
+    const ins = db.prepare(`INSERT INTO benchmark_rules
+      (product_id, rule_id, title, section, subsection, level, rule_type, source,
+       severity, cis_profile, check_type, description, rationale, remediation,
+       audit_command, default_value, recommended_value, config_parameter, config_location,
+       benchmark_version, benchmark_status, is_automatable)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const tx = db.transaction(() => {
+      rules.forEach(b => {
+        ins.run(req.params.id, b.rule_id||null, b.title, b.section||null, b.subsection||null,
+          b.level||0, b.rule_type||'rule', b.source||null, b.severity||null,
+          b.cis_profile||null, b.check_type||null, b.description||null, b.rationale||null,
+          b.remediation||null, b.audit_command||null, b.default_value||null,
+          b.recommended_value||null, b.config_parameter||null, b.config_location||null,
+          b.benchmark_version||null, b.benchmark_status||'active',
+          b.is_automatable !== undefined ? b.is_automatable : 1
+        );
+      });
+    });
+    tx();
+    res.json({ ok: true, imported: rules.length });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // ─── Global error handler ───────────────────────────────────────────────────
