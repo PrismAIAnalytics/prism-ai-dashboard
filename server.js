@@ -4,11 +4,22 @@
 const express = require('express');
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, param, validationResult } = require('express-validator');
 const crypto = require('crypto');
+const Anthropic = require('@anthropic-ai/sdk');
+
+// Load .env file (lightweight, no dependency)
+try {
+  const envFile = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
+  for (const line of envFile.split('\n')) {
+    const m = line.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+} catch (e) { /* no .env file */ }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1525,7 +1536,7 @@ function seedBenchmarkProducts() {
   tx();
   console.log(`Seeded ${products.length} benchmark products`);
 }
-seedBenchmarkProducts();
+// seedBenchmarkProducts(); // Removed — real data loaded via bulk-push-rules.js
 
 // ─── Benchmark Rules Seed (Section Headers) ─────────────────────────────────
 function seedBenchmarkRules() {
@@ -1953,7 +1964,7 @@ function seedBenchmarkRules() {
   tx();
   console.log(`Seeded ${totalSections} benchmark rule sections across ${allProducts.length} products`);
 }
-seedBenchmarkRules();
+// seedBenchmarkRules(); // Removed — real data loaded via bulk-push-rules.js
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
@@ -3394,6 +3405,108 @@ app.post('/api/benchmark-products/:id/rules/import', express.json({ limit: '10mb
 app.use((err, req, res, _next) => {
   console.error('[ERROR]', err.stack || err.message);
   res.status(500).json({ ok: false, error: 'Internal server error' });
+});
+
+// ─── CIS Compliance Chat ────────────────────────────────────────────────────
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+
+const CIS_SYSTEM_PROMPT = `You are a CIS Benchmark compliance assistant for Prism AI Analytics.
+Answer questions about security benchmarks using ONLY the provided context from CIS Benchmark rules.
+Always cite the specific Rule ID and Benchmark name in your answers.
+If the context doesn't contain relevant information, say so clearly.
+Be precise and actionable in your recommendations.
+Format your responses with clear headings and bullet points for readability.
+Keep answers concise but thorough.`;
+
+function searchRules(query, limit = 10) {
+  // Search benchmark_rules using LIKE across key text fields
+  const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+  if (terms.length === 0) return [];
+
+  const conditions = terms.map(() =>
+    `(LOWER(br.title) LIKE ? OR LOWER(br.description) LIKE ? OR LOWER(br.remediation) LIKE ? OR LOWER(br.rule_id) LIKE ?)`
+  ).join(' AND ');
+
+  const params = [];
+  for (const t of terms) {
+    const like = `%${t}%`;
+    params.push(like, like, like, like);
+  }
+
+  const sql = `
+    SELECT br.rule_id, br.title, br.description, br.rationale, br.remediation,
+           br.cis_profile, br.check_type, br.benchmark_version, br.benchmark_status,
+           bp.product_name, bp.vendor, bp.category
+    FROM benchmark_rules br
+    JOIN benchmark_products bp ON br.product_id = bp.id
+    WHERE br.rule_type = 'rule' AND (${conditions})
+    LIMIT ?
+  `;
+  params.push(limit);
+
+  try {
+    return db.prepare(sql).all(...params);
+  } catch (e) {
+    console.error('[Chat Search Error]', e.message);
+    return [];
+  }
+}
+
+function buildContext(rules) {
+  if (rules.length === 0) return 'No relevant CIS Benchmark rules were found for this query.';
+  return rules.map(r => {
+    let ctx = `--- [${r.product_name}] Rule ${r.rule_id}: ${r.title} (${r.cis_profile}, ${r.check_type})`;
+    if (r.description) ctx += `\nDescription: ${r.description.substring(0, 600)}`;
+    if (r.rationale) ctx += `\nRationale: ${r.rationale.substring(0, 400)}`;
+    if (r.remediation) ctx += `\nRemediation: ${r.remediation.substring(0, 400)}`;
+    return ctx;
+  }).join('\n\n');
+}
+
+app.post('/api/chat', express.json(), async (req, res) => {
+  if (!anthropic) {
+    return res.status(503).json({ ok: false, error: 'ANTHROPIC_API_KEY not set. Set it as an environment variable to enable AI chat.' });
+  }
+
+  const { message, history } = req.body;
+  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    return res.status(400).json({ ok: false, error: 'Message is required' });
+  }
+
+  try {
+    // Search for relevant rules
+    const rules = searchRules(message.trim(), 12);
+    const context = buildContext(rules);
+
+    // Build messages array with history
+    const messages = [];
+    if (Array.isArray(history)) {
+      for (const h of history.slice(-10)) {  // Keep last 10 exchanges
+        if (h.role === 'user' || h.role === 'assistant') {
+          messages.push({ role: h.role, content: h.content });
+        }
+      }
+    }
+
+    // Add current message with context
+    messages.push({
+      role: 'user',
+      content: `Context from CIS Benchmark knowledge base (${rules.length} rules found):\n\n${context}\n\n---\nUser question: ${message.trim()}`
+    });
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2048,
+      system: CIS_SYSTEM_PROMPT,
+      messages
+    });
+
+    const answer = response.content[0].text;
+    res.json({ ok: true, answer, rulesFound: rules.length });
+  } catch (e) {
+    console.error('[Chat Error]', e.message);
+    res.status(500).json({ ok: false, error: 'AI chat error: ' + e.message });
+  }
 });
 
 // ─── Start ──────────────────────────────────────────────────────────────────

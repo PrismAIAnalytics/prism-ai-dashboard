@@ -12,6 +12,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
     "better-sqlite3": "^11.7.0",
     "cors": "^2.8.5",
     "exceljs": "^4.4.0",
