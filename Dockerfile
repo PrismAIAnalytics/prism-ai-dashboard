@@ -36,6 +36,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY package.json ./
 COPY server.js ./
 COPY seed-demo.js ./
+COPY seed-daily-reviews.js ./
+COPY seed-april-reviews.js ./
+COPY bulk-push-rules.js ./
 COPY import-excel-crm.js ./
 COPY Procfile ./
 COPY services/ ./services/
