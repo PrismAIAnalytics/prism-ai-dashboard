@@ -35,8 +35,10 @@ COPY --from=builder /app/node_modules ./node_modules
 # Copy application code
 COPY package.json ./
 COPY server.js ./
+COPY seed-demo.js ./
 COPY import-excel-crm.js ./
 COPY Procfile ./
+COPY services/ ./services/
 COPY public/ ./public/
 
 # Create data directory for SQLite
