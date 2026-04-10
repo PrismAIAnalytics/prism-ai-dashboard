@@ -640,22 +640,34 @@ function seedIfEmpty() {
   const insSvc = db.prepare('INSERT OR IGNORE INTO services (name, service_type, price_min, price_max, price_unit) VALUES (?,?,?,?,?)');
   svcs.forEach(s => insSvc.run(...s));
 
-  // Founder
-  const mId = uuid();
-  db.prepare('INSERT OR IGNORE INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
-    .run(mId, 'Michele', 'Fisher', 'michele@prismaianalytics.com', 'founder', 'Founder & AI Analytics Consultant', 135, '2026-03-01');
+  // Founder — look up existing or create
+  let mId = (db.prepare("SELECT id FROM team_members WHERE email = 'michele@prismaianalytics.com'").get() || {}).id;
+  if (!mId) {
+    mId = uuid();
+    db.prepare('INSERT INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
+      .run(mId, 'Michele', 'Fisher', 'michele@prismaianalytics.com', 'founder', 'Founder & AI Analytics Consultant', 135, '2026-03-01');
+  }
 
   // Certifications
-  const certs = [['Google AI Essentials','Google / Coursera','in_progress'],['PL-300: Power BI Data Analyst','Microsoft Learn','planned'],['AI for Everyone','Coursera / Andrew Ng','planned'],['AWS Certified AI Practitioner','AWS','planned'],['AI for Business Strategy','Wharton / Coursera','planned']];
-  const insCert = db.prepare('INSERT INTO certifications (team_member_id, name, provider, status) VALUES (?,?,?,?)');
-  certs.forEach(c => insCert.run(mId, ...c));
+  const certCount = db.prepare('SELECT COUNT(*) as n FROM certifications WHERE team_member_id = ?').get(mId).n;
+  if (certCount === 0) {
+    const certs = [['Google AI Essentials','Google / Coursera','in_progress'],['PL-300: Power BI Data Analyst','Microsoft Learn','planned'],['AI for Everyone','Coursera / Andrew Ng','planned'],['AWS Certified AI Practitioner','AWS','planned'],['AI for Business Strategy','Wharton / Coursera','planned']];
+    const insCert = db.prepare('INSERT INTO certifications (team_member_id, name, provider, status) VALUES (?,?,?,?)');
+    certs.forEach(c => insCert.run(mId, ...c));
+  }
 
-  // Junior Engineer — Izayah Fisher
-  const izId = uuid();
-  db.prepare('INSERT OR IGNORE INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
-    .run(izId, 'Izayah', 'Fisher', 'izayah@prismaianalytics.com', 'contractor', 'Junior AI/ML Engineer', 45, '2026-03-15');
+  // Junior Engineer — look up existing or create
+  let izId = (db.prepare("SELECT id FROM team_members WHERE email = 'izayah@prismaianalytics.com'").get() || {}).id;
+  if (!izId) {
+    izId = uuid();
+    db.prepare('INSERT INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
+      .run(izId, 'Izayah', 'Fisher', 'izayah@prismaianalytics.com', 'contractor', 'Junior AI/ML Engineer', 45, '2026-03-15');
+  }
 
-  // CCA Foundations Training Program
+  // CCA Foundations Training Program — skip if already exists
+  const existingProg = db.prepare("SELECT COUNT(*) as n FROM training_programs").get().n;
+  if (existingProg > 0) return; // training data already exists, skip rest of seed
+
   const ccaId = uuid();
   db.prepare('INSERT INTO training_programs (id, name, provider, description, total_domains, total_topics) VALUES (?,?,?,?,?,?)')
     .run(ccaId, 'Claude Certified Architect — Foundations', 'Anthropic', 'Proctored 60-question architecture exam. 120 min. Pass: 720/1000.', 5, 35);
