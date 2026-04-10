@@ -603,15 +603,19 @@ function uuid() {
 function seedIfEmpty() {
   const count = db.prepare('SELECT COUNT(*) as n FROM clients').get().n;
   if (count > 0) return;
+  // Clean orphaned reference data to avoid UNIQUE conflicts on re-seed
+  try { db.prepare('DELETE FROM industries').run(); } catch(e) {}
+  try { db.prepare('DELETE FROM lead_sources').run(); } catch(e) {}
+  try { db.prepare('DELETE FROM services').run(); } catch(e) {}
 
   // Industries
   const industries = ['Finance','Healthcare','Retail','Hospitality','Real Estate','Professional Services','Technology','Manufacturing','Education','Nonprofit'];
-  const insInd = db.prepare('INSERT INTO industries (name) VALUES (?)');
+  const insInd = db.prepare('INSERT OR IGNORE INTO industries (name) VALUES (?)');
   industries.forEach(n => insInd.run(n));
 
   // Lead sources
   const sources = [['LinkedIn','social'],['Website/SEO','organic'],['Google Business Profile','organic'],['Email Newsletter','email'],['Charlotte Chamber','event'],['SBDC Partnership','referral'],['Speaking Engagement','event'],['Client Referral','referral'],['Partner Referral','referral'],['Cold Outreach','outbound']];
-  const insLS = db.prepare('INSERT INTO lead_sources (name, channel) VALUES (?, ?)');
+  const insLS = db.prepare('INSERT OR IGNORE INTO lead_sources (name, channel) VALUES (?, ?)');
   sources.forEach(s => insLS.run(...s));
 
   // Services
@@ -633,12 +637,12 @@ function seedIfEmpty() {
     ['Audit Evidence Automation','project',5000,15000,'fixed'],
     ['AI Governance & Hardening Assessment','project',8000,20000,'fixed'],
   ];
-  const insSvc = db.prepare('INSERT INTO services (name, service_type, price_min, price_max, price_unit) VALUES (?,?,?,?,?)');
+  const insSvc = db.prepare('INSERT OR IGNORE INTO services (name, service_type, price_min, price_max, price_unit) VALUES (?,?,?,?,?)');
   svcs.forEach(s => insSvc.run(...s));
 
   // Founder
   const mId = uuid();
-  db.prepare('INSERT INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
+  db.prepare('INSERT OR IGNORE INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
     .run(mId, 'Michele', 'Fisher', 'michele@prismaianalytics.com', 'founder', 'Founder & AI Analytics Consultant', 135, '2026-03-01');
 
   // Certifications
@@ -648,7 +652,7 @@ function seedIfEmpty() {
 
   // Junior Engineer — Izayah Fisher
   const izId = uuid();
-  db.prepare('INSERT INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
+  db.prepare('INSERT OR IGNORE INTO team_members (id, first_name, last_name, email, role, title, hourly_rate, start_date) VALUES (?,?,?,?,?,?,?,?)')
     .run(izId, 'Izayah', 'Fisher', 'izayah@prismaianalytics.com', 'contractor', 'Junior AI/ML Engineer', 45, '2026-03-15');
 
   // CCA Foundations Training Program
