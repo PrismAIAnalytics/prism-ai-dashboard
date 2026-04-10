@@ -222,6 +222,57 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .text-red { color: var(--red); }
 .text-amber { color: var(--amber); }
 
+/* ─── Tools & Health pages ─── */
+.badge-rel {
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-rel-critical { background: rgba(248,113,113,0.15); color: var(--red); }
+.badge-rel-growing { background: rgba(52,211,153,0.15); color: var(--green); }
+.badge-rel-moderate { background: rgba(74,109,181,0.2); color: var(--blue); }
+.badge-rel-niche { background: rgba(136,136,170,0.15); color: var(--muted); }
+.badge-util {
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-util-high { background: rgba(52,211,153,0.15); color: var(--green); }
+.badge-util-moderate { background: rgba(251,191,36,0.15); color: var(--amber); }
+.badge-util-low { background: rgba(74,109,181,0.2); color: var(--blue); }
+.badge-util-none { background: rgba(136,136,170,0.15); color: var(--muted); }
+.badge-cat {
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-cat-custom_skill { background: rgba(167,139,250,0.15); color: var(--purple); }
+.badge-cat-plugin { background: rgba(74,109,181,0.2); color: var(--blue); }
+.badge-cat-connector { background: rgba(52,211,153,0.15); color: var(--green); }
+
+/* SWOT grid */
+.swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .swot-grid { grid-template-columns: 1fr; } }
+.swot-quad { border-radius: 10px; padding: 18px; }
+.swot-quad ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; }
+.swot-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.swot-s { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); }
+.swot-s .swot-label { color: var(--green); }
+.swot-w { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2); }
+.swot-w .swot-label { color: var(--red); }
+.swot-o { background: rgba(74,109,181,0.08); border: 1px solid rgba(74,109,181,0.2); }
+.swot-o .swot-label { color: var(--blue); }
+.swot-t { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.2); }
+.swot-t .swot-label { color: var(--amber); }
+
+/* Action items */
+.action-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.action-item:last-child { border-bottom: none; }
+.action-item input[type="checkbox"] { accent-color: var(--royal); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0; }
+.action-item .action-title { font-size: 13px; font-weight: 600; }
+.action-item .action-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.action-item .action-urgency { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 500; margin-top: 4px; display: inline-block; }
+.urgency-immediate { background: rgba(248,113,113,0.15); color: var(--red); }
+.urgency-next_2_weeks { background: rgba(251,191,36,0.15); color: var(--amber); }
+.urgency-next_30_days { background: rgba(74,109,181,0.2); color: var(--blue); }
+
 /* ─── Tickets / Kanban ─── */
 .ticket-views { display: flex; gap: 8px; }
 .ticket-views button {
@@ -302,6 +353,56 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 .ticket-status-pills button:hover { color: var(--text); border-color: var(--royal); }
 .ticket-status-pills button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
+
+/* ─── Rule Detail Modal ─── */
+.rule-detail-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200;
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 40px;
+  animation: fadeIn 0.15s ease;
+}
+.rule-detail-modal {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  width: 720px; max-width: 95vw; max-height: 88vh; overflow-y: auto; padding: 0;
+}
+.rule-detail-modal .rdm-header {
+  padding: 24px 28px 16px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--card); z-index: 1; border-radius: 14px 14px 0 0;
+}
+.rule-detail-modal .rdm-header .rdm-close {
+  position: absolute; top: 16px; right: 20px; background: none; border: none;
+  color: var(--muted); font-size: 22px; cursor: pointer; padding: 4px 8px; line-height: 1;
+}
+.rule-detail-modal .rdm-header .rdm-close:hover { color: var(--text); }
+.rule-detail-modal .rdm-header h3 { font-size: 16px; margin: 0 0 8px; padding-right: 30px; line-height: 1.4; }
+.rule-detail-modal .rdm-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.rule-detail-modal .rdm-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+}
+.rule-detail-modal .rdm-body { padding: 20px 28px 28px; }
+.rule-detail-modal .rdm-section { margin-bottom: 20px; }
+.rule-detail-modal .rdm-section-title {
+  font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px;
+  padding-bottom: 4px; border-bottom: 1px solid var(--border);
+}
+.rule-detail-modal .rdm-section-body {
+  font-size: 13px; line-height: 1.7; color: var(--muted); white-space: pre-wrap; word-break: break-word;
+}
+.rule-detail-modal .rdm-code {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 12px 14px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 12px;
+  line-height: 1.6; color: var(--text); overflow-x: auto; margin: 8px 0; white-space: pre;
+}
+.rule-detail-modal .rdm-meta {
+  font-size: 11px; color: var(--muted); border-top: 1px solid var(--border);
+  padding-top: 12px; margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap;
+}
+.rule-detail-modal .rdm-ref-link { color: var(--blue); text-decoration: none; }
+.rule-detail-modal .rdm-ref-link:hover { text-decoration: underline; }
+.rule-detail-modal .rdm-product-line {
+  font-size: 12px; color: var(--muted); margin-bottom: 4px;
+}
+.rule-row-clickable { cursor: pointer; transition: background 0.15s; }
+.rule-row-clickable:hover { background: rgba(74,109,181,0.08) !important; }
 
 /* ─── CRM Page ─── */
 .crm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
@@ -405,6 +506,13 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   animation: fadeIn 0.2s ease; transition: opacity 0.3s;
 }
 .toast.error { background: var(--red); color: var(--white); }
+
+/* Financials tab bar */
+.fin-tab { background:none; border:none; color:var(--muted); font-size:13px; font-weight:600; padding:8px 16px; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+.fin-tab:hover { color:var(--text); }
+.fin-tab.active { color:var(--blue); border-bottom-color:var(--blue); }
+.fin-src-btn.active { background:var(--royal); color:var(--white); border-color:var(--royal); }
+@media (max-width:900px) { #fin-overview .kpi-grid { grid-template-columns:repeat(2,1fr) !important; } #fin-overview > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr !important; } }
 </style>
 </head>
 <body>
@@ -439,6 +547,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="nav-section">Operations</div>
     <a href="javascript:void(0)" data-page="tickets" onclick="showPage('tickets', this)">&#9776; Tickets</a>
     <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">&#9881; Services</a>
+    <a href="javascript:void(0)" data-page="tools" onclick="showPage('tools', this)">&#9874; Tools Inventory</a>
+    <a href="javascript:void(0)" data-page="health" onclick="showPage('health', this)">&#9829; Business Health</a>
     <a href="javascript:void(0)" data-page="drive" onclick="showPage('drive', this)">&#9744; Prism Shared Drive</a>
     <div class="nav-section">Team</div>
     <a href="javascript:void(0)" data-page="training" onclick="showPage('training', this)">&#9733; Training</a>
@@ -450,6 +560,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div class="nav-section">Compliance</div>
     <a href="javascript:void(0)" data-page="compliance" onclick="showPage('compliance', this)">&#9878; Security Baselines</a>
     <div class="nav-section">Finance</div>
+    <a href="javascript:void(0)" data-page="financials" onclick="showPage('financials', this)">&#9670; Financials</a>
     <a href="javascript:void(0)" data-page="invoices" onclick="showPage('invoices', this)">&#9633; Invoices</a>
     <a href="javascript:void(0)" data-page="expenses" onclick="showPage('expenses', this)">&#8853; Expenses</a>
     <a href="javascript:void(0)" data-page="time" onclick="showPage('time', this)">&#9201; Time</a>
@@ -512,6 +623,80 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="projects-list"></div>
     </div>
 
+    <!-- FINANCIALS — Stripe + QuickBooks -->
+    <div id="page-financials" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2>Financials</h2>
+          <p>Revenue, invoices &amp; expenses — Stripe + QuickBooks</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="fin-stripe-dot" style="font-size:10px" title="Stripe">&#9679;</span>
+          <span style="font-size:11px;color:var(--muted)">Stripe</span>
+          <span id="fin-qbo-dot" style="font-size:10px;margin-left:8px" title="QuickBooks">&#9679;</span>
+          <span style="font-size:11px;color:var(--muted)">QuickBooks</span>
+          <button class="btn-sm" id="fin-qbo-connect" style="display:none;margin-left:8px" onclick="window.open('/api/qbo/connect','qbo','width=600,height=700')">Connect QB</button>
+          <select id="fin-period" style="margin-left:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px">
+            <option value="ytd">YTD</option>
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+          </select>
+          <button class="btn-sm" onclick="loadFinancials()" title="Refresh">&#8635; Refresh</button>
+        </div>
+      </div>
+      <div id="fin-stale-banner" style="display:none;background:rgba(251,191,36,0.12);border:1px solid var(--amber);border-radius:8px;padding:8px 14px;margin-bottom:14px;font-size:12px;color:var(--amber)"></div>
+
+      <!-- Tab bar -->
+      <div style="display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0">
+        <button class="fin-tab active" data-tab="fin-overview" onclick="switchFinTab(this)">Overview</button>
+        <button class="fin-tab" data-tab="fin-invoices" onclick="switchFinTab(this)">Invoice Tracker</button>
+        <button class="fin-tab" data-tab="fin-payments" onclick="switchFinTab(this)">Payment Feed</button>
+        <button class="fin-tab" data-tab="fin-expenses" onclick="switchFinTab(this)">Expense Breakdown</button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div id="fin-overview" class="fin-panel">
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px" id="fin-kpis"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="card" style="padding:16px"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Revenue Trend</div><div style="height:240px"><canvas id="fin-chart-revenue"></canvas></div></div>
+          <div class="card" style="padding:16px"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Income Breakdown</div><div style="height:240px"><canvas id="fin-chart-income"></canvas></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="card" style="padding:16px"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Revenue vs Expenses</div><div style="height:240px"><canvas id="fin-chart-revexp"></canvas></div></div>
+          <div class="card" style="padding:16px"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Net Income</div><div style="height:240px"><canvas id="fin-chart-net"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- INVOICE TRACKER TAB -->
+      <div id="fin-invoices" class="fin-panel" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="btn-sm fin-src-btn active" data-source="all" onclick="filterFinInvoices(this)">All</button>
+          <button class="btn-sm fin-src-btn" data-source="quickbooks" onclick="filterFinInvoices(this)">QuickBooks</button>
+          <button class="btn-sm fin-src-btn" data-source="local" onclick="filterFinInvoices(this)">Local</button>
+        </div>
+        <div class="card"><div id="fin-invoices-table" class="scroll-y" style="max-height:500px"></div></div>
+      </div>
+
+      <!-- PAYMENT FEED TAB -->
+      <div id="fin-payments" class="fin-panel" style="display:none">
+        <div style="display:flex;gap:6px;margin-bottom:14px">
+          <button class="btn-sm fin-src-btn active" data-source="all" onclick="filterFinPayments(this)">All</button>
+          <button class="btn-sm fin-src-btn" data-source="stripe" onclick="filterFinPayments(this)">Stripe</button>
+          <button class="btn-sm fin-src-btn" data-source="local" onclick="filterFinPayments(this)">Local</button>
+        </div>
+        <div class="card"><div id="fin-payments-table" class="scroll-y" style="max-height:500px"></div></div>
+      </div>
+
+      <!-- EXPENSE BREAKDOWN TAB -->
+      <div id="fin-expenses" class="fin-panel" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="card" style="padding:16px"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Operating Expenses</div><div style="height:260px"><canvas id="fin-chart-opex"></canvas></div></div>
+          <div class="card" style="padding:16px"><div class="label" style="font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">All Expenses by Category</div><div style="height:260px"><canvas id="fin-chart-allexp"></canvas></div></div>
+        </div>
+        <div class="card"><div id="fin-expense-detail" class="scroll-y" style="max-height:400px"></div></div>
+      </div>
+    </div>
+
     <!-- INVOICES -->
     <div id="page-invoices" class="page">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -563,10 +748,19 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
       </div>
       <div id="ticket-kpis" class="ticket-kpi-grid"></div>
-      <div class="ticket-status-pills" id="ticket-type-filters">
-        <button class="active" onclick="ticketFilterType('all', this)">All</button>
-        <button onclick="ticketFilterType('client', this)">Client</button>
-        <button onclick="ticketFilterType('internal', this)">Internal</button>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <div class="ticket-status-pills" id="ticket-type-filters">
+          <button class="active" onclick="ticketFilterType('all', this)">All</button>
+          <button onclick="ticketFilterType('client', this)">Client</button>
+          <button onclick="ticketFilterType('internal', this)">Internal</button>
+        </div>
+        <div class="ticket-status-pills" id="ticket-cat-filters">
+          <button class="active" onclick="ticketFilterCat('all', this)">All Categories</button>
+          <button onclick="ticketFilterCat('action', this)">Action Items</button>
+          <button onclick="ticketFilterCat('training', this)">Training</button>
+          <button onclick="ticketFilterCat('delivery', this)">Delivery</button>
+          <button onclick="ticketFilterCat('general', this)">General</button>
+        </div>
       </div>
       <div id="tickets-kanban" class="kanban-board"></div>
       <div id="tickets-list" class="card" style="display:none"><div id="tickets-list-table" class="scroll-y" style="max-height:600px"></div></div>
@@ -587,9 +781,32 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <!-- KPI Summary -->
       <div id="compliance-kpis" class="kpi-grid" style="grid-template-columns:repeat(6,1fr)"></div>
 
+      <!-- Charts -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card" style="padding:16px">
+          <h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:1px;text-align:center">Automation Ceiling</h4>
+          <div style="position:relative;height:220px"><canvas id="chart-automation"></canvas></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:1px;text-align:center">Drift Detection</h4>
+          <div style="position:relative;height:220px"><canvas id="chart-drift"></canvas></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:1px;text-align:center">Active Rules by Category</h4>
+          <div style="position:relative;height:220px"><canvas id="chart-rules-category"></canvas></div>
+        </div>
+      </div>
+
       <!-- Main Table -->
       <div class="card" style="padding:0;overflow:hidden">
         <div id="compliance-table" style="overflow-x:auto;max-width:100%"></div>
+      </div>
+
+      <!-- Rule Detail Modal -->
+      <div id="rule-detail-overlay" class="rule-detail-overlay" style="display:none" onclick="if(event.target===this)ruleCloseDetail()">
+        <div class="rule-detail-modal" id="rule-detail-modal">
+          <div id="rule-detail-content"></div>
+        </div>
       </div>
 
       <!-- Detail Panel (slide-in) -->
@@ -722,6 +939,106 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
       </div>
     </div>
+    <!-- TOOLS INVENTORY -->
+    <div id="page-tools" class="page">
+      <div class="page-header">
+        <h2>Tools Inventory</h2>
+        <p>All custom skills, plugins, and MCP connectors powering Prism AI.</p>
+      </div>
+      <div class="tools-filters" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+        <select id="tools-cat" onchange="loaders.tools()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px">
+          <option value="">All Categories</option>
+          <option value="custom_skill">Custom Skills</option>
+          <option value="plugin">Plugins</option>
+          <option value="connector">MCP Connectors</option>
+        </select>
+        <select id="tools-suite" onchange="loaders.tools()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px">
+          <option value="">All Suites</option>
+        </select>
+        <select id="tools-relevance" onchange="loaders.tools()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px">
+          <option value="">All Relevance</option>
+          <option value="critical">Critical</option>
+          <option value="growing">Growing</option>
+          <option value="moderate">Moderate</option>
+          <option value="niche">Niche</option>
+        </select>
+        <input id="tools-search" type="text" placeholder="Search tools..." oninput="loaders.tools()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;flex:1;min-width:180px">
+      </div>
+      <div id="tools-summary" class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:20px"></div>
+      <div class="card">
+        <div class="scroll-y" style="max-height:600px">
+          <table>
+            <thead><tr>
+              <th>Name</th><th>Category</th><th>Suite</th><th>Description</th><th>Relevance</th><th>Utilization</th>
+            </tr></thead>
+            <tbody id="tools-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUSINESS HEALTH -->
+    <div id="page-health" class="page">
+      <div class="page-header">
+        <h2>Business Health</h2>
+        <p>Operational maturity, SWOT analysis, and prioritized action plan.</p>
+      </div>
+      <div id="health-kpis" class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px"></div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>AI Maturity Scores</h3>
+          <div style="position:relative;height:320px">
+            <canvas id="maturity-chart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Action Items <span class="badge" id="actions-count">0</span></h3>
+          <div id="actions-list" class="scroll-y" style="max-height:340px"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px">
+        <h3>SWOT Analysis</h3>
+        <div class="swot-grid">
+          <div class="swot-quad swot-s">
+            <div class="swot-label">Strengths</div>
+            <ul>
+              <li>133 AI tools already mapped and operational</li>
+              <li>Full CRM pipeline with 12-stage workflow</li>
+              <li>Deep data analytics expertise (10+ years)</li>
+              <li>Custom skills built for specific business needs</li>
+            </ul>
+          </div>
+          <div class="swot-quad swot-w">
+            <div class="swot-label">Weaknesses</div>
+            <ul>
+              <li>Solo founder bottleneck on delivery</li>
+              <li>No dedicated sales team or outbound motion</li>
+              <li>Financial operations at lowest maturity (15%)</li>
+              <li>Limited brand visibility in target market</li>
+            </ul>
+          </div>
+          <div class="swot-quad swot-o">
+            <div class="swot-label">Opportunities</div>
+            <ul>
+              <li>SMBs underserved in AI consulting space</li>
+              <li>Growing demand for AI readiness assessments</li>
+              <li>Retainer model for recurring revenue</li>
+              <li>Charlotte/regional market expansion</li>
+            </ul>
+          </div>
+          <div class="swot-quad swot-t">
+            <div class="swot-label">Threats</div>
+            <ul>
+              <li>Large consultancies moving downmarket</li>
+              <li>Rapid AI tool commoditization</li>
+              <li>Client budget uncertainty in economic shifts</li>
+              <li>Regulatory changes affecting AI adoption</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -732,6 +1049,8 @@ const fmt = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
 function showPage(id, el) {
+  // Clean up financials interval when navigating away
+  if (typeof finRefreshInterval !== 'undefined' && id !== 'financials') clearInterval(finRefreshInterval);
   $$('.page').forEach(p => p.classList.remove('active'));
   $$('nav a').forEach(a => a.classList.remove('active'));
   $(`#page-${id}`).classList.add('active');
@@ -1212,6 +1531,200 @@ async function submitNewExpense() {
   if (res.ok) { document.getElementById('exp-modal').remove(); toast('Expense logged'); loaders.expenses(); }
   else toast(res.errors ? res.errors.map(e=>e.msg).join(', ') : (res.error||'Failed'), true);
 }
+
+// --- FINANCIALS (Stripe + QuickBooks) ---
+let finChartRevenue, finChartIncome, finChartRevExp, finChartNet, finChartOpex, finChartAllExp;
+let finInvoicesData = [], finPaymentsData = [], finRevenueData = null;
+let finRefreshInterval = null;
+
+function switchFinTab(btn) {
+  document.querySelectorAll('.fin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.fin-panel').forEach(p => p.style.display = 'none');
+  btn.classList.add('active');
+  document.getElementById(btn.dataset.tab).style.display = '';
+}
+
+function filterFinInvoices(btn) {
+  btn.parentElement.querySelectorAll('.fin-src-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFinInvoiceTable(finInvoicesData.filter(i => btn.dataset.source === 'all' || i.source === btn.dataset.source));
+}
+
+function filterFinPayments(btn) {
+  btn.parentElement.querySelectorAll('.fin-src-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFinPaymentTable(finPaymentsData.filter(p => btn.dataset.source === 'all' || p.source === btn.dataset.source));
+}
+
+function renderFinKPIs(kpis) {
+  const el = document.getElementById('fin-kpis');
+  if (!kpis) { el.innerHTML = '<div style="color:var(--muted);font-size:13px">No data available</div>'; return; }
+  el.innerHTML = `
+    <div class="kpi"><div class="label">Total Revenue</div><div class="value text-green money">${fmt(kpis.totalRevenue || 0)}</div><div class="sub">YTD</div></div>
+    <div class="kpi"><div class="label">Net Income</div><div class="value money" style="color:${(kpis.netIncome||0)>=0?'var(--green)':'var(--red)'}">${fmt(kpis.netIncome || 0)}</div><div class="sub">YTD</div></div>
+    <div class="kpi"><div class="label">Total Expenses</div><div class="value text-red money">${fmt(kpis.totalExpenses || 0)}</div><div class="sub">YTD</div></div>
+    <div class="kpi"><div class="label">Stripe Balance</div><div class="value text-blue money">${kpis.stripeBalance ? fmt(kpis.stripeBalance.available) : '—'}</div>${kpis.stripeBalance ? `<div class="sub">${fmt(kpis.stripeBalance.pending)} pending</div>` : '<div class="sub">Not connected</div>'}</div>
+  `;
+}
+
+function destroyFinCharts() {
+  [finChartRevenue, finChartIncome, finChartRevExp, finChartNet, finChartOpex, finChartAllExp].forEach(c => { if (c) c.destroy(); });
+  finChartRevenue = finChartIncome = finChartRevExp = finChartNet = finChartOpex = finChartAllExp = null;
+}
+
+const finPalette = ['#4A6DB5','#3A5998','#a78bfa','#34d399','#fbbf24','#f87171','#BDC9DD','#17135C','#8888aa','#1e2140'];
+
+function renderFinCharts(monthly, revenue) {
+  destroyFinCharts();
+  const cOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#8888aa', font: { size: 11 } } } },
+    scales: { x: { ticks: { color: '#8888aa', font: { size: 10 } }, grid: { color: '#1e2140' } }, y: { ticks: { color: '#8888aa', font: { size: 10 }, callback: v => '$'+(v/1000).toFixed(0)+'k' }, grid: { color: '#1e2140' } } } };
+
+  if (monthly) {
+    const labels = monthly.labels || [];
+    finChartRevenue = new Chart(document.getElementById('fin-chart-revenue'), {
+      type: 'line', data: { labels, datasets: [{ label: 'Income', data: monthly.income || [], borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.1)', fill: true, tension: 0.3, pointRadius: 4 }] }, options: { ...cOpts, plugins: { ...cOpts.plugins, legend: { display: false } } }
+    });
+    finChartRevExp = new Chart(document.getElementById('fin-chart-revexp'), {
+      type: 'bar', data: { labels, datasets: [
+        { label: 'Income', data: monthly.income || [], backgroundColor: 'rgba(74,109,181,0.7)', borderRadius: 4 },
+        { label: 'Expenses', data: monthly.expenses || [], backgroundColor: 'rgba(248,113,113,0.6)', borderRadius: 4 },
+      ] }, options: cOpts
+    });
+    finChartNet = new Chart(document.getElementById('fin-chart-net'), {
+      type: 'bar', data: { labels, datasets: [{ label: 'Net Income', data: monthly.netIncome || [],
+        backgroundColor: (monthly.netIncome||[]).map(v => v >= 0 ? 'rgba(52,211,153,0.7)' : 'rgba(248,113,113,0.7)'), borderRadius: 4 }] },
+      options: { ...cOpts, plugins: { ...cOpts.plugins, legend: { display: false } } }
+    });
+  }
+
+  if (revenue && revenue.incomeAccounts) {
+    const accts = Object.entries(revenue.incomeAccounts).filter(([,v]) => v > 0);
+    finChartIncome = new Chart(document.getElementById('fin-chart-income'), {
+      type: 'doughnut', data: { labels: accts.map(([k]) => k), datasets: [{ data: accts.map(([,v]) => v), backgroundColor: finPalette.slice(0, accts.length), borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#8888aa', font: { size: 11 }, padding: 8 } } } }
+    });
+  }
+}
+
+function renderFinExpenseCharts(revenue) {
+  if (finChartOpex) finChartOpex.destroy();
+  if (finChartAllExp) finChartAllExp.destroy();
+  finChartOpex = finChartAllExp = null;
+  if (!revenue || !revenue.expenseAccounts) return;
+
+  const entries = Object.entries(revenue.expenseAccounts).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+  if (entries.length === 0) return;
+
+  finChartOpex = new Chart(document.getElementById('fin-chart-opex'), {
+    type: 'doughnut', data: { labels: entries.map(([k]) => k), datasets: [{ data: entries.map(([,v]) => v), backgroundColor: finPalette.slice(0, entries.length), borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#8888aa', font: { size: 11 }, padding: 6 } },
+      tooltip: { callbacks: { label: ctx => ctx.label + ': ' + fmt(ctx.raw) } } } }
+  });
+
+  finChartAllExp = new Chart(document.getElementById('fin-chart-allexp'), {
+    type: 'bar', data: { labels: entries.map(([k]) => k), datasets: [{ data: entries.map(([,v]) => v),
+      backgroundColor: finPalette.slice(0, entries.length), borderRadius: 4 }] },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { color: '#8888aa', font: { size: 10 }, callback: v => '$'+(v/1000).toFixed(1)+'k' }, grid: { color: '#1e2140' } },
+        y: { ticks: { color: '#8888aa', font: { size: 10 } }, grid: { display: false } } } }
+  });
+
+  // Detail table
+  const total = entries.reduce((s,[,v]) => s+v, 0);
+  document.getElementById('fin-expense-detail').innerHTML = `<table>
+    <thead><tr><th>Category</th><th>Amount</th><th>% of Total</th></tr></thead>
+    <tbody>${entries.map(([k,v]) => `<tr><td>${k}</td><td class="money">${fmt(v)}</td><td>${((v/total)*100).toFixed(1)}%</td></tr>`).join('')}
+    <tr style="font-weight:700;border-top:2px solid var(--border)"><td>Total</td><td class="money">${fmt(total)}</td><td>100%</td></tr></tbody></table>`;
+}
+
+function renderFinInvoiceTable(invoices) {
+  const el = document.getElementById('fin-invoices-table');
+  if (!invoices || invoices.length === 0) { el.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px">No invoices found</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Invoice #</th><th>Client</th><th>Status</th><th>Issued</th><th>Due</th><th>Total</th><th>Paid</th><th>Balance</th><th>Source</th></tr></thead>
+    <tbody>${invoices.map(i => `<tr>
+      <td><strong>${i.invoiceNumber || '—'}</strong></td>
+      <td>${i.client}</td>
+      <td>${badge(i.status)}</td>
+      <td>${fmtDate(i.issueDate)}</td>
+      <td>${fmtDate(i.dueDate)}</td>
+      <td class="money">${fmt(i.total)}</td>
+      <td class="money text-green">${fmt(i.paid || 0)}</td>
+      <td class="money ${i.balance > 0 ? 'text-amber' : 'text-green'}">${fmt(i.balance || 0)}</td>
+      <td><span style="font-size:10px;padding:2px 8px;border-radius:8px;background:${i.source==='quickbooks'?'rgba(52,211,153,0.12)':'rgba(74,109,181,0.15)'};color:${i.source==='quickbooks'?'var(--green)':'var(--blue)'}">${i.source}</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function renderFinPaymentTable(payments) {
+  const el = document.getElementById('fin-payments-table');
+  if (!payments || payments.length === 0) { el.innerHTML = '<div style="padding:20px;color:var(--muted);font-size:13px">No payments found</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Date</th><th>Client</th><th>Amount</th><th>Method</th><th>Reference</th><th>Source</th></tr></thead>
+    <tbody>${payments.map(p => `<tr>
+      <td>${fmtDate(p.date)}</td>
+      <td>${p.client}</td>
+      <td class="money text-green">${fmt(p.amount)}</td>
+      <td>${p.method || '—'}</td>
+      <td style="font-size:11px;color:var(--muted)">${(p.reference||'—').substring(0,20)}</td>
+      <td><span style="font-size:10px;padding:2px 8px;border-radius:8px;background:${p.source==='stripe'?'rgba(167,139,250,0.15)':'rgba(74,109,181,0.15)'};color:${p.source==='stripe'?'var(--purple)':'var(--blue)'}">${p.source}</span></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+async function loadFinancials() {
+  try {
+    const [kpiRes, revenueRes, monthlyRes, invoicesRes, paymentsRes] = await Promise.allSettled([
+      api('financials/kpis'),
+      api('financials/revenue'),
+      api('financials/revenue/monthly'),
+      api('financials/invoices'),
+      api('financials/payments'),
+    ]);
+
+    const kpis = kpiRes.status === 'fulfilled' ? kpiRes.value : null;
+    const revenue = revenueRes.status === 'fulfilled' ? revenueRes.value : null;
+    const monthly = monthlyRes.status === 'fulfilled' ? monthlyRes.value : null;
+    const invoices = invoicesRes.status === 'fulfilled' ? invoicesRes.value : null;
+    const payments = paymentsRes.status === 'fulfilled' ? paymentsRes.value : null;
+
+    // Connection indicators
+    const sources = kpis && kpis.sources ? kpis.sources : {};
+    document.getElementById('fin-stripe-dot').style.color = sources.stripe ? 'var(--green)' : 'var(--red)';
+    document.getElementById('fin-qbo-dot').style.color = sources.quickbooks ? 'var(--green)' : 'var(--red)';
+    document.getElementById('fin-qbo-connect').style.display = sources.quickbooks ? 'none' : '';
+
+    // Stale warning
+    const warnings = kpis && kpis.warnings ? kpis.warnings : [];
+    const stale = (revenue && revenue.stale) || (monthly && monthly.stale);
+    const banner = document.getElementById('fin-stale-banner');
+    if (warnings.length > 0 || stale) {
+      banner.style.display = '';
+      banner.textContent = (warnings.length > 0 ? warnings.join('. ') + '. ' : '') + (stale ? 'Some data may be stale. ' : '') + (kpis && kpis.lastUpdated ? 'Last updated: ' + fmtDate(kpis.lastUpdated.split('T')[0]) : '');
+    } else {
+      banner.style.display = 'none';
+    }
+
+    renderFinKPIs(kpis ? kpis.kpis : null);
+    finRevenueData = revenue && revenue.revenue ? revenue.revenue : null;
+    renderFinCharts(monthly ? monthly.monthly : null, finRevenueData);
+    renderFinExpenseCharts(finRevenueData);
+
+    finInvoicesData = invoices && invoices.invoices ? invoices.invoices : [];
+    renderFinInvoiceTable(finInvoicesData);
+
+    finPaymentsData = payments && payments.payments ? payments.payments : [];
+    renderFinPaymentTable(finPaymentsData);
+  } catch (e) {
+    console.error('[financials]', e);
+    toast('Failed to load financials', true);
+  }
+}
+
+loaders.financials = async () => {
+  clearInterval(finRefreshInterval);
+  await loadFinancials();
+  finRefreshInterval = setInterval(loadFinancials, 15 * 60 * 1000);
+};
 
 // --- TIME (with log hours) ---
 loaders.time = async () => {
@@ -1733,6 +2246,7 @@ async function crmSubmitEdit(id) {
 // --- TICKETS ---
 let ticketView = 'kanban';
 let ticketTypeFilter = 'all';
+let ticketCatFilter = 'all';
 let allTickets = [];
 
 loaders.tickets = async () => {
@@ -1754,7 +2268,8 @@ loaders.tickets = async () => {
 };
 
 function ticketRender() {
-  const filtered = ticketTypeFilter === 'all' ? allTickets : allTickets.filter(t => t.ticket_type === ticketTypeFilter);
+  let filtered = ticketTypeFilter === 'all' ? allTickets : allTickets.filter(t => t.ticket_type === ticketTypeFilter);
+  if (ticketCatFilter !== 'all') filtered = filtered.filter(t => t.category === ticketCatFilter);
   if (ticketView === 'kanban') {
     $('#tickets-kanban').style.display = 'flex';
     $('#tickets-list').style.display = 'none';
@@ -1780,6 +2295,20 @@ function ticketFilterType(type, el) {
   ticketRender();
 }
 
+function ticketFilterCat(cat, el) {
+  ticketCatFilter = cat;
+  $$('#ticket-cat-filters button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  ticketRender();
+}
+
+const CAT_COLORS = { action: { bg: 'rgba(248,113,113,0.15)', color: 'var(--red)' }, training: { bg: 'rgba(167,139,250,0.15)', color: 'var(--purple)' }, delivery: { bg: 'rgba(52,211,153,0.15)', color: 'var(--green)' }, general: { bg: 'rgba(136,136,170,0.15)', color: 'var(--muted)' } };
+
+function catBadge(cat) {
+  const c = CAT_COLORS[cat] || CAT_COLORS.general;
+  return `<span class="tag" style="background:${c.bg};color:${c.color}">${cat}</span>`;
+}
+
 function ticketCard(t) {
   const today = new Date().toISOString().split('T')[0];
   const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
@@ -1788,6 +2317,7 @@ function ticketCard(t) {
     <div class="ticket-meta">
       <span class="tag tag-${t.priority}">${t.priority}</span>
       <span class="tag tag-${t.ticket_type}">${t.ticket_type}</span>
+      ${t.category && t.category !== 'general' ? catBadge(t.category) : ''}
       ${t.due_date ? `<span class="ticket-due ${isOverdue ? 'overdue' : ''}">${isOverdue ? '⚠ ' : ''}${fmtDate(t.due_date)}</span>` : ''}
     </div>
     ${t.client_name ? `<div class="ticket-client-tag">↳ ${t.client_name}${t.project_name ? ' / ' + t.project_name : ''}</div>` : ''}
@@ -1820,16 +2350,16 @@ function ticketRenderKanban(tickets) {
 function ticketRenderList(tickets) {
   if (!tickets.length) { $('#tickets-list-table').innerHTML = '<p style="color:var(--muted);padding:20px">No tickets yet — create your first one.</p>'; return; }
   const today = new Date().toISOString().split('T')[0];
-  let html = `<table><thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Client / Project</th><th>Due</th><th></th></tr></thead><tbody>`;
+  let html = `<table><thead><tr><th>Title</th><th>Category</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due</th><th></th></tr></thead><tbody>`;
   for (const t of tickets) {
     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
     html += `<tr style="cursor:pointer" onclick="ticketShowDetail('${t.id}')">
       <td style="font-weight:600">${t.title}</td>
+      <td>${catBadge(t.category || 'general')}</td>
       <td><span class="tag tag-${t.ticket_type}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.ticket_type}</span></td>
       <td>${badge(t.status)}</td>
       <td><span class="tag tag-${t.priority}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.priority}</span></td>
       <td style="color:var(--muted)">${t.assignee_name || '—'}</td>
-      <td style="color:var(--sky)">${t.client_name || '—'}${t.project_name ? ' / ' + t.project_name : ''}</td>
       <td class="${isOverdue ? 'text-red' : ''}">${t.due_date ? fmtDate(t.due_date) : '—'}</td>
       <td><button class="btn-sm btn-danger" onclick="event.stopPropagation();ticketDelete('${t.id}')">✕</button></td>
     </tr>`;
@@ -2083,6 +2613,155 @@ function renderComplianceKPIs() {
     <div class="kpi"><div class="label">No Drift Detection</div><div class="value text-red">${driftNone}</div><div class="sub">${Math.round(driftNone/d.length*100)}% unmonitored</div></div>
     <div class="kpi"><div class="label">Fully Automatable</div><div class="value text-green">${autoFull}</div><div class="sub">${Math.round(autoFull/d.length*100)}% of products</div></div>
   `;
+  renderComplianceCharts();
+}
+
+let chartAutomation = null, chartDrift = null, chartRulesCategory = null;
+
+function renderComplianceCharts() {
+  const d = complianceData;
+  if (!d.length) return;
+
+  const chartFont = { family: "'Inter', sans-serif", size: 11, color: '#94A3B8' };
+  const defaultOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#94A3B8', font: { size: 10 }, padding: 12, usePointStyle: true, pointStyle: 'circle' }
+      }
+    }
+  };
+
+  // ── Automation Ceiling Donut ──
+  const autoFull = d.filter(p => p.automation_ceiling === 'full').length;
+  const autoPartial = d.filter(p => p.automation_ceiling === 'partial').length;
+  const autoManual = d.filter(p => p.automation_ceiling === 'manual_heavy').length;
+  const autoOther = d.length - autoFull - autoPartial - autoManual;
+
+  if (chartAutomation) chartAutomation.destroy();
+  const ctxAuto = document.getElementById('chart-automation');
+  if (ctxAuto) {
+    chartAutomation = new Chart(ctxAuto.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Full', 'Partial', 'Manual-Heavy', ...(autoOther > 0 ? ['Other'] : [])],
+        datasets: [{
+          data: [autoFull, autoPartial, autoManual, ...(autoOther > 0 ? [autoOther] : [])],
+          backgroundColor: ['#34D399', '#F59E0B', '#EF4444', ...(autoOther > 0 ? ['#64748B'] : [])],
+          borderColor: '#1A1A2E',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        ...defaultOpts,
+        cutout: '55%',
+        plugins: {
+          ...defaultOpts.plugins,
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${ctx.raw} products (${Math.round(ctx.raw/d.length*100)}%)`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Drift Detection Donut ──
+  const driftCounts = {};
+  d.forEach(p => {
+    const key = p.drift_detection_capability || 'unknown';
+    driftCounts[key] = (driftCounts[key] || 0) + 1;
+  });
+  const driftLabelMap = { built_in: 'Built-In', limited: 'Limited', audit_log_only: 'Audit Log', none: 'None', immutable: 'Immutable', unknown: 'Unknown' };
+  const driftColorMap = { built_in: '#34D399', limited: '#F59E0B', audit_log_only: '#A78BFA', none: '#EF4444', immutable: '#3B82F6', unknown: '#64748B' };
+  const driftLabels = Object.keys(driftCounts).map(k => driftLabelMap[k] || k);
+  const driftData = Object.values(driftCounts);
+  const driftColors = Object.keys(driftCounts).map(k => driftColorMap[k] || '#64748B');
+
+  if (chartDrift) chartDrift.destroy();
+  const ctxDrift = document.getElementById('chart-drift');
+  if (ctxDrift) {
+    chartDrift = new Chart(ctxDrift.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: driftLabels,
+        datasets: [{
+          data: driftData,
+          backgroundColor: driftColors,
+          borderColor: '#1A1A2E',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        ...defaultOpts,
+        cutout: '55%',
+        plugins: {
+          ...defaultOpts.plugins,
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${ctx.raw} products (${Math.round(ctx.raw/d.length*100)}%)`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Active Rules by Category Bar Chart ──
+  const catRules = {};
+  d.forEach(p => {
+    const cat = p.category || 'Other';
+    catRules[cat] = (catRules[cat] || 0) + (p.active_rule_count || 0);
+  });
+  // Sort by rule count descending
+  const sortedCats = Object.entries(catRules).sort((a, b) => b[1] - a[1]);
+  const catLabels = sortedCats.map(c => c[0]);
+  const catData = sortedCats.map(c => c[1]);
+  const catColors = ['#3B82F6', '#34D399', '#F59E0B', '#A78BFA', '#EF4444', '#EC4899', '#06B6D4', '#F97316', '#8B5CF6', '#10B981', '#64748B', '#E11D48', '#14B8A6'];
+
+  if (chartRulesCategory) chartRulesCategory.destroy();
+  const ctxCat = document.getElementById('chart-rules-category');
+  if (ctxCat) {
+    chartRulesCategory = new Chart(ctxCat.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          label: 'Active Rules',
+          data: catData,
+          backgroundColor: catColors.slice(0, catLabels.length),
+          borderRadius: 4,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        ...defaultOpts,
+        indexAxis: 'y',
+        plugins: {
+          ...defaultOpts.plugins,
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.raw.toLocaleString()} rules`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#94A3B8', font: { size: 10 } }
+          },
+          y: {
+            grid: { display: false },
+            ticks: { color: '#94A3B8', font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
 }
 
 function getFilteredCompliance() {
@@ -2651,6 +3330,16 @@ async function loadComplianceRules(productId, versionFilter) {
     return;
   }
 
+  // Fallback: if no section-type records exist, build sections from bySection summary
+  if (sectionHeaders.length === 0 && totalRules > 0) {
+    const bySec = summaryRes.bySection || [];
+    bySec.forEach(s => { sectionHeaders.push({ section: s.section, section_name: s.section_name || '', source: 'CIS' }); });
+    sectionHeaders.sort((a,b) => {
+      const na = parseFloat(a.section) || 999, nb = parseFloat(b.section) || 999;
+      return na - nb;
+    });
+  }
+
   // Build version filter dropdown
   const uniqueVersions = [...new Set(versions.map(v => v.benchmark_version).filter(Boolean))].sort();
   const versionDropdown = uniqueVersions.length > 1 ? `
@@ -2687,7 +3376,7 @@ async function loadComplianceRules(productId, versionFilter) {
           style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;cursor:pointer;user-select:none;transition:background 0.15s"
           onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
           <span class="chev" style="font-size:10px;color:var(--muted);width:12px">&#9654;</span>
-          <span style="font-weight:600;font-size:13px;flex:1">${sec.section}</span>
+          <span style="font-weight:600;font-size:13px;flex:1">${sec.section}${sec.section_name ? ' &mdash; ' + sec.section_name : ''}</span>
           <span style="font-size:10px;background:${count > 0 ? 'var(--royal)' : 'var(--border)'};color:var(--white);padding:1px 8px;border-radius:10px">${count > 0 ? count : 'empty'}</span>
           <span style="font-size:10px;color:var(--muted)">${sec.source || ''}</span>
         </div>
@@ -2719,7 +3408,7 @@ async function complianceToggleSection(header, sectionName) {
       const versionBadge = v => v ? `<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(74,109,181,0.1);color:var(--muted)">${v}</span>` : '';
       if (sectionRules.length > 0) {
         body.innerHTML = sectionRules.map(r => `
-          <div style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px${r.benchmark_status === 'archive' ? ';opacity:0.6' : ''}">
+          <div class="rule-row-clickable" onclick="ruleShowDetail(${r.id})" style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px${r.benchmark_status === 'archive' ? ';opacity:0.6' : ''}">
             <div style="display:flex;align-items:flex-start;gap:8px">
               ${r.rule_id ? `<span style="font-family:monospace;font-size:11px;color:var(--blue);min-width:50px">${r.rule_id}</span>` : ''}
               <span style="flex:1;line-height:1.5">${r.title}</span>
@@ -2740,6 +3429,92 @@ async function complianceToggleSection(header, sectionName) {
     body.style.display = 'none';
     chev.innerHTML = '&#9654;';
   }
+}
+
+// ─── Rule Detail Modal ───────────────────────────────────────
+function ruleFormatText(text) {
+  if (!text) return '';
+  // Escape HTML
+  let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Detect code blocks: lines starting with #, $, or indented 4+ spaces, or containing file paths / commands
+  const lines = s.split('\n');
+  let result = [], inCode = false, codeLines = [];
+  const isCodeLine = l => /^(\s{4,}|\t|[#$]|\/|C:\\|HKEY_|net |Get-|Set-|sudo |grep |chmod |chown |awk |sed |systemctl |sysctl )/.test(l.trim()) && l.trim().length > 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (isCodeLine(lines[i])) {
+      if (!inCode) inCode = true;
+      codeLines.push(lines[i]);
+    } else {
+      if (inCode) {
+        result.push('<div class="rdm-code">' + codeLines.join('\n') + '</div>');
+        codeLines = []; inCode = false;
+      }
+      result.push(lines[i]);
+    }
+  }
+  if (inCode) result.push('<div class="rdm-code">' + codeLines.join('\n') + '</div>');
+  return result.join('\n');
+}
+
+function ruleFormatRefs(text) {
+  if (!text) return '';
+  let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Auto-link URLs
+  s = s.replace(/(https?:\/\/[^\s<&]+)/g, '<a href="$1" target="_blank" rel="noopener" class="rdm-ref-link">$1</a>');
+  return s;
+}
+
+async function ruleShowDetail(ruleId) {
+  const container = $('#rule-detail-content');
+  container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted)">Loading...</div>';
+  $('#rule-detail-overlay').style.display = 'flex';
+
+  try {
+    const res = await api(`benchmark-rules/${ruleId}`);
+    const r = res.rule;
+    if (!r) { container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red)">Rule not found</div>'; return; }
+
+    const profileBadge = r.cis_profile ? `<span class="rdm-badge" style="background:rgba(74,109,181,0.15);color:var(--blue)">${r.cis_profile}</span>` : '';
+    const checkBadge = r.check_type ? `<span class="rdm-badge" style="background:${r.check_type==='automated'?'rgba(52,211,153,0.15)':'rgba(248,113,113,0.15)'};color:${r.check_type==='automated'?'var(--green)':'var(--red)'}">${r.check_type}</span>` : '';
+    const versionBadge = r.benchmark_version ? `<span class="rdm-badge" style="background:rgba(74,109,181,0.1);color:var(--muted)">${r.benchmark_version}</span>` : '';
+    const statusBadge = r.benchmark_status === 'archive' ? `<span class="rdm-badge" style="background:rgba(248,113,113,0.15);color:var(--red)">archive</span>` : '';
+    const sourceBadge = r.source ? `<span class="rdm-badge" style="background:rgba(136,136,170,0.15);color:var(--muted)">${r.source}</span>` : '';
+
+    const section = (title, content, formatter) => {
+      if (!content || !content.trim()) return '';
+      const formatted = formatter ? formatter(content) : ruleFormatText(content);
+      return `<div class="rdm-section"><div class="rdm-section-title">${title}</div><div class="rdm-section-body">${formatted}</div></div>`;
+    };
+
+    container.innerHTML = `
+      <div class="rdm-header">
+        <button class="rdm-close" onclick="ruleCloseDetail()" title="Close">&times;</button>
+        <div class="rdm-product-line">${r.product_name || ''} ${r.vendor ? '&mdash; ' + r.vendor : ''}</div>
+        <h3>${r.cis_uid ? '<span style="color:var(--blue);font-family:monospace">' + r.cis_uid + '</span> &mdash; ' : (r.rule_id ? '<span style="color:var(--blue);font-family:monospace">' + r.rule_id + '</span> &mdash; ' : '')}${r.title || 'Untitled'}</h3>
+        <div class="rdm-badges">${profileBadge}${checkBadge}${sourceBadge}${versionBadge}${statusBadge}</div>
+      </div>
+      <div class="rdm-body">
+        ${r.cis_profile ? section('Profile Applicability', r.cis_profile, p => `<ul style="margin:0;padding-left:20px"><li>${p}</li></ul>`) : ''}
+        ${section('Description', r.description)}
+        ${section('Rationale', r.rationale)}
+        ${section('Audit', r.audit_command)}
+        ${section('Remediation', r.remediation)}
+        ${section('Default Value', r.default_value)}
+        ${section('References', r.references, ruleFormatRefs)}
+        <div class="rdm-meta">
+          ${r.cis_uid ? '<span>CIS UID: <strong>' + r.cis_uid + '</strong></span>' : ''}
+          ${r.severity ? '<span>Severity: ' + r.severity + '</span>' : ''}
+          ${r.config_parameter ? '<span>Config: <code style="background:var(--bg);padding:1px 6px;border-radius:3px;font-size:11px">' + r.config_parameter + '</code></span>' : ''}
+          ${r.config_location ? '<span>Location: <code style="background:var(--bg);padding:1px 6px;border-radius:3px;font-size:11px">' + r.config_location + '</code></span>' : ''}
+        </div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--red)">Error loading rule: ${e.message}</div>`;
+  }
+}
+
+function ruleCloseDetail() {
+  $('#rule-detail-overlay').style.display = 'none';
 }
 
 function complianceCloseDetail() {
@@ -3365,6 +4140,150 @@ function toggleDomainCollapse(domainId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// --- TOOLS INVENTORY ---
+let toolsSuitesCached = null;
+loaders.tools = async () => {
+  const cat = $('#tools-cat').value;
+  const suite = $('#tools-suite').value;
+  const rel = $('#tools-relevance').value;
+  const q = $('#tools-search').value.trim();
+
+  // Build query string
+  const params = new URLSearchParams();
+  if (cat) params.set('category', cat);
+  if (suite) params.set('suite', suite);
+  if (rel) params.set('relevance', rel);
+  if (q) params.set('q', q);
+  const qs = params.toString();
+
+  const [toolsRes, summaryRes] = await Promise.all([
+    api('tools' + (qs ? '?' + qs : '')),
+    api('tools/summary')
+  ]);
+  const tools = toolsRes.data || toolsRes;
+  const summary = summaryRes.data || summaryRes;
+
+  // Normalize category/relevance/utilization/suite counts from arrays to objects
+  const byCat = {}; (summary.byCategory || []).forEach(r => byCat[r.category] = r.count);
+  const byRel = {}; (summary.byRelevance || []).forEach(r => byRel[r.relevance] = r.count);
+  const byUtil = {}; (summary.byUtilization || []).forEach(r => byUtil[r.utilization] = r.count);
+  const bySuite = {}; (summary.bySuite || []).forEach(r => bySuite[r.suite] = r.count);
+
+  // Populate suite dropdown (once)
+  if (!toolsSuitesCached && summary.bySuite) {
+    toolsSuitesCached = (summary.bySuite || []).map(r => r.suite).sort();
+    const sel = $('#tools-suite');
+    toolsSuitesCached.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s.replace(/_/g, ' ');
+      sel.appendChild(o);
+    });
+  }
+
+  // KPIs
+  $('#tools-summary').innerHTML = `
+    <div class="kpi"><div class="label">Total Tools</div><div class="value">${summary.total || 0}</div></div>
+    <div class="kpi"><div class="label">Custom Skills</div><div class="value" style="color:var(--purple)">${byCat.custom_skill || 0}</div></div>
+    <div class="kpi"><div class="label">Plugins</div><div class="value" style="color:var(--blue)">${byCat.plugin || 0}</div></div>
+    <div class="kpi"><div class="label">Connectors</div><div class="value" style="color:var(--green)">${byCat.connector || 0}</div></div>
+    <div class="kpi"><div class="label">Critical</div><div class="value text-red">${byRel.critical || 0}</div></div>
+    <div class="kpi"><div class="label">High Util</div><div class="value text-green">${byUtil.high || 0}</div></div>
+  `;
+
+  // Table
+  const data = Array.isArray(tools) ? tools : [];
+  $('#tools-table').innerHTML = data.length ? data.map(t => `<tr>
+    <td><strong>${t.name}</strong></td>
+    <td><span class="badge-cat badge-cat-${t.category}">${t.category.replace(/_/g, ' ')}</span></td>
+    <td>${t.suite ? t.suite.replace(/_/g, ' ') : '—'}</td>
+    <td style="max-width:260px;color:var(--muted);font-size:12px">${t.description || '—'}</td>
+    <td><span class="badge-rel badge-rel-${t.relevance}">${t.relevance || '—'}</span></td>
+    <td><span class="badge-util badge-util-${t.utilization}">${t.utilization || '—'}</span></td>
+  </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:40px">No tools found</td></tr>';
+};
+
+// --- BUSINESS HEALTH ---
+let chartMaturity = null;
+loaders.health = async () => {
+  const [summaryRes2, maturityRes, actionsRes] = await Promise.all([
+    api('tools/summary'),
+    api('maturity'),
+    api('actions')
+  ]);
+  const assetSummaryRes = await api('assets/summary');
+  const summary2 = summaryRes2.data || summaryRes2;
+  const maturityData = maturityRes.data || [];
+  const actionsData = actionsRes.data || [];
+  const assetSummary = assetSummaryRes.data || assetSummaryRes;
+
+  const byCat2 = {}; (summary2.byCategory || []).forEach(r => byCat2[r.category] = r.count);
+  const avgMaturity = maturityData.length ? Math.round(maturityData.reduce((s, m) => s + m.score, 0) / maturityData.length) : 0;
+  const pendingActions = actionsData.filter(a => a.status !== 'done').length;
+
+  $('#health-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Custom Skills</div><div class="value" style="color:var(--purple)">${byCat2.custom_skill || 0}</div></div>
+    <div class="kpi"><div class="label">Plugins</div><div class="value" style="color:var(--blue)">${byCat2.plugin || 0}</div></div>
+    <div class="kpi"><div class="label">Connectors</div><div class="value" style="color:var(--green)">${byCat2.connector || 0}</div></div>
+    <div class="kpi"><div class="label">Business Docs</div><div class="value">${assetSummary.total || 0}</div></div>
+    <div class="kpi"><div class="label">Avg Maturity</div><div class="value ${avgMaturity >= 50 ? 'text-green' : avgMaturity >= 30 ? 'text-amber' : 'text-red'}">${avgMaturity}%</div></div>
+    <div class="kpi"><div class="label">Actions Pending</div><div class="value text-amber">${pendingActions}</div></div>
+  `;
+
+  // Maturity chart
+  if (chartMaturity) chartMaturity.destroy();
+  const ctx = document.getElementById('maturity-chart').getContext('2d');
+  const labels = maturityData.map(m => m.area);
+  const scores = maturityData.map(m => m.score);
+  const colors = scores.map(s => s >= 60 ? 'rgba(52,211,153,0.7)' : s >= 35 ? 'rgba(251,191,36,0.7)' : 'rgba(248,113,113,0.7)');
+
+  chartMaturity = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: scores,
+        backgroundColor: colors,
+        borderRadius: 4,
+        barThickness: 24
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + '%' } } },
+      scales: {
+        x: { max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8888aa', callback: v => v + '%' } },
+        y: { grid: { display: false }, ticks: { color: '#e0e0e0', font: { size: 12 } } }
+      }
+    }
+  });
+
+  // Action items
+  $('#actions-count').textContent = pendingActions;
+  $('#actions-list').innerHTML = actionsData.map(a => `
+    <div class="action-item">
+      <input type="checkbox" ${a.status === 'done' ? 'checked' : ''} onchange="toggleAction(${a.id}, this.checked)">
+      <div>
+        <div class="action-title" style="${a.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${a.title}</div>
+        <div class="action-desc">${a.description || ''}</div>
+        <span class="action-urgency urgency-${a.urgency}">${a.urgency.replace(/_/g, ' ')}</span>
+      </div>
+    </div>
+  `).join('');
+};
+
+async function toggleAction(id, done) {
+  const status = done ? 'done' : 'pending';
+  await fetch('/api/actions/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SESSION_TOKEN },
+    body: JSON.stringify({ status })
+  });
+  loaders.health();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // --- LOGIN / SESSION ---
 function showLoginScreen() {
   SESSION_TOKEN = '';
@@ -3515,14 +4434,35 @@ async function sendChatMessage() {
 </script>
 
 <!-- Chat FAB + Panel -->
-<button id="chat-fab" onclick="toggleChat()" title="CIS Compliance Chat">&#9993;</button>
+<button id="chat-fab" onclick="toggleChat()" title="Ask PRISMA"><svg width="28" height="28" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="20" cy="20" r="19" fill="#3A5998"/>
+  <!-- Long hair back -->
+  <ellipse cx="20" cy="14" rx="15" ry="13" fill="#1A0A0A"/>
+  <ellipse cx="8" cy="24" rx="5" ry="12" fill="#1A0A0A"/>
+  <ellipse cx="32" cy="24" rx="5" ry="12" fill="#1A0A0A"/>
+  <rect x="5" y="24" width="8" height="14" rx="3" fill="#1A0A0A"/>
+  <rect x="27" y="24" width="8" height="14" rx="3" fill="#1A0A0A"/>
+  <!-- Face -->
+  <ellipse cx="20" cy="22" rx="11" ry="12" fill="#D4A06A"/>
+  <!-- Cat-eye glasses -->
+  <!-- glasses removed -->
+  <!-- Eyes -->
+  <circle cx="14" cy="21.5" r="1.5" fill="#1A0A0A"/>
+  <circle cx="26" cy="21.5" r="1.5" fill="#1A0A0A"/>
+  <circle cx="14.5" cy="21" r="0.5" fill="#fff"/>
+  <circle cx="26.5" cy="21" r="0.5" fill="#fff"/>
+  <!-- Smile -->
+  <path d="M16 28 Q20 31 24 28" stroke="#A07050" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- Bangs -->
+  <rect x="7" y="12" width="26" height="7" rx="1" fill="#1A0A0A"/><path d="M7 19 Q10 17.5 13 19 Q16 17.5 20 19 Q24 17.5 27 19 Q30 17.5 33 19" fill="#1A0A0A" stroke="#1A0A0A" stroke-width="0.5"/>
+</svg></button>
 <div id="chat-panel">
   <div id="chat-header">
-    <h3>CIS Compliance Assistant</h3>
+    <h3><svg width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:6px"><circle cx="20" cy="20" r="19" fill="#3A5998"/><ellipse cx="20" cy="14" rx="15" ry="13" fill="#1A0A0A"/><ellipse cx="8" cy="24" rx="5" ry="12" fill="#1A0A0A"/><ellipse cx="32" cy="24" rx="5" ry="12" fill="#1A0A0A"/><rect x="5" y="24" width="8" height="14" rx="3" fill="#1A0A0A"/><rect x="27" y="24" width="8" height="14" rx="3" fill="#1A0A0A"/><ellipse cx="20" cy="22" rx="11" ry="12" fill="#D4A06A"/><!-- glasses removed --><circle cx="14" cy="21.5" r="1.5" fill="#1A0A0A"/><circle cx="26" cy="21.5" r="1.5" fill="#1A0A0A"/><circle cx="14.5" cy="21" r="0.5" fill="#fff"/><circle cx="26.5" cy="21" r="0.5" fill="#fff"/><path d="M16 28 Q20 31 24 28" stroke="#A07050" stroke-width="1.2" fill="none" stroke-linecap="round"/><rect x="7" y="12" width="26" height="7" rx="1" fill="#1A0A0A"/><path d="M7 19 Q10 17.5 13 19 Q16 17.5 20 19 Q24 17.5 27 19 Q30 17.5 33 19" fill="#1A0A0A" stroke="#1A0A0A" stroke-width="0.5"/></svg>PRISMA — Security Advisor</h3>
     <button class="chat-close" onclick="toggleChat()">&times;</button>
   </div>
   <div id="chat-messages">
-    <div class="chat-msg assistant">Ask me anything about CIS Benchmarks, security hardening, compliance rules, or remediation steps across all 68 products.</div>
+    <div class="chat-msg assistant">Hey, I'm PRISMA — your Prism Risk Intelligence & Security Management Advisor. Ask me about security hardening, compliance rules, or remediation steps across all 68 products.</div>
   </div>
   <div id="chat-input-area">
     <textarea id="chat-input" rows="1" placeholder="Ask about CIS benchmarks..."

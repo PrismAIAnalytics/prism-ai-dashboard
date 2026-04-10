@@ -4396,4 +4396,5 @@ app.post('/api/financials/refresh', requireAuth, (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n  PRISM AI Analytics Dashboard (v2.0 — Hardened)`);
   console.log(`  http://localhost:${PORT}`);
-  console.log(`  Auth: ${API_KEY ? 'API key + user login
+  console.log(`  Auth: ${API_KEY ? 'API key + user login' : 'User login (set API_KEY for external access)'}\n`);
+});

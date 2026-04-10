@@ -220,12 +220,12 @@ const ins = dash.prepare(`INSERT INTO benchmark_rules (
   product_id, rule_id, title, section, subsection, level, rule_type, source,
   severity, cis_profile, check_type, description, rationale, remediation,
   audit_command, default_value, recommended_value, config_parameter, config_location,
-  benchmark_version, benchmark_status, cis_uid, is_automatable, is_active
+  benchmark_version, benchmark_status, cis_uid, is_automatable, is_active, "references"
 ) VALUES (
   @product_id, @rule_id, @title, @section, @subsection, @level, @rule_type, @source,
   @severity, @cis_profile, @check_type, @description, @rationale, @remediation,
   @audit_command, @default_value, @recommended_value, @config_parameter, @config_location,
-  @benchmark_version, @benchmark_status, @cis_uid, @is_automatable, @is_active
+  @benchmark_version, @benchmark_status, @cis_uid, @is_automatable, @is_active, @references
 )`);
 
 console.log(`\nInserting ${totalRules.toLocaleString()} rules...`);

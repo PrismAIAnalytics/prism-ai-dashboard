@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Environment
+- OS: Windows (PowerShell)
+- Use PowerShell-compatible syntax for environment variables (e.g., `$env:VAR` not `VAR=value`)
+- When starting local servers, default to port 3000 unless otherwise specified
+
+## Project Stack
+- Primary languages: HTML, JavaScript, Python
+- Frontend: HTML dashboards with CSS styling
+- Backend: Node.js, Python (Flask/Streamlit)
+- Always verify CSS class names match between JS/HTML and stylesheets after making UI changes
+
+## Conventions
+- When asked to replace or swap a UI element, confirm exactly which element by quoting it back before making the edit
+- Prefer minimal, targeted edits over broad rewrites
+- After any frontend change, verify the result visually using the preview tool
+
 ## Commands
 
 ```bash
@@ -34,6 +50,20 @@ Single-file Express.js backend (`server.js`) serving a vanilla JS single-page ap
 - `DELETE /api/crm/customers/:id` — soft delete (sets `active = 0`)
 - `GET|POST /api/crm/activity/:id` — activity log per customer
 - Standard CRUD for clients, projects, pipeline, invoices, expenses, time entries
+- Financials integration (Stripe + QuickBooks):
+  - `GET /api/financials/kpis` — aggregated KPIs from Stripe + QB + local
+  - `GET /api/financials/invoices?source=all|quickbooks|local` — merged invoices
+  - `GET /api/financials/payments?source=all|stripe|local` — merged payments
+  - `GET /api/financials/revenue?start=&end=` — QB P&L summary
+  - `GET /api/financials/revenue/monthly?year=` — monthly breakdown for charts
+  - `GET /api/stripe/balance` — Stripe available + pending
+  - `GET /api/stripe/customers` — Stripe customer list
+  - `GET /api/stripe/products` — products with prices
+  - `GET /api/stripe/subscriptions` — active subscriptions
+  - `POST /api/financials/refresh` — clear data cache
+  - `GET /api/qbo/connect` — QuickBooks OAuth redirect
+  - `GET /api/qbo/callback` — OAuth callback handler
+  - `GET /api/qbo/status` — QB connection status
 
 Input validation on all write endpoints uses `express-validator`.
 
@@ -50,6 +80,12 @@ PORT=3000
 API_KEY=           # leave empty for open/dev mode
 CORS_ORIGIN=*
 NODE_ENV=production
+STRIPE_SECRET_KEY= # from Stripe dashboard
+QBO_CLIENT_ID=     # from Intuit Developer portal
+QBO_CLIENT_SECRET=
+QBO_REALM_ID=
+QBO_REDIRECT_URI=http://localhost:3000/api/qbo/callback
+QBO_ENVIRONMENT=production
 ```
 
 ## Deployment

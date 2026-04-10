@@ -185,3 +185,155 @@ Authorization: Bearer your-api-key-here
 ### ─── Bad Token (expect 403) ───
 GET http://localhost:3000/api/crm
 Authorization: Bearer wrong-key
+
+###
+
+### ═══════════════════════════════════════════════════
+### OPERATIONAL INVENTORY API
+### ═══════════════════════════════════════════════════
+
+### ─── All Tools ───
+GET http://localhost:3000/api/tools
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Tools filtered by category ───
+GET http://localhost:3000/api/tools?category=custom_skill
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Plugin tools by suite ───
+GET http://localhost:3000/api/tools?category=plugin&suite=sales
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Tools by relevance ───
+GET http://localhost:3000/api/tools?relevance=critical
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Tools search ───
+GET http://localhost:3000/api/tools?q=compliance
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Tools Summary ───
+GET http://localhost:3000/api/tools/summary
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Single Tool ───
+GET http://localhost:3000/api/tools/1
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Create Tool ───
+POST http://localhost:3000/api/tools
+Authorization: Bearer your-api-key-here
+Content-Type: application/json
+
+{
+  "name": "test-skill",
+  "category": "custom_skill",
+  "description": "A test skill",
+  "relevance": "growing",
+  "utilization": "none"
+}
+
+###
+
+### ─── Update Tool ───
+PATCH http://localhost:3000/api/tools/1
+Authorization: Bearer your-api-key-here
+Content-Type: application/json
+
+{
+  "utilization": "high"
+}
+
+###
+
+### ─── All Business Assets ───
+GET http://localhost:3000/api/assets
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Assets by folder ───
+GET http://localhost:3000/api/assets?folder=Admin
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Assets Summary ───
+GET http://localhost:3000/api/assets/summary
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Create Asset ───
+POST http://localhost:3000/api/assets
+Authorization: Bearer your-api-key-here
+Content-Type: application/json
+
+{
+  "name": "Test Document",
+  "folder": "Admin",
+  "format": "docx",
+  "status": "planned",
+  "purpose": "Testing asset creation"
+}
+
+###
+
+### ─── All Maturity Scores ───
+GET http://localhost:3000/api/maturity
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Update Maturity Score ───
+PATCH http://localhost:3000/api/maturity/Financial%20Operations
+Authorization: Bearer your-api-key-here
+Content-Type: application/json
+
+{
+  "score": 35,
+  "analysis": "Updated: basic invoicing now in place."
+}
+
+###
+
+### ─── All Action Items ───
+GET http://localhost:3000/api/actions
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Immediate Action Items ───
+GET http://localhost:3000/api/actions?urgency=immediate
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Pending Action Items ───
+GET http://localhost:3000/api/actions?status=pending
+Authorization: Bearer your-api-key-here
+
+###
+
+### ─── Update Action Status ───
+PATCH http://localhost:3000/api/actions/1
+Authorization: Bearer your-api-key-here
+Content-Type: application/json
+
+{
+  "status": "in_progress"
+}
