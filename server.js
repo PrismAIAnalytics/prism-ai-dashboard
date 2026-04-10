@@ -1970,7 +1970,7 @@ function seedBenchmarkProducts() {
   tx();
   console.log(`Seeded ${products.length} benchmark products`);
 }
-// seedBenchmarkProducts(); // Removed — real data loaded via bulk-push-rules.js
+seedBenchmarkProducts();
 
 // ─── Benchmark Rules Seed (Section Headers) ─────────────────────────────────
 function seedBenchmarkRules() {
@@ -2398,7 +2398,7 @@ function seedBenchmarkRules() {
   tx();
   console.log(`Seeded ${totalSections} benchmark rule sections across ${allProducts.length} products`);
 }
-// seedBenchmarkRules(); // Removed — real data loaded via bulk-push-rules.js
+seedBenchmarkRules();
 
 // ─── API Routes ─────────────────────────────────────────────────────────────
 
