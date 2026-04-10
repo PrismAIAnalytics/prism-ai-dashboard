@@ -4161,6 +4161,22 @@ app.get('/api/actions', requireAuth, (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+app.post('/api/actions', requireAuth, [
+  body('title').trim().notEmpty().withMessage('Title is required'),
+  body('urgency').optional().isIn(['immediate', 'this_week', 'this_month', 'this_quarter', 'next_2_weeks', 'next_30_days']).withMessage('Invalid urgency'),
+  body('priority').optional().isInt({ min: 1, max: 100 }).withMessage('Priority must be 1-100'),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const { title, description, urgency, priority, tools_to_use } = req.body;
+    const result = db.prepare('INSERT INTO action_items (title, description, urgency, priority, tools_to_use, status) VALUES (?,?,?,?,?,?)').run(
+      title, description || null, urgency || 'this_month', priority || 50, tools_to_use || null, 'pending'
+    );
+    res.json({ ok: true, data: db.prepare('SELECT * FROM action_items WHERE id = ?').get(result.lastInsertRowid) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 app.patch('/api/actions/:id', requireAuth, [
   body('status').optional().isIn(['pending', 'in_progress', 'done']).withMessage('Invalid status'),
 ], (req, res) => {
