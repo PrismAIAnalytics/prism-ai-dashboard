@@ -26,6 +26,7 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const APP_ENV = process.env.APP_ENV || 'production';
 
 // ─── Security middleware ────────────────────────────────────────────────────
 app.use(helmet({
@@ -4392,9 +4393,27 @@ app.post('/api/financials/refresh', requireAuth, (req, res) => {
   res.json({ ok: true, message: 'Cache cleared', cleared });
 });
 
+// ─── Environment info endpoint ─────────────────────────────────────────────
+app.get('/api/env', requireAuth, (req, res) => {
+  res.json({ ok: true, environment: APP_ENV });
+});
+
+// ─── Auto-seed demo environment ────────────────────────────────────────────
+if (APP_ENV === 'demo') {
+  try {
+    const clientCount = db.prepare('SELECT COUNT(*) as n FROM clients').get().n;
+    if (clientCount === 0) {
+      console.log('Demo environment detected with empty DB — running seed...');
+      require('child_process').execSync('node seed-demo.js --reset', { stdio: 'inherit', cwd: __dirname });
+      console.log('Demo seed complete.');
+    }
+  } catch (e) { console.error('Demo auto-seed failed:', e.message); }
+}
+
 // ─── Start ──────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n  PRISM AI Analytics Dashboard (v2.0 — Hardened)`);
   console.log(`  http://localhost:${PORT}`);
+  console.log(`  Environment: ${APP_ENV}`);
   console.log(`  Auth: ${API_KEY ? 'API key + user login' : 'User login (set API_KEY for external access)'}\n`);
 });

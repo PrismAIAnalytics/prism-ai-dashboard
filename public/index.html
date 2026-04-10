@@ -4315,6 +4315,7 @@ async function handleLogin(e) {
       localStorage.setItem('prism_token', data.token);
       hideLoginScreen();
       loaders.dashboard();
+      checkEnvBanner();
     } else {
       $('#login-error').textContent = data.error || 'Login failed';
     }
@@ -4326,13 +4327,31 @@ async function handleLogout() {
   showLoginScreen();
 }
 
+// Demo environment banner
+async function checkEnvBanner() {
+  try {
+    const d = await api('env');
+    if (d.environment && d.environment !== 'production') {
+      const banner = document.createElement('div');
+      banner.id = 'demo-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999;background:linear-gradient(90deg,#fbbf24,#f59e0b);color:#1a1a2e;text-align:center;padding:6px;font-size:12px;font-weight:700;letter-spacing:1px;';
+      banner.textContent = '\u26a0 DEMO / UAT ENVIRONMENT \u2014 NOT PRODUCTION DATA';
+      document.body.prepend(banner);
+      const nav = document.querySelector('nav');
+      const main = document.querySelector('.main');
+      if (nav) nav.style.top = '30px';
+      if (main) main.style.paddingTop = '30px';
+    }
+  } catch(e) {}
+}
+
 // Boot
 async function boot() {
   if (SESSION_TOKEN) {
     try {
       var r = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+SESSION_TOKEN} });
       var data = await r.json();
-      if (data.ok) { CURRENT_USER = data.user; hideLoginScreen(); loaders.dashboard(); return; }
+      if (data.ok) { CURRENT_USER = data.user; hideLoginScreen(); loaders.dashboard(); checkEnvBanner(); return; }
     } catch(e) {}
   }
   var urlKey = new URLSearchParams(window.location.search).get('key');
@@ -4342,7 +4361,7 @@ async function boot() {
     try {
       var r2 = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+urlKey} });
       var d2 = await r2.json();
-      if (d2.ok) { CURRENT_USER = d2.user; hideLoginScreen(); loaders.dashboard(); window.history.replaceState({},'',window.location.pathname); return; }
+      if (d2.ok) { CURRENT_USER = d2.user; hideLoginScreen(); loaders.dashboard(); checkEnvBanner(); window.history.replaceState({},'',window.location.pathname); return; }
     } catch(e) {}
   }
   showLoginScreen();
