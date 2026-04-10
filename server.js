@@ -11,6 +11,9 @@ const rateLimit = require('express-rate-limit');
 const { body, param, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
+const stripeService = require('./services/stripeService');
+const qboService = require('./services/quickbooksService');
+const cacheService = require('./services/cacheService');
 
 // Load .env file (lightweight, no dependency)
 try {
@@ -32,6 +35,7 @@ app.use(helmet({
       styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:    ["'self'", "https://fonts.gstatic.com"],
       scriptSrc:  ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      connectSrc: ["'self'", "https://cdnjs.cloudflare.com"],
       imgSrc:     ["'self'", "data:"],
       scriptSrcAttr: ["'unsafe-inline'"],
     }
@@ -160,8 +164,6 @@ app.get('/health', (req, res) => {
 // Locally, use the project directory.
 // Railway mounts volumes AFTER the container starts, so we must wait for the
 // volume to become writable before opening the database.
-const fs = require('fs');
-
 function isVolumeReady(dir) {
   // Check if the directory is actually writable (volume mounted), not just existing
   // (the Dockerfile creates /app/data but it's read-only until the volume mounts)
@@ -538,7 +540,54 @@ function initDB() {
       cis_uid TEXT,
       is_automatable INTEGER DEFAULT 1,
       is_active INTEGER DEFAULT 1,
+      "references" TEXT,
+      section_name TEXT,
       created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- ─── Operational Inventory Tables ──────────────────────────────────────────
+    CREATE TABLE IF NOT EXISTS tools (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      suite TEXT,
+      description TEXT,
+      business_use TEXT,
+      relevance TEXT,
+      utilization TEXT,
+      trigger_phrase TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS business_assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      folder TEXT NOT NULL,
+      format TEXT,
+      status TEXT,
+      purpose TEXT,
+      file_path TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS maturity_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      area TEXT NOT NULL UNIQUE,
+      score INTEGER NOT NULL,
+      rating TEXT NOT NULL,
+      analysis TEXT,
+      assessed_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS action_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      priority INTEGER NOT NULL,
+      urgency TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      tools_to_use TEXT,
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      completed_at TEXT
     );
   `);
 }
@@ -833,8 +882,319 @@ migrateCRMColumns();
     if (!cols.includes('benchmark_version')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN benchmark_version TEXT");
     if (!cols.includes('benchmark_status')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN benchmark_status TEXT DEFAULT 'active'");
     if (!cols.includes('cis_uid')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN cis_uid TEXT");
+    if (!cols.includes('references')) db.exec('ALTER TABLE benchmark_rules ADD COLUMN "references" TEXT');
+    if (!cols.includes('section_name')) db.exec("ALTER TABLE benchmark_rules ADD COLUMN section_name TEXT");
   } catch(e) { /* table may not exist yet on first run */ }
 })();
+
+// ─── Operational Inventory Seed ──────────────────────────────────────────────
+function seedInventory() {
+  const toolCount = db.prepare('SELECT COUNT(*) as n FROM tools').get().n;
+  if (toolCount > 0) return;
+
+  const insTool = db.prepare('INSERT INTO tools (name, category, suite, description, business_use, relevance, utilization, trigger_phrase) VALUES (?,?,?,?,?,?,?,?)');
+
+  // 18 Custom Skills
+  const customSkills = [
+    ['prismai-company-profile','custom_skill',null,'Brand context, voice, colors, services, founder bio','Loaded automatically for all on-brand content creation','critical','high','Load company profile'],
+    ['cis-compliance-assistant','custom_skill',null,'Full CIS Benchmark compliance — rules extraction, audits, checklists, gap analyses','Core revenue skill for compliance consulting service line','critical','high','Run a CIS compliance audit'],
+    ['cis-benchmark-extractor','custom_skill',null,'Extract structured rules from CIS PDFs into Excel','Automates benchmark processing for client deliverables','critical','medium','Extract CIS benchmark rules'],
+    ['discovery-call-prep','custom_skill',null,'Research prospects, identify pain points, format prep briefs','Pre-call intelligence for every new prospect meeting','critical','medium','Prep me for my call with [Company]'],
+    ['doc-coauthoring','custom_skill',null,'Structured co-authoring workflow for docs/proposals/specs','Collaborative document creation with clients','important','medium','Co-author a document'],
+    ['docx','custom_skill',null,'Create, edit, manipulate Word documents','Client proposals, reports, assessments','important','high','Create a Word document'],
+    ['xlsx','custom_skill',null,'Excel spreadsheet creation, editing, analysis','CRM tracker, financial models, data deliverables','important','high','Create a spreadsheet'],
+    ['pptx','custom_skill',null,'PowerPoint presentation creation/editing','Client presentations, pitch decks','important','medium','Create a presentation'],
+    ['pdf','custom_skill',null,'PDF extraction, creation, merging, splitting, forms','CIS benchmark processing, client report delivery','important','high','Work with a PDF'],
+    ['web-artifacts-builder','custom_skill',null,'Complex multi-component HTML/React artifacts','Interactive dashboards, web deliverables','important','medium','Build a web artifact'],
+    ['canvas-design','custom_skill',null,'Visual art creation for posters/designs in PNG/PDF','Marketing materials, social graphics','growing','low','Design a visual'],
+    ['algorithmic-art','custom_skill',null,'Generative art using p5.js','Unique branded visual content','future','low','Create algorithmic art'],
+    ['theme-factory','custom_skill',null,'10 pre-set themes for styling artifacts','Consistent styling across deliverables','active','medium','Apply a theme'],
+    ['brand-guidelines','custom_skill',null,'Anthropic brand colors/typography application','Reference for partner/vendor materials','active','low','Apply brand guidelines'],
+    ['skill-creator','custom_skill',null,'Create, modify, evaluate, and optimize skills','Build new automation skills as services expand','important','medium','Create a new skill'],
+    ['mcp-builder','custom_skill',null,'Guide for building MCP servers (Python/Node)','Create custom integrations for client projects','growing','low','Build an MCP server'],
+    ['internal-comms','custom_skill',null,'Status reports, updates, newsletters, FAQs','Client communication templates','active','low','Draft an internal update'],
+    ['schedule','custom_skill',null,'Create scheduled/recurring automated tasks','Automated reporting, monitoring, recurring workflows','important','medium','Schedule a recurring task'],
+  ];
+  customSkills.forEach(s => insTool.run(...s));
+
+  // Plugin Suites — Sales (9)
+  const salesSkills = [
+    ['account-research','plugin','sales','Research a company/person for actionable sales intel','Web + enrichment intelligence','critical','low','Research [Company]'],
+    ['call-prep','plugin','sales','Prepare for sales calls with account context and agenda','Pre-call preparation','critical','low','Prep for my call'],
+    ['call-summary','plugin','sales','Process call notes/transcripts into action items','Post-call processing','critical','low','Summarize my call'],
+    ['competitive-intelligence','plugin','sales','Research competitors, build interactive battlecards','Competitive analysis','important','low','Research competitors'],
+    ['create-an-asset','plugin','sales','Generate tailored sales assets (decks, one-pagers)','Sales collateral creation','important','low','Create a sales asset'],
+    ['daily-briefing','plugin','sales','Morning briefing with prioritized tasks','Daily sales overview','critical','low','Give me my daily briefing'],
+    ['draft-outreach','plugin','sales','Research prospect + draft personalized outreach','Cold outreach drafting','critical','low','Draft outreach to [ICP]'],
+    ['forecast','plugin','sales','Weighted sales forecast with scenarios','Revenue forecasting','important','low','Create a sales forecast'],
+    ['pipeline-review','plugin','sales','Analyze pipeline health, prioritize deals','Pipeline management','critical','low','Review my pipeline'],
+  ];
+  salesSkills.forEach(s => insTool.run(...s));
+
+  // Marketing (8)
+  const mktSkills = [
+    ['campaign-plan','plugin','marketing','Full campaign brief with objectives and channel strategy','Campaign planning','critical','low','Plan a marketing campaign'],
+    ['brand-review','plugin','marketing','Review content against brand voice/style guide','Brand consistency','active','low','Review this against our brand'],
+    ['seo-audit','plugin','marketing','Keyword research, on-page analysis, content gaps','SEO optimization','important','low','Run an SEO audit'],
+    ['performance-report','plugin','marketing','Marketing performance report with metrics and trends','Performance tracking','important','low','Create a marketing report'],
+    ['email-sequence','plugin','marketing','Multi-email sequences with copy and timing','Email automation','critical','low','Create an email sequence'],
+    ['draft-content','plugin','marketing','Blog posts, social, email, landing pages','Content creation','critical','low','Draft a blog post'],
+    ['content-creation','plugin','marketing','Marketing content drafting across all channels','Multi-channel content','critical','low','Create marketing content'],
+    ['competitive-brief','plugin','marketing','Positioning and messaging comparison','Competitive positioning','important','low','Create a competitive brief'],
+  ];
+  mktSkills.forEach(s => insTool.run(...s));
+
+  // Data & Analytics (10)
+  const dataSkills = [
+    ['analyze','plugin','data','Answer data questions from quick lookups to full analyses','Data analysis','critical','medium','Analyze this data'],
+    ['build-dashboard','plugin','data','Interactive HTML dashboards with charts and filters','Dashboard creation','critical','medium','Build a dashboard'],
+    ['create-viz','plugin','data','Publication-quality Python visualizations','Data visualization','important','medium','Create a visualization'],
+    ['data-context-extractor','plugin','data','Generate company-specific data analysis skills','Custom analytics','growing','low','Extract data context'],
+    ['data-visualization','plugin','data','Matplotlib, seaborn, plotly charts','Chart creation','important','medium','Visualize this data'],
+    ['explore-data','plugin','data','Profile datasets — shape, quality, distributions','Data profiling','critical','medium','Explore this dataset'],
+    ['sql-queries','plugin','data','Correct, performant SQL across all dialects','SQL writing','important','medium','Write a SQL query'],
+    ['statistical-analysis','plugin','data','Descriptive stats, trend analysis, outlier detection','Statistical analysis','important','low','Run statistical analysis'],
+    ['validate-data','plugin','data','QA an analysis — methodology, accuracy, bias checks','Data quality','important','low','Validate this analysis'],
+    ['write-query','plugin','data','Optimized SQL writing with best practices','SQL optimization','important','medium','Write an optimized query'],
+  ];
+  dataSkills.forEach(s => insTool.run(...s));
+
+  // Finance (8)
+  const finSkills = [
+    ['financial-statements','plugin','finance','Income statement, balance sheet, cash flow','Financial reporting','critical','none','Generate financial statements'],
+    ['journal-entry','plugin','finance','Journal entries with debits, credits, documentation','Bookkeeping','critical','none','Create a journal entry'],
+    ['journal-entry-prep','plugin','finance','Journal entry preparation with supporting docs','Entry preparation','critical','none','Prepare journal entries'],
+    ['reconciliation','plugin','finance','GL-to-subledger, bank, intercompany reconciliations','Account reconciliation','critical','none','Reconcile accounts'],
+    ['variance-analysis','plugin','finance','Decompose variances into drivers with narratives','Variance reporting','important','none','Analyze variances'],
+    ['close-management','plugin','finance','Month-end close task sequencing and tracking','Close management','important','none','Manage month-end close'],
+    ['audit-support','plugin','finance','SOX 404 compliance with control testing','Audit support','important','none','Support audit prep'],
+    ['sox-testing','plugin','finance','SOX sample selections, testing workpapers','SOX compliance','important','none','Run SOX testing'],
+  ];
+  finSkills.forEach(s => insTool.run(...s));
+
+  // Legal (9)
+  const legalSkills = [
+    ['review-contract','plugin','legal','Clause-by-clause contract review against playbook','Contract review','important','none','Review this contract'],
+    ['triage-nda','plugin','legal','Rapid NDA classification (GREEN/YELLOW/RED)','NDA processing','important','none','Triage this NDA'],
+    ['compliance-check','plugin','legal','Compliance check on proposed actions or initiatives','Compliance verification','important','none','Run a compliance check'],
+    ['legal-risk-assessment','plugin','legal','Classify legal risks by severity and likelihood','Risk assessment','important','none','Assess legal risks'],
+    ['legal-response','plugin','legal','Template responses for DSARs, litigation holds','Legal templates','active','none','Draft a legal response'],
+    ['meeting-briefing','plugin','legal','Legal briefing prep for negotiations and reviews','Meeting preparation','active','none','Prep legal briefing'],
+    ['signature-request','plugin','legal','E-signature preparation, routing, checklist','Signature workflow','active','none','Prepare for signature'],
+    ['vendor-check','plugin','legal','Consolidated vendor agreement status','Vendor review','active','none','Check vendor agreements'],
+    ['brief','plugin','legal','Contextual legal briefings — daily, topic, incident','Legal research','active','none','Create a legal brief'],
+  ];
+  legalSkills.forEach(s => insTool.run(...s));
+
+  // Engineering (10)
+  const engSkills = [
+    ['architecture','plugin','engineering','Architecture decision records with trade-off analysis','System design','important','medium','Create an ADR'],
+    ['code-review','plugin','engineering','Security, performance, correctness review','Code quality','important','medium','Review this code'],
+    ['debug','plugin','engineering','Structured debugging — reproduce, isolate, diagnose, fix','Bug resolution','important','medium','Debug this issue'],
+    ['deploy-checklist','plugin','engineering','Pre-deployment verification with rollback triggers','Deploy safety','important','low','Run deploy checklist'],
+    ['documentation','plugin','engineering','Technical docs, READMEs, runbooks, API docs','Technical writing','important','medium','Write documentation'],
+    ['incident-response','plugin','engineering','Triage, communicate, write blameless postmortems','Incident handling','active','low','Handle an incident'],
+    ['standup','plugin','engineering','Generate standup updates from recent activity','Team updates','active','low','Generate my standup'],
+    ['system-design','plugin','engineering','Service design, API design, data modeling','Architecture','important','low','Design a system'],
+    ['tech-debt','plugin','engineering','Identify, categorize, prioritize technical debt','Debt management','active','low','Review tech debt'],
+    ['testing-strategy','plugin','engineering','Test strategies, test plans, coverage analysis','Test planning','important','low','Plan testing strategy'],
+  ];
+  engSkills.forEach(s => insTool.run(...s));
+
+  // Product Management (9)
+  const pmSkills = [
+    ['write-spec','plugin','product','Feature specs / PRDs from problem statements','Product specs','growing','low','Write a feature spec'],
+    ['sprint-planning','plugin','product','Sprint scoping, capacity estimation, goal setting','Sprint management','growing','low','Plan the sprint'],
+    ['roadmap-update','plugin','product','Roadmap creation, reprioritization','Roadmap management','growing','low','Update the roadmap'],
+    ['product-brainstorming','plugin','product','Idea generation, assumption challenging','Ideation','growing','low','Brainstorm product ideas'],
+    ['pm-competitive-brief','plugin','product','Competitive analysis for features or competitors','Competitive analysis','growing','low','Create competitive brief'],
+    ['metrics-review','plugin','product','Product metrics analysis with trends','Metrics tracking','growing','low','Review product metrics'],
+    ['stakeholder-update','plugin','product','Status updates tailored to audience','Communication','growing','low','Create stakeholder update'],
+    ['synthesize-research','plugin','product','Turn feedback into structured insights','Research synthesis','growing','low','Synthesize user research'],
+    ['brainstorm','plugin','product','Interactive brainstorming as a thinking partner','Creative ideation','growing','low','Brainstorm with me'],
+  ];
+  pmSkills.forEach(s => insTool.run(...s));
+
+  // Operations (9)
+  const opsSkills = [
+    ['capacity-plan','plugin','operations','Resource capacity planning with forecasting','Resource planning','important','low','Plan capacity'],
+    ['change-request','plugin','operations','Change management with impact analysis','Change management','important','low','Create a change request'],
+    ['compliance-tracking','plugin','operations','SOC 2, ISO 27001, GDPR compliance tracking','Compliance tracking','important','low','Track compliance'],
+    ['process-doc','plugin','operations','Process documentation — flowcharts, RACI, SOPs','Process documentation','important','low','Document this process'],
+    ['process-optimization','plugin','operations','Analyze and improve business processes','Process improvement','important','low','Optimize this process'],
+    ['risk-assessment','plugin','operations','Identify, assess, mitigate operational risks','Risk management','important','low','Assess operational risks'],
+    ['runbook','plugin','operations','Operational runbooks for recurring procedures','Runbook creation','important','low','Create a runbook'],
+    ['status-report','plugin','operations','KPI-driven status reports with action items','Status reporting','important','low','Generate status report'],
+    ['vendor-review','plugin','operations','Vendor evaluation — cost, risk, recommendation','Vendor management','active','low','Review a vendor'],
+  ];
+  opsSkills.forEach(s => insTool.run(...s));
+
+  // Design (7)
+  const designSkills = [
+    ['accessibility-review','plugin','design','WCAG 2.1 AA accessibility audit','Accessibility compliance','growing','low','Run accessibility audit'],
+    ['design-critique','plugin','design','Structured feedback on usability and hierarchy','Design review','growing','low','Critique this design'],
+    ['design-handoff','plugin','design','Developer handoff specs — layout, tokens, breakpoints','Dev handoff','growing','low','Create design handoff'],
+    ['design-system','plugin','design','Audit, document, extend design systems','Design systems','growing','low','Review design system'],
+    ['research-synthesis','plugin','design','Synthesize user research into themes','Research synthesis','growing','low','Synthesize research'],
+    ['user-research','plugin','design','Plan, conduct, synthesize user research','User research','growing','low','Plan user research'],
+    ['ux-copy','plugin','design','Microcopy, error messages, CTAs, empty states','UX writing','growing','low','Write UX copy'],
+  ];
+  designSkills.forEach(s => insTool.run(...s));
+
+  // Brand Voice (5)
+  const brandSkills = [
+    ['brand-voice-enforcement','plugin','brand_voice','Apply brand guidelines to any content task','Brand consistency','active','high','Enforce brand voice'],
+    ['discover-brand','plugin','brand_voice','Autonomously discover brand materials','Brand discovery','active','medium','Discover brand materials'],
+    ['guideline-generation','plugin','brand_voice','Generate brand voice guidelines from sources','Guideline creation','active','medium','Generate brand guidelines'],
+    ['enforce-voice','plugin','brand_voice','Quick command to apply brand guidelines','Brand enforcement','active','high','Apply brand voice'],
+    ['generate-guidelines','plugin','brand_voice','Quick command to generate guidelines','Guideline generation','active','medium','Generate guidelines'],
+  ];
+  brandSkills.forEach(s => insTool.run(...s));
+
+  // Enterprise Search (5)
+  const searchSkills = [
+    ['search','plugin','enterprise_search','Search across all connected sources','Cross-platform search','active','medium','Search for [topic]'],
+    ['digest','plugin','enterprise_search','Daily/weekly digest of activity','Activity digest','active','low','Create a digest'],
+    ['knowledge-synthesis','plugin','enterprise_search','Combine multi-source results into answers','Knowledge synthesis','active','medium','Synthesize knowledge on [topic]'],
+    ['search-strategy','plugin','enterprise_search','Query decomposition and orchestration','Search optimization','active','low','Optimize search strategy'],
+    ['source-management','plugin','enterprise_search','Manage connected sources and priorities','Source management','active','low','Manage search sources'],
+  ];
+  searchSkills.forEach(s => insTool.run(...s));
+
+  // Customer Support (5)
+  const supportSkills = [
+    ['ticket-triage','plugin','customer_support','Categorize, prioritize, route support tickets','Ticket management','future','none','Triage this ticket'],
+    ['draft-response','plugin','customer_support','Professional customer responses','Customer communication','future','none','Draft a customer response'],
+    ['customer-research','plugin','customer_support','Multi-source research on customer questions','Customer intel','future','none','Research this customer question'],
+    ['customer-escalation','plugin','customer_support','Package escalations with full context','Escalation handling','future','none','Escalate this issue'],
+    ['kb-article','plugin','customer_support','Draft knowledge base articles from resolved issues','KB creation','future','none','Write a KB article'],
+  ];
+  supportSkills.forEach(s => insTool.run(...s));
+
+  // Apollo (3)
+  const apolloSkills = [
+    ['enrich-lead','plugin','apollo','Instant lead enrichment — full contact card','Lead enrichment','critical','low','Enrich this lead'],
+    ['prospect','plugin','apollo','ICP-to-leads pipeline with ranked results','Lead generation','critical','low','Find leads matching [ICP]'],
+    ['sequence-load','plugin','apollo','Find leads + bulk-add to outreach sequences','Sequence enrollment','critical','low','Load leads into sequence'],
+  ];
+  apolloSkills.forEach(s => insTool.run(...s));
+
+  // Productivity (4)
+  const prodSkills = [
+    ['memory-management','plugin','productivity','Two-tier memory system for knowledge continuity','Memory management','active','medium','Manage memory'],
+    ['task-management','plugin','productivity','Task tracking using shared TASKS.md','Task tracking','active','medium','Manage tasks'],
+    ['start','plugin','productivity','Initialize productivity system and dashboard','System init','active','low','Start productivity system'],
+    ['update','plugin','productivity','Sync tasks and refresh memory','System sync','active','low','Update productivity'],
+  ];
+  prodSkills.forEach(s => insTool.run(...s));
+
+  // Plugin Management (2)
+  const pluginMgmt = [
+    ['create-cowork-plugin','plugin','plugin_management','Guide users through creating a new plugin','Plugin creation','growing','low','Create a plugin'],
+    ['cowork-plugin-customizer','plugin','plugin_management','Customize existing plugins for workflows','Plugin customization','growing','low','Customize a plugin'],
+  ];
+  pluginMgmt.forEach(s => insTool.run(...s));
+
+  // 12 MCP Connectors
+  const connectors = [
+    ['Notion','connector',null,'Search, fetch, create/update pages & databases, views, comments, users, teams, meeting notes','Central knowledge base, ticket system, content calendar, task management','critical','high',null],
+    ['Google Calendar','connector',null,'List/create/update/delete events, find meeting times, find free time, respond to events','Discovery call scheduling, client meeting management, sprint cadence','critical','high',null],
+    ['Gmail','connector',null,'Search messages, read messages/threads, create drafts, list labels/drafts','Client communication tracking, outreach drafting, follow-up management','critical','medium',null],
+    ['Google Drive','connector',null,'Search files, fetch document content','Document repository sync, client file access, shared deliverables','important','medium',null],
+    ['Claude in Chrome','connector',null,'Browser automation — navigate, read pages, fill forms, execute JS, screenshots, GIF creation','Web research, competitor analysis, form testing, website QA, demo recording','important','medium',null],
+    ['Netlify','connector',null,'Deploy services, project management, extension management','Website deployment, client demo hosting','important','medium',null],
+    ['Apollo','connector',null,'Lead enrichment, prospecting, sequence enrollment','Prospect identification, lead enrichment, outreach automation','critical','low',null],
+    ['CIS Dashboard','connector',null,'Extract PDFs, search rules, push rules, sync pipeline, product mapping','Core compliance service delivery infrastructure','critical','high',null],
+    ['MCP Registry','connector',null,'Search for new MCP connectors, suggest installations','Discover and add new integrations as needed','active','low',null],
+    ['Plugin Registry','connector',null,'Search plugins, suggest plugin installs','Expand capabilities with new plugin suites','active','low',null],
+    ['Scheduled Tasks','connector',null,'Create, list, update scheduled/recurring tasks','Automated reporting, monitoring, recurring workflows','important','medium',null],
+    ['Session Info','connector',null,'List sessions, read transcripts','Session history, knowledge continuity across conversations','active','low',null],
+  ];
+  connectors.forEach(c => insTool.run(...c));
+
+  // Business Assets
+  const insAsset = db.prepare('INSERT INTO business_assets (name, folder, format, status, purpose) VALUES (?,?,?,?,?)');
+  const assets = [
+    ['Business Plan 2026','Admin','docx','complete','Company business plan'],
+    ['Business Plan Summary','Admin','docx','complete','Condensed business plan'],
+    ['Sprint Plan (30/60/90)','Admin','docx','active','Strategic sprint planning'],
+    ['CRM Tracker','Admin','xlsx','active','Client pipeline tracking'],
+    ['Documentation Index','Admin','xlsx','complete','Master document index'],
+    ['Knowledge Base','Admin','docx','complete','Institutional knowledge base'],
+    ['Knowledge Base Index','Admin','docx','complete','KB navigation guide'],
+    ['Letterhead / Banner','Admin','docx','complete','Brand collateral'],
+    ['Amber Grant Application','Admin','docx','complete','Grant application'],
+    ['LLC Articles of Organization','Admin','pdf','complete','Legal filing'],
+    ['IRS EIN Application','Admin','pdf','complete','Tax filing'],
+    ['Discovery Call Intake Form','Services','html','complete','Capture prospect info during first call'],
+    ['AI Readiness Assessment Form','Services','html','complete','Structured client assessment tool'],
+    ['Invoice/Proposal Requirements Form','Services','html','complete','Scope and pricing input form'],
+    ['Compliance Discovery Intake Form','Services','html','complete','CIS compliance-specific intake'],
+    ['Prompt Library','Services','docx','complete','Reusable AI prompts for service delivery'],
+    ['Client Folder Template','Services','md','complete','Standardized client folder structure'],
+    ['Brand Guidelines','Marketing','docx','complete','Brand voice, colors, typography'],
+    ['AI Bridge Agentic Strategy','Marketing','docx','complete','AI consulting strategy document'],
+    ['Faceless Content Channel Strategy','Marketing','docx','complete','Content channel playbook'],
+    ['Compliance Services Positioning','Marketing','md','complete','Compliance service positioning'],
+    ['Retainer Pricing Sheet','Marketing','pdf','complete','Service pricing reference'],
+    ['AI Analytics Pipeline','Development','py','complete','Data pipeline connecting 7 APIs'],
+    ['Prism Data Pipeline','Development','py','complete','Separate data pipeline project'],
+    ['CRM Buildout Strategy','Development','docx','in_progress','Express.js API strategy doc'],
+    ['Admin Dashboard','Development','html','in_progress','8-page admin dashboard UI'],
+    ['Database Diagram','Development','html','complete','Interactive DB schema visualization'],
+    ['Prism Website','Development','html','complete','Full website codebase on Netlify'],
+    ['Stock Trading Agent','Development','py','complete','AI-powered trading education agent'],
+    ['AI Analytics Industry Report','Research','docx','complete','Comprehensive industry landscape'],
+    ['AI Industry Dashboard Data','Research','xlsx','complete','Market intelligence dataset'],
+    ['AI Industry Dashboard','Research','html','complete','Interactive market intelligence dashboard'],
+    ['AI Analytics Dashboard Report','Research','docx','complete','Analysis companion to dashboard'],
+    ['Data Sources Reference Guide','Research','docx','complete','Guide to data sources'],
+    ['Trend Data Analysis','Research','xlsx','complete','AI/data analytics market trends'],
+  ];
+  assets.forEach(a => insAsset.run(...a));
+
+  // Daily logs (14 files)
+  for (let i = 1; i <= 14; i++) {
+    insAsset.run(`Daily Activity Log ${i}`, 'Admin', 'docx', 'complete', 'Daily operations log');
+  }
+
+  // Revenue workstream docs (5)
+  ['Freelancing','Digital Products','Content Channel','Agency Services','High-Value Specializations'].forEach(ws => {
+    insAsset.run(`Revenue Workstream: ${ws}`, 'Revenue', 'docx', 'complete', `${ws} revenue strategy`);
+  });
+
+  // Maturity Scores
+  const insMaturity = db.prepare('INSERT INTO maturity_scores (area, score, rating, analysis) VALUES (?,?,?,?)');
+  const maturityData = [
+    ['Brand & Identity', 90, 'strong', 'Most mature area. Brand guidelines are complete and codified in both a DOCX and a custom skill that auto-loads for every task. Color palette, typography, voice guidelines, tone-by-channel rules, document standards, and file naming conventions are all documented.'],
+    ['Service Design & Pricing', 85, 'strong', 'Four distinct service lines with clear pricing are defined and documented. Three retainer tiers ($2K-$8.5K/month) are proposal-ready. Phase 2 productized offerings are planned. The only gap is no templated proposal document.'],
+    ['Knowledge Management', 80, 'strong', 'Notion workspace is well-architected with 6 databases and 20+ knowledge pages. Knowledge Library provides searchable institutional knowledge. Main gap: knowledge split across Notion, local files, and Google Drive without single source of truth.'],
+    ['Technical Infrastructure', 75, 'good', 'Impressive for a 2-month-old company. AI analytics pipeline connecting 7 APIs, CRM buildout with 20+ endpoints, CIS Dashboard MCP connector, sandbox datasets ready for demos. Gap: CRM still in development while tracking clients in Excel.'],
+    ['Sales & Pipeline', 50, 'developing', 'Tools ready but execution early. Apollo connector enables prospecting, discovery-call-prep skill and 4 intake forms create complete workflow. Gap: no visible prospecting sequence running, no outreach templates deployed, no pipeline review cadence.'],
+    ['Marketing & Content', 45, 'developing', 'Strategy is thorough but execution has not started. Complete playbook exists. Social media launch planned for June 2026. No blog posts, LinkedIn posts, or email sequences published yet. Content creation skills ready to activate immediately.'],
+    ['Client Delivery Ops', 40, 'developing', 'Framework exists but not stress-tested at scale. Client folder template, service forms, and prompt library are ready. Gap: no completed case studies, no post-engagement feedback forms, no SOW templates, no QA checklist.'],
+    ['Financial Operations', 30, 'early', 'Most significant gap. Despite having 8 finance plugin skills, no accounting system connected, no invoicing workflow, no financial reporting cadence. Revenue tracking spreadsheet is the only financial artifact.'],
+  ];
+  maturityData.forEach(m => insMaturity.run(...m));
+
+  // Action Items
+  const insAction = db.prepare('INSERT INTO action_items (priority, urgency, title, description, tools_to_use, status) VALUES (?,?,?,?,?,?)');
+  const actions = [
+    [1, 'immediate', 'Set up invoicing & payment tracking', 'Connect Stripe or QuickBooks. Use finance:journal-entry skill to establish chart of accounts. Create basic P&L. ~$24K in active projects with no visible invoicing system.', 'finance:journal-entry,finance:financial-statements', 'pending'],
+    [2, 'immediate', 'Create a client contract template', 'Use legal:review-contract skill to draft standard MSA and SOW template. Legal folder has LLC docs but no client-facing agreements.', 'legal:review-contract,docx', 'pending'],
+    [3, 'immediate', 'Run an Apollo prospecting sequence', 'Define ICP (Charlotte-area SMBs in finance, healthcare, retail, hospitality, real estate). Generate personalized emails. Enroll leads in outreach sequence.', 'apollo:prospect,sales:draft-outreach,apollo:sequence-load', 'pending'],
+    [4, 'next_2_weeks', 'Build a client proposal template', 'Use docx skill + prismai-company-profile to create branded fill-in-the-blank proposal template. Combine with Notion proposal guide.', 'docx,prismai-company-profile', 'pending'],
+    [5, 'next_2_weeks', 'Pre-build June content library', 'Create social launch campaign. Draft 12-16 LinkedIn posts. Schedule in Notion Content Calendar.', 'marketing:campaign-plan,marketing:content-creation', 'pending'],
+    [6, 'next_2_weeks', 'Create a demo dashboard from sandbox data', 'Use 13 sandbox CSVs to create interactive analytics dashboard as a sales tool.', 'data:build-dashboard,data:explore-data', 'pending'],
+    [7, 'next_2_weeks', 'Set up weekly status report cadence', 'Create recurring weekly business review tracking pipeline value, active projects, revenue, tasks, content.', 'operations:status-report,schedule', 'pending'],
+    [8, 'next_30_days', 'Build your first case study', 'Use Cafe Uvee engagement to create templated case study (Challenge, Approach, Results).', 'docx,prismai-company-profile', 'pending'],
+    [9, 'next_30_days', 'Consolidate duplicate files', 'Designate single sources of truth for brand guidelines, business plan, knowledge base, and prompt library. Archive duplicates.', null, 'pending'],
+    [10, 'next_30_days', 'Create client onboarding runbook', 'Document end-to-end onboarding: signed contract to folder creation to kickoff call to first deliverable.', 'operations:runbook', 'pending'],
+  ];
+  actions.forEach(a => insAction.run(...a));
+
+  console.log('  Operational inventory seeded (tools, assets, maturity, actions).');
+}
 
 // Auth helpers
 function hashPassword(password, salt) {
@@ -865,8 +1225,65 @@ function seedUsersIfEmpty() {
   console.log('User accounts seeded');
 }
 
+function seedTickets() {
+  const count = db.prepare('SELECT COUNT(*) as n FROM tickets').get().n;
+  if (count > 0) return;
+
+  // Get team member IDs
+  const michele = db.prepare("SELECT id FROM team_members WHERE first_name = 'Michele'").get();
+  const izayah = db.prepare("SELECT id FROM team_members WHERE first_name = 'Izayah'").get();
+  const mId = michele ? michele.id : null;
+  const iId = izayah ? izayah.id : null;
+
+  const ins = db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, assigned_to, due_date, tags, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+
+  const batch = db.transaction(() => {
+    // ─── Action Item tickets (from inventory analysis) ───
+    ins.run(uuid(), 'Set up invoicing & payment tracking', 'Connect Stripe or QuickBooks. Use finance:journal-entry skill to establish chart of accounts. Create basic P&L.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-15', 'finance,action-item', 'system');
+    ins.run(uuid(), 'Create client contract template', 'Use legal:review-contract skill to draft standard MSA and SOW template.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-18', 'legal,action-item', 'system');
+    ins.run(uuid(), 'Run Apollo prospecting sequence', 'Define ICP (Charlotte-area SMBs). Generate personalized outreach emails. Enroll leads.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-20', 'sales,action-item', 'system');
+    ins.run(uuid(), 'Build client proposal template', 'Use docx skill + prismai-company-profile to create branded fill-in-the-blank proposal.', 'internal', 'action', 'backlog', 'high', mId, '2026-04-30', 'sales,action-item', 'system');
+    ins.run(uuid(), 'Pre-build June content library', 'Create social launch campaign. Draft 12-16 LinkedIn posts. Schedule in Notion Content Calendar.', 'internal', 'action', 'backlog', 'high', mId, '2026-05-15', 'marketing,action-item', 'system');
+    ins.run(uuid(), 'Create demo dashboard from sandbox data', 'Use 13 sandbox CSVs to create interactive analytics dashboard as a sales tool.', 'internal', 'action', 'backlog', 'high', mId, '2026-05-20', 'data,action-item', 'system');
+    ins.run(uuid(), 'Set up weekly status report cadence', 'Create recurring weekly business review tracking pipeline value, active projects, revenue.', 'internal', 'action', 'backlog', 'medium', mId, '2026-05-01', 'operations,action-item', 'system');
+    ins.run(uuid(), 'Build first case study', 'Use Cafe Uvee engagement to create templated case study (Challenge, Approach, Results).', 'internal', 'action', 'backlog', 'medium', mId, '2026-05-30', 'marketing,action-item', 'system');
+    ins.run(uuid(), 'Consolidate duplicate files', 'Designate single sources of truth for brand guidelines, business plan, knowledge base, and prompt library.', 'internal', 'action', 'backlog', 'medium', mId, '2026-06-15', 'operations,action-item', 'system');
+    ins.run(uuid(), 'Create client onboarding runbook', 'Document end-to-end onboarding: signed contract to folder creation to kickoff call to first deliverable.', 'internal', 'action', 'backlog', 'medium', mId, '2026-06-30', 'operations,action-item', 'system');
+
+    // ─── Training tickets (Michele) ───
+    ins.run(uuid(), 'Complete Google AI Essentials certification', 'Continue Coursera modules. Target completion for client credibility.', 'internal', 'training', 'in_progress', 'high', mId, '2026-04-15', 'certification,training', 'system');
+    ins.run(uuid(), 'Complete AI for Everyone course (Andrew Ng)', 'Enroll on Coursera. 4-week course covers AI strategy concepts useful for client conversations.', 'internal', 'training', 'backlog', 'medium', mId, '2026-05-01', 'certification,training', 'system');
+    ins.run(uuid(), 'Pass PL-300: Power BI Data Analyst certification', 'Begin Microsoft Learn path. Schedule exam after 6-8 weeks of study.', 'internal', 'training', 'backlog', 'high', mId, '2026-06-15', 'certification,training', 'system');
+    ins.run(uuid(), 'Complete AI for Business Strategy (Wharton)', 'Enroll on Coursera. Wharton credential strengthens enterprise client positioning.', 'internal', 'training', 'backlog', 'medium', mId, '2026-07-15', 'certification,training', 'system');
+    ins.run(uuid(), 'Pass AWS Certified AI Practitioner exam', 'Begin AWS training materials. Cloud AI cert opens enterprise doors.', 'internal', 'training', 'backlog', 'medium', mId, '2026-09-01', 'certification,training', 'system');
+
+    // ─── Training tickets (Izayah — onboarding) ───
+    ins.run(uuid(), 'Complete CCA Agentic Architecture domain', 'Work through all 7 items in the Agentic Architecture & Orchestration domain.', 'internal', 'training', 'in_progress', 'high', iId, '2026-04-30', 'cca,training,onboarding', 'system');
+    ins.run(uuid(), 'Complete CCA Claude Code Config domain', 'Work through all 7 items in the Claude Code Config & Workflows domain.', 'internal', 'training', 'todo', 'high', iId, '2026-05-15', 'cca,training,onboarding', 'system');
+    ins.run(uuid(), 'Complete CCA Prompt Engineering domain', 'Work through all 7 items in the Prompt Engineering & Design domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-05-30', 'cca,training,onboarding', 'system');
+    ins.run(uuid(), 'Complete CCA Tool Design/MCP domain', 'Work through all 7 items in the Tool Design & MCP Integration domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-06-15', 'cca,training,onboarding', 'system');
+    ins.run(uuid(), 'Complete CCA Context Management domain', 'Work through all 7 items in the Context Management & Optimization domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-06-30', 'cca,training,onboarding', 'system');
+    ins.run(uuid(), 'Complete AI Fluency course (Anthropic)', 'AI Fluency: Framework & Foundations — 4 hours, 15 lessons.', 'internal', 'training', 'todo', 'high', iId, '2026-04-30', 'course,training,onboarding', 'system');
+    ins.run(uuid(), 'Complete Building with Claude API course', 'Building with Claude API — 6 hours, 20 lessons.', 'internal', 'training', 'backlog', 'medium', iId, '2026-05-15', 'course,training,onboarding', 'system');
+
+    // ─── Client-facing tickets (seed examples) ───
+    ins.run(uuid(), 'Prepare AI Readiness Assessment framework', 'Expand Form2 (5-dimension assessment) into full 20-30 question framework for client engagements.', 'client', 'delivery', 'in_progress', 'high', mId, '2026-04-20', 'ai-bridge,assessment', 'system');
+    ins.run(uuid(), 'Build automated scoring rubric', 'Create weighted scoring model in Python or spreadsheet. Leverage existing 1-5 scale from Form2.', 'client', 'delivery', 'backlog', 'high', mId, '2026-04-30', 'ai-bridge,assessment', 'system');
+    ins.run(uuid(), 'Design branded PDF report template', 'Use Prism Brand Guidelines to design assessment output report with visuals.', 'client', 'delivery', 'backlog', 'medium', mId, '2026-05-15', 'ai-bridge,branding', 'system');
+  });
+
+  batch();
+  console.log('Tickets seeded: action items, training, and delivery tasks');
+}
+
 seedIfEmpty();
 seedUsersIfEmpty();
+seedInventory();
+seedTickets();
+
+// ─── External Service Initialization ───────────────────────────────────────
+stripeService.init();
+qboService.init(db);
 
 // ─── Benchmark Products Seed ────────────────────────────────────────────────
 function seedBenchmarkProducts() {
@@ -3325,7 +3742,7 @@ app.get('/api/benchmark-products/:id/rules/summary', (req, res) => {
   try {
     const pid = req.params.id;
     const total = db.prepare('SELECT COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1').get(pid).n;
-    const bySection = db.prepare("SELECT section, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 GROUP BY section ORDER BY n DESC").all(pid);
+    const bySection = db.prepare("SELECT section, section_name, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 GROUP BY section ORDER BY n DESC").all(pid);
     const byType = db.prepare("SELECT rule_type, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 GROUP BY rule_type").all(pid);
     const bySeverity = db.prepare("SELECT severity, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 AND severity IS NOT NULL GROUP BY severity").all(pid);
     const byCheckType = db.prepare("SELECT check_type, COUNT(*) as n FROM benchmark_rules WHERE product_id = ? AND is_active = 1 AND check_type IS NOT NULL GROUP BY check_type").all(pid);
@@ -3359,15 +3776,16 @@ app.post('/api/benchmark-products/:id/rules', express.json(), (req, res) => {
       (product_id, rule_id, title, section, subsection, level, rule_type, source,
        severity, cis_profile, check_type, description, rationale, remediation,
        audit_command, default_value, recommended_value, config_parameter, config_location,
-       benchmark_version, benchmark_status, cis_uid, is_automatable)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+       benchmark_version, benchmark_status, cis_uid, is_automatable, "references", section_name)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       req.params.id, b.rule_id||null, b.title, b.section||null, b.subsection||null,
       b.level||0, b.rule_type||'rule', b.source||null, b.severity||null,
       b.cis_profile||null, b.check_type||null, b.description||null, b.rationale||null,
       b.remediation||null, b.audit_command||null, b.default_value||null,
       b.recommended_value||null, b.config_parameter||null, b.config_location||null,
       b.benchmark_version||null, b.benchmark_status||'active', uid,
-      b.is_automatable !== undefined ? b.is_automatable : 1
+      b.is_automatable !== undefined ? b.is_automatable : 1,
+      b.references||null, b.section_name||null
     );
     res.json({ ok: true, id: result.lastInsertRowid, cis_uid: uid });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -3382,8 +3800,8 @@ app.post('/api/benchmark-products/:id/rules/import', express.json({ limit: '10mb
       (product_id, rule_id, title, section, subsection, level, rule_type, source,
        severity, cis_profile, check_type, description, rationale, remediation,
        audit_command, default_value, recommended_value, config_parameter, config_location,
-       benchmark_version, benchmark_status, is_automatable)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+       benchmark_version, benchmark_status, is_automatable, "references", section_name)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     const tx = db.transaction(() => {
       rules.forEach(b => {
         ins.run(req.params.id, b.rule_id||null, b.title, b.section||null, b.subsection||null,
@@ -3392,7 +3810,8 @@ app.post('/api/benchmark-products/:id/rules/import', express.json({ limit: '10mb
           b.remediation||null, b.audit_command||null, b.default_value||null,
           b.recommended_value||null, b.config_parameter||null, b.config_location||null,
           b.benchmark_version||null, b.benchmark_status||'active',
-          b.is_automatable !== undefined ? b.is_automatable : 1
+          b.is_automatable !== undefined ? b.is_automatable : 1,
+          b.references||null, b.section_name||null
         );
       });
     });
@@ -3410,42 +3829,90 @@ app.use((err, req, res, _next) => {
 // ─── CIS Compliance Chat ────────────────────────────────────────────────────
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 
-const CIS_SYSTEM_PROMPT = `You are a CIS Benchmark compliance assistant for Prism AI Analytics.
+const CIS_SYSTEM_PROMPT = `You are PRISMA — Prism Risk Intelligence & Security Management Advisor.
+You are an AI compliance analyst for Prism AI Analytics.
 Answer questions about security benchmarks using ONLY the provided context from CIS Benchmark rules.
-Always cite the specific Rule ID and Benchmark name in your answers.
+Always cite the CIS UID (e.g. CIS-2026-00012.045) and Rule ID in your answers so users can look them up in the dashboard.
+When listing rules, format each as: **[CIS UID]** Rule X.X: Title
 If the context doesn't contain relevant information, say so clearly.
 Be precise and actionable in your recommendations.
 Format your responses with clear headings and bullet points for readability.
+When product details are provided, use them to answer questions about versions, vendors, drift detection, automation capabilities, and coverage.
 Keep answers concise but thorough.`;
 
-function searchRules(query, limit = 10) {
-  // Search benchmark_rules using LIKE across key text fields
+function searchProducts(query) {
+  // Search benchmark_products for product-level info when a product is mentioned
   const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+  if (terms.length === 0) return [];
+
+  const conditions = terms.map(() => `LOWER(bp.product_name) LIKE ?`).join(' OR ');
+  const params = terms.map(t => `%${t}%`);
+
+  try {
+    return db.prepare(`
+      SELECT bp.*,
+        (SELECT COUNT(*) FROM benchmark_rules br WHERE br.product_id = bp.id AND br.rule_type = 'rule' AND (br.benchmark_status = 'active' OR br.benchmark_status IS NULL)) as active_rule_count
+      FROM benchmark_products bp
+      WHERE bp.is_active = 1 AND (${conditions})
+      LIMIT 5
+    `).all(...params);
+  } catch (e) { return []; }
+}
+
+function buildProductContext(products) {
+  if (products.length === 0) return '';
+  return '\n\n=== PRODUCT DETAILS FROM DASHBOARD ===\n' + products.map(p =>
+    `Product: ${p.product_name} | Vendor: ${p.vendor} | Version: ${p.version || 'N/A'} | Category: ${p.category}/${p.subcategory || ''}\n` +
+    `CIS Benchmark: ${p.cis_benchmark} (${p.cis_benchmark_version || 'N/A'}) | DISA STIG: ${p.disa_stig} (${p.disa_stig_id || 'N/A'})\n` +
+    `Discovery: ${p.discovery_method || 'N/A'} | Drift Detection: ${p.drift_detection_capability} — ${p.drift_detection_details || 'N/A'}\n` +
+    `Automation: ${p.automation_ceiling} | Architecture: ${p.architecture_type || 'N/A'} | Service Approach: ${p.service_approach || 'N/A'}\n` +
+    `Active Rules: ${p.active_rule_count} | Frameworks: ${p.applicable_frameworks || 'N/A'}\n` +
+    `Notes: ${p.notes || 'N/A'}`
+  ).join('\n\n');
+}
+
+function searchRules(query, limit = 12) {
+  // Search benchmark_rules using LIKE — OR between terms for recall, rank by match count
+  const stopwords = new Set(['the','a','an','is','are','for','to','in','on','of','and','or','what','how','which','that','this','with','can','do','does','should','would','about','from','key','rules','ensure']);
+  const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 2 && !stopwords.has(t));
   if (terms.length === 0) return [];
 
   const conditions = terms.map(() =>
     `(LOWER(br.title) LIKE ? OR LOWER(br.description) LIKE ? OR LOWER(br.remediation) LIKE ? OR LOWER(br.rule_id) LIKE ?)`
-  ).join(' AND ');
+  );
+
+  // OR between terms for broad matching, then rank by how many terms matched
+  const matchScores = terms.map(() =>
+    `(CASE WHEN LOWER(br.title) LIKE ? THEN 3 ELSE 0 END + CASE WHEN LOWER(br.description) LIKE ? THEN 1 ELSE 0 END + CASE WHEN LOWER(br.remediation) LIKE ? THEN 1 ELSE 0 END)`
+  );
 
   const params = [];
   for (const t of terms) {
     const like = `%${t}%`;
     params.push(like, like, like, like);
   }
+  // Score params
+  const scoreParams = [];
+  for (const t of terms) {
+    const like = `%${t}%`;
+    scoreParams.push(like, like, like);
+  }
 
   const sql = `
-    SELECT br.rule_id, br.title, br.description, br.rationale, br.remediation,
+    SELECT br.rule_id, br.cis_uid, br.title, br.description, br.rationale, br.remediation,
            br.cis_profile, br.check_type, br.benchmark_version, br.benchmark_status,
-           bp.product_name, bp.vendor, bp.category
+           br.product_id, bp.product_name, bp.vendor, bp.category,
+           (${matchScores.join(' + ')}) as relevance
     FROM benchmark_rules br
     JOIN benchmark_products bp ON br.product_id = bp.id
-    WHERE br.rule_type = 'rule' AND (${conditions})
+    WHERE br.rule_type = 'rule' AND (${conditions.join(' OR ')})
+    ORDER BY relevance DESC
     LIMIT ?
   `;
-  params.push(limit);
+  const allParams = [...params, ...scoreParams, limit];
 
   try {
-    return db.prepare(sql).all(...params);
+    return db.prepare(sql).all(...allParams);
   } catch (e) {
     console.error('[Chat Search Error]', e.message);
     return [];
@@ -3455,7 +3922,7 @@ function searchRules(query, limit = 10) {
 function buildContext(rules) {
   if (rules.length === 0) return 'No relevant CIS Benchmark rules were found for this query.';
   return rules.map(r => {
-    let ctx = `--- [${r.product_name}] Rule ${r.rule_id}: ${r.title} (${r.cis_profile}, ${r.check_type})`;
+    let ctx = `--- [${r.product_name}] CIS UID: ${r.cis_uid || 'N/A'} | Rule ${r.rule_id}: ${r.title} (${r.cis_profile}, ${r.check_type}, v${r.benchmark_version || '?'})`;
     if (r.description) ctx += `\nDescription: ${r.description.substring(0, 600)}`;
     if (r.rationale) ctx += `\nRationale: ${r.rationale.substring(0, 400)}`;
     if (r.remediation) ctx += `\nRemediation: ${r.remediation.substring(0, 400)}`;
@@ -3474,9 +3941,10 @@ app.post('/api/chat', express.json(), async (req, res) => {
   }
 
   try {
-    // Search for relevant rules
+    // Search for relevant rules and matching products
     const rules = searchRules(message.trim(), 12);
-    const context = buildContext(rules);
+    const products = searchProducts(message.trim());
+    const context = buildContext(rules) + buildProductContext(products);
 
     // Build messages array with history
     const messages = [];
@@ -3509,9 +3977,423 @@ app.post('/api/chat', express.json(), async (req, res) => {
   }
 });
 
+// ─── Operational Inventory API ───────────────────────────────────────────────
+
+// Tools
+app.get('/api/tools', requireAuth, (req, res) => {
+  try {
+    let sql = 'SELECT * FROM tools WHERE 1=1';
+    const params = [];
+    if (req.query.category) { sql += ' AND category = ?'; params.push(req.query.category); }
+    if (req.query.suite) { sql += ' AND suite = ?'; params.push(req.query.suite); }
+    if (req.query.relevance) { sql += ' AND relevance = ?'; params.push(req.query.relevance); }
+    if (req.query.utilization) { sql += ' AND utilization = ?'; params.push(req.query.utilization); }
+    if (req.query.q) { sql += ' AND (name LIKE ? OR description LIKE ?)'; params.push(`%${req.query.q}%`, `%${req.query.q}%`); }
+    sql += ' ORDER BY category, suite, name';
+    res.json({ ok: true, data: db.prepare(sql).all(...params) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/tools/summary', requireAuth, (req, res) => {
+  try {
+    const byCategory = db.prepare('SELECT category, COUNT(*) as count FROM tools GROUP BY category').all();
+    const byRelevance = db.prepare('SELECT relevance, COUNT(*) as count FROM tools GROUP BY relevance').all();
+    const byUtilization = db.prepare('SELECT utilization, COUNT(*) as count FROM tools GROUP BY utilization').all();
+    const bySuite = db.prepare("SELECT suite, COUNT(*) as count FROM tools WHERE suite IS NOT NULL GROUP BY suite ORDER BY count DESC").all();
+    const total = db.prepare('SELECT COUNT(*) as n FROM tools').get().n;
+    res.json({ ok: true, data: { total, byCategory, byRelevance, byUtilization, bySuite } });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/tools/:id', requireAuth, (req, res) => {
+  try {
+    const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(req.params.id);
+    if (!tool) return res.status(404).json({ ok: false, error: 'Tool not found' });
+    res.json({ ok: true, data: tool });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/tools', requireAuth, [
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('category').isIn(['custom_skill', 'plugin', 'connector']).withMessage('Invalid category'),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const { name, category, suite, description, business_use, relevance, utilization, trigger_phrase } = req.body;
+    const result = db.prepare('INSERT INTO tools (name, category, suite, description, business_use, relevance, utilization, trigger_phrase) VALUES (?,?,?,?,?,?,?,?)').run(name, category, suite || null, description || null, business_use || null, relevance || null, utilization || null, trigger_phrase || null);
+    res.json({ ok: true, data: db.prepare('SELECT * FROM tools WHERE id = ?').get(result.lastInsertRowid) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.patch('/api/tools/:id', requireAuth, (req, res) => {
+  try {
+    const tool = db.prepare('SELECT * FROM tools WHERE id = ?').get(req.params.id);
+    if (!tool) return res.status(404).json({ ok: false, error: 'Tool not found' });
+    const fields = ['name', 'description', 'business_use', 'relevance', 'utilization', 'trigger_phrase'];
+    const updates = [];
+    const params = [];
+    fields.forEach(f => {
+      if (req.body[f] !== undefined) { updates.push(`${f} = ?`); params.push(req.body[f]); }
+    });
+    if (updates.length === 0) return res.status(400).json({ ok: false, error: 'No fields to update' });
+    updates.push("updated_at = datetime('now')");
+    params.push(req.params.id);
+    db.prepare(`UPDATE tools SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    res.json({ ok: true, data: db.prepare('SELECT * FROM tools WHERE id = ?').get(req.params.id) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Business Assets
+app.get('/api/assets', requireAuth, (req, res) => {
+  try {
+    let sql = 'SELECT * FROM business_assets WHERE 1=1';
+    const params = [];
+    if (req.query.folder) { sql += ' AND folder = ?'; params.push(req.query.folder); }
+    if (req.query.format) { sql += ' AND format = ?'; params.push(req.query.format); }
+    if (req.query.status) { sql += ' AND status = ?'; params.push(req.query.status); }
+    if (req.query.q) { sql += ' AND (name LIKE ? OR purpose LIKE ?)'; params.push(`%${req.query.q}%`, `%${req.query.q}%`); }
+    sql += ' ORDER BY folder, name';
+    res.json({ ok: true, data: db.prepare(sql).all(...params) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.get('/api/assets/summary', requireAuth, (req, res) => {
+  try {
+    const byFolder = db.prepare('SELECT folder, COUNT(*) as count FROM business_assets GROUP BY folder').all();
+    const byFormat = db.prepare('SELECT format, COUNT(*) as count FROM business_assets GROUP BY format ORDER BY count DESC').all();
+    const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM business_assets GROUP BY status').all();
+    const total = db.prepare('SELECT COUNT(*) as n FROM business_assets').get().n;
+    res.json({ ok: true, data: { total, byFolder, byFormat, byStatus } });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/assets', requireAuth, [
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('folder').trim().notEmpty().withMessage('Folder is required'),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const { name, folder, format, status, purpose, file_path } = req.body;
+    const result = db.prepare('INSERT INTO business_assets (name, folder, format, status, purpose, file_path) VALUES (?,?,?,?,?,?)').run(name, folder, format || null, status || 'planned', purpose || null, file_path || null);
+    res.json({ ok: true, data: db.prepare('SELECT * FROM business_assets WHERE id = ?').get(result.lastInsertRowid) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.patch('/api/assets/:id', requireAuth, (req, res) => {
+  try {
+    const asset = db.prepare('SELECT * FROM business_assets WHERE id = ?').get(req.params.id);
+    if (!asset) return res.status(404).json({ ok: false, error: 'Asset not found' });
+    const fields = ['name', 'folder', 'format', 'status', 'purpose', 'file_path'];
+    const updates = [];
+    const params = [];
+    fields.forEach(f => {
+      if (req.body[f] !== undefined) { updates.push(`${f} = ?`); params.push(req.body[f]); }
+    });
+    if (updates.length === 0) return res.status(400).json({ ok: false, error: 'No fields to update' });
+    updates.push("updated_at = datetime('now')");
+    params.push(req.params.id);
+    db.prepare(`UPDATE business_assets SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    res.json({ ok: true, data: db.prepare('SELECT * FROM business_assets WHERE id = ?').get(req.params.id) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Maturity Scores
+app.get('/api/maturity', requireAuth, (req, res) => {
+  try {
+    res.json({ ok: true, data: db.prepare('SELECT * FROM maturity_scores ORDER BY score DESC').all() });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.patch('/api/maturity/:area', requireAuth, [
+  body('score').optional().isInt({ min: 0, max: 100 }).withMessage('Score must be 0-100'),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const area = decodeURIComponent(req.params.area);
+    const existing = db.prepare('SELECT * FROM maturity_scores WHERE area = ?').get(area);
+    if (!existing) return res.status(404).json({ ok: false, error: 'Maturity area not found' });
+    const updates = [];
+    const params = [];
+    if (req.body.score !== undefined) {
+      updates.push('score = ?'); params.push(req.body.score);
+      const s = req.body.score;
+      const rating = s >= 75 ? 'strong' : s >= 50 ? 'good' : s >= 30 ? 'developing' : 'early';
+      updates.push('rating = ?'); params.push(rating);
+    }
+    if (req.body.analysis) { updates.push('analysis = ?'); params.push(req.body.analysis); }
+    if (updates.length === 0) return res.status(400).json({ ok: false, error: 'No fields to update' });
+    updates.push("assessed_at = datetime('now')");
+    params.push(area);
+    db.prepare(`UPDATE maturity_scores SET ${updates.join(', ')} WHERE area = ?`).run(...params);
+    res.json({ ok: true, data: db.prepare('SELECT * FROM maturity_scores WHERE area = ?').get(area) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Action Items
+app.get('/api/actions', requireAuth, (req, res) => {
+  try {
+    let sql = 'SELECT * FROM action_items WHERE 1=1';
+    const params = [];
+    if (req.query.urgency) { sql += ' AND urgency = ?'; params.push(req.query.urgency); }
+    if (req.query.status) { sql += ' AND status = ?'; params.push(req.query.status); }
+    sql += ' ORDER BY priority';
+    res.json({ ok: true, data: db.prepare(sql).all(...params) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.patch('/api/actions/:id', requireAuth, [
+  body('status').optional().isIn(['pending', 'in_progress', 'done']).withMessage('Invalid status'),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const action = db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id);
+    if (!action) return res.status(404).json({ ok: false, error: 'Action item not found' });
+    const updates = [];
+    const params = [];
+    if (req.body.status) {
+      updates.push('status = ?'); params.push(req.body.status);
+      if (req.body.status === 'done') { updates.push("completed_at = datetime('now')"); }
+      else { updates.push('completed_at = NULL'); }
+    }
+    if (req.body.title) { updates.push('title = ?'); params.push(req.body.title); }
+    if (req.body.description) { updates.push('description = ?'); params.push(req.body.description); }
+    if (updates.length === 0) return res.status(400).json({ ok: false, error: 'No fields to update' });
+    params.push(req.params.id);
+    db.prepare(`UPDATE action_items SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    res.json({ ok: true, data: db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ─── Financials: Stripe + QuickBooks Endpoints ─────────────────────────────
+
+// QuickBooks OAuth flow
+app.get('/api/qbo/connect', requireAuth, (req, res) => {
+  try {
+    const uri = qboService.getOAuthUri();
+    res.redirect(uri);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/qbo/callback', async (req, res) => {
+  try {
+    const { code, realmId } = req.query;
+    if (!code || !realmId) return res.status(400).send('Missing code or realmId');
+    await qboService.handleCallback(code, realmId);
+    res.send('<html><body style="background:#0d0f1a;color:#e0e0e0;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh"><div style="text-align:center"><h2 style="color:#34d399">QuickBooks Connected!</h2><p>You can close this window and return to the dashboard.</p><script>setTimeout(()=>window.close(),3000)</script></div></body></html>');
+  } catch (e) {
+    res.status(500).send('OAuth failed: ' + e.message);
+  }
+});
+
+app.get('/api/qbo/status', requireAuth, (req, res) => {
+  res.json({ ok: true, connected: qboService.isConnected() });
+});
+
+// Aggregated KPIs
+app.get('/api/financials/kpis', requireAuth, async (req, res) => {
+  try {
+    const now = new Date();
+    const yearStart = `${now.getFullYear()}-01-01`;
+    const today = now.toISOString().split('T')[0];
+
+    const [stripeBalance, qbPnl, stripeSubs] = await Promise.allSettled([
+      stripeService.getBalance(),
+      qboService.getProfitAndLoss(yearStart, today),
+      stripeService.getSubscriptions(),
+    ]);
+
+    // Local data
+    const localRevenue = db.prepare('SELECT COALESCE(SUM(amount),0) as total FROM payments').get().total;
+    const localOutstanding = db.prepare(`
+      SELECT COALESCE(SUM(i.total),0) - COALESCE(SUM(p.paid),0) as outstanding
+      FROM invoices i LEFT JOIN (SELECT invoice_id, SUM(amount) as paid FROM payments GROUP BY invoice_id) p ON i.id = p.invoice_id
+      WHERE i.status IN ('sent','overdue')
+    `).get().outstanding;
+
+    const balance = stripeBalance.status === 'fulfilled' ? stripeBalance.value.data : null;
+    const pnl = qbPnl.status === 'fulfilled' ? qbPnl.value.data : null;
+    const subs = stripeSubs.status === 'fulfilled' ? stripeSubs.value.data : [];
+
+    const warnings = [];
+    if (stripeBalance.status === 'rejected' || (stripeBalance.value && stripeBalance.value.error))
+      warnings.push('Stripe data unavailable');
+    if (qbPnl.status === 'rejected' || (qbPnl.value && qbPnl.value.error))
+      warnings.push('QuickBooks data unavailable');
+
+    res.json({
+      ok: true,
+      kpis: {
+        totalRevenue: pnl ? pnl.totalIncome : localRevenue,
+        netIncome: pnl ? pnl.netIncome : null,
+        totalExpenses: pnl ? pnl.totalExpenses : null,
+        grossProfit: pnl ? pnl.grossProfit : null,
+        stripeBalance: balance ? { available: balance.availableTotal, pending: balance.pendingTotal } : null,
+        outstandingInvoices: localOutstanding,
+        activeSubscriptions: subs.length,
+        localRevenue,
+      },
+      sources: { stripe: stripeService.isConnected(), quickbooks: qboService.isConnected() },
+      warnings,
+      lastUpdated: cacheService.getUpdatedAt('qbo:pnl:' + yearStart + ':' + today) || new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Merged invoices (QB + local)
+app.get('/api/financials/invoices', requireAuth, async (req, res) => {
+  try {
+    const source = req.query.source || 'all';
+    const results = [];
+
+    if (source === 'all' || source === 'local') {
+      const local = db.prepare(`
+        SELECT i.*, c.company_name, COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_id = i.id), 0) as paid
+        FROM invoices i JOIN clients c ON i.client_id = c.id ORDER BY i.issue_date DESC
+      `).all();
+      results.push(...local.map(i => ({
+        id: i.id, invoiceNumber: i.invoice_number, client: i.company_name,
+        status: i.status, issueDate: i.issue_date, dueDate: i.due_date,
+        total: i.total, paid: i.paid, balance: i.total - i.paid, source: 'local',
+      })));
+    }
+
+    if (source === 'all' || source === 'quickbooks') {
+      const qbResult = await qboService.getInvoices();
+      if (qbResult.data) {
+        results.push(...qbResult.data.map(i => ({
+          id: 'qb-' + i.id, invoiceNumber: i.docNumber, client: i.customerName,
+          status: i.status, issueDate: i.txnDate, dueDate: i.dueDate,
+          total: i.totalAmt, paid: i.totalAmt - i.balance, balance: i.balance, source: 'quickbooks',
+        })));
+      }
+    }
+
+    results.sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''));
+    res.json({ ok: true, invoices: results, sources: { stripe: stripeService.isConnected(), quickbooks: qboService.isConnected() } });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Merged payments (Stripe + local)
+app.get('/api/financials/payments', requireAuth, async (req, res) => {
+  try {
+    const source = req.query.source || 'all';
+    const results = [];
+
+    if (source === 'all' || source === 'local') {
+      const local = db.prepare(`
+        SELECT p.*, i.invoice_number, c.company_name
+        FROM payments p JOIN invoices i ON p.invoice_id = i.id JOIN clients c ON i.client_id = c.id
+        ORDER BY p.payment_date DESC
+      `).all();
+      results.push(...local.map(p => ({
+        id: p.id, date: p.payment_date, client: p.company_name,
+        amount: p.amount, method: p.payment_method, reference: p.reference_number || p.invoice_number,
+        status: 'completed', source: 'local',
+      })));
+    }
+
+    if (source === 'all' || source === 'stripe') {
+      const stripeResult = await stripeService.getPaymentIntents();
+      if (stripeResult.data) {
+        results.push(...stripeResult.data.filter(p => p.status === 'succeeded').map(p => ({
+          id: p.id, date: p.created, client: p.customerEmail || p.description || 'Stripe Payment',
+          amount: p.amount, method: p.paymentMethod || 'card', reference: p.id,
+          status: p.status, source: 'stripe',
+        })));
+      }
+    }
+
+    results.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    res.json({ ok: true, payments: results, sources: { stripe: stripeService.isConnected(), quickbooks: qboService.isConnected() } });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Revenue summary (QB P&L)
+app.get('/api/financials/revenue', requireAuth, async (req, res) => {
+  try {
+    const now = new Date();
+    const startDate = req.query.start || `${now.getFullYear()}-01-01`;
+    const endDate = req.query.end || now.toISOString().split('T')[0];
+    const result = await qboService.getProfitAndLoss(startDate, endDate);
+    res.json({ ok: true, revenue: result.data, stale: result.stale || false, error: result.error || null,
+      sources: { stripe: stripeService.isConnected(), quickbooks: qboService.isConnected() } });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Monthly revenue breakdown for charts
+app.get('/api/financials/revenue/monthly', requireAuth, async (req, res) => {
+  try {
+    const year = req.query.year || new Date().getFullYear();
+    const result = await qboService.getProfitAndLossMonthly(year);
+    res.json({ ok: true, monthly: result.data, stale: result.stale || false, error: result.error || null,
+      sources: { stripe: stripeService.isConnected(), quickbooks: qboService.isConnected() } });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stripe balance
+app.get('/api/stripe/balance', requireAuth, async (req, res) => {
+  try {
+    const result = await stripeService.getBalance();
+    res.json({ ok: true, balance: result.data, stale: result.stale || false, error: result.error || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stripe customers
+app.get('/api/stripe/customers', requireAuth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const result = await stripeService.getCustomers(limit);
+    res.json({ ok: true, customers: result.data, stale: result.stale || false, error: result.error || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Stripe products & subscriptions
+app.get('/api/stripe/products', requireAuth, async (req, res) => {
+  try {
+    const result = await stripeService.getProducts();
+    res.json({ ok: true, products: result.data, error: result.error || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/stripe/subscriptions', requireAuth, async (req, res) => {
+  try {
+    const result = await stripeService.getSubscriptions();
+    res.json({ ok: true, subscriptions: result.data, error: result.error || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Cache refresh
+app.post('/api/financials/refresh', requireAuth, (req, res) => {
+  const cleared = cacheService.invalidateAll();
+  res.json({ ok: true, message: 'Cache cleared', cleared });
+});
+
 // ─── Start ──────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n  PRISM AI Analytics Dashboard (v2.0 — Hardened)`);
   console.log(`  http://localhost:${PORT}`);
-  console.log(`  Auth: ${API_KEY ? 'API key + user login' : 'User login (set API_KEY for external access)'}\n`);
-});
+  console.log(`  Auth: ${API_KEY ? 'API key + user login
