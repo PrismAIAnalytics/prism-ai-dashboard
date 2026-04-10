@@ -593,6 +593,11 @@ function initDB() {
   `);
 }
 
+function urgencyToPriority(urgency) {
+  const map = { immediate: 'urgent', this_week: 'high', next_2_weeks: 'medium', this_month: 'medium', next_30_days: 'low', this_quarter: 'low' };
+  return map[urgency] || 'medium';
+}
+
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
@@ -882,6 +887,13 @@ function migrateCRMColumns() {
   crmCols.forEach(c => { if (!cols.includes(c.name)) db.exec(c.sql); });
 }
 migrateCRMColumns();
+
+// Link action_items ↔ tickets + Notion sync tracking
+(function migrateActionTicketLink() {
+  try { db.exec("ALTER TABLE action_items ADD COLUMN ticket_id TEXT"); } catch(e) {}
+  try { db.exec("ALTER TABLE tickets ADD COLUMN action_item_id INTEGER"); } catch(e) {}
+  try { db.exec("ALTER TABLE tickets ADD COLUMN notion_page_id TEXT"); } catch(e) {}
+})();
 
 // Add category column to services table
 (function migrateServicesCategory() {
@@ -3510,7 +3522,7 @@ app.get('/api/skilljar/progress', requireAuth, async (req, res) => {
 // GET — list tickets with filters
 app.get('/api/tickets', requireAuth, (req, res) => {
   try {
-    const { status, priority, ticket_type, assigned_to, client_id, project_id } = req.query;
+    const { status, priority, ticket_type, assigned_to, client_id, project_id, category, notion_unsynced } = req.query;
     let where = [];
     let params = [];
     if (status) { where.push('t.status = ?'); params.push(status); }
@@ -3519,6 +3531,8 @@ app.get('/api/tickets', requireAuth, (req, res) => {
     if (assigned_to) { where.push('t.assigned_to = ?'); params.push(assigned_to); }
     if (client_id) { where.push('t.client_id = ?'); params.push(client_id); }
     if (project_id) { where.push('t.project_id = ?'); params.push(project_id); }
+    if (category) { where.push('t.category = ?'); params.push(category); }
+    if (notion_unsynced === '1') { where.push("t.category = 'action' AND t.notion_page_id IS NULL"); }
     const clause = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const rows = db.prepare(`
       SELECT t.*,
@@ -3584,7 +3598,7 @@ app.post('/api/tickets', requireAuth, [
 // PATCH — update ticket
 app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   try {
-    const allowed = ['title', 'description', 'ticket_type', 'category', 'status', 'priority', 'assigned_to', 'client_id', 'project_id', 'due_date', 'tags', 'sort_order'];
+    const allowed = ['title', 'description', 'ticket_type', 'category', 'status', 'priority', 'assigned_to', 'client_id', 'project_id', 'due_date', 'tags', 'sort_order', 'notion_page_id'];
     const updates = {};
     for (const k of allowed) {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -3600,6 +3614,13 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
     const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
     const result = db.prepare(`UPDATE tickets SET ${setClause} WHERE id = ?`).run(...Object.values(updates), req.params.id);
     if (result.changes === 0) return res.status(404).json({ ok: false, error: 'Ticket not found' });
+    // Ticket done → cascade to linked action item
+    if (req.body.status === 'done') {
+      const linked = db.prepare('SELECT action_item_id FROM tickets WHERE id = ?').get(req.params.id);
+      if (linked && linked.action_item_id) {
+        db.prepare("UPDATE action_items SET status = 'done', completed_at = datetime('now') WHERE id = ? AND status != 'done'").run(linked.action_item_id);
+      }
+    }
     const ticket = db.prepare(`
       SELECT t.*, tm.first_name || ' ' || tm.last_name as assignee_name, c.company_name as client_name, p.name as project_name
       FROM tickets t LEFT JOIN team_members tm ON t.assigned_to = tm.id LEFT JOIN clients c ON t.client_id = c.id LEFT JOIN projects p ON t.project_id = p.id
@@ -4170,10 +4191,49 @@ app.post('/api/actions', requireAuth, [
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
   try {
     const { title, description, urgency, priority, tools_to_use } = req.body;
-    const result = db.prepare('INSERT INTO action_items (title, description, urgency, priority, tools_to_use, status) VALUES (?,?,?,?,?,?)').run(
-      title, description || null, urgency || 'this_month', priority || 50, tools_to_use || null, 'pending'
-    );
-    res.json({ ok: true, data: db.prepare('SELECT * FROM action_items WHERE id = ?').get(result.lastInsertRowid) });
+    const urg = urgency || 'this_month';
+    const createActionAndTicket = db.transaction(() => {
+      const result = db.prepare('INSERT INTO action_items (title, description, urgency, priority, tools_to_use, status) VALUES (?,?,?,?,?,?)').run(
+        title, description || null, urg, priority || 50, tools_to_use || null, 'pending'
+      );
+      const actionId = result.lastInsertRowid;
+      const ticketId = uuid();
+      db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
+        VALUES (?, ?, ?, 'internal', 'action', 'backlog', ?, ?, 'action-item', 'system')`)
+        .run(ticketId, title, description || null, urgencyToPriority(urg), actionId);
+      db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(ticketId, actionId);
+      return { actionId, ticketId };
+    });
+    const { actionId, ticketId } = createActionAndTicket();
+    res.json({
+      ok: true,
+      data: db.prepare('SELECT * FROM action_items WHERE id = ?').get(actionId),
+      ticket: db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId)
+    });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Backfill: link existing action items to tickets
+app.post('/api/actions/backfill-tickets', requireAuth, (req, res) => {
+  try {
+    const unlinked = db.prepare('SELECT * FROM action_items WHERE ticket_id IS NULL').all();
+    let created = 0, linked = 0;
+    for (const action of unlinked) {
+      const match = db.prepare("SELECT id FROM tickets WHERE category = 'action' AND action_item_id IS NULL AND title = ?").get(action.title);
+      if (match) {
+        db.prepare('UPDATE tickets SET action_item_id = ? WHERE id = ?').run(action.id, match.id);
+        db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(match.id, action.id);
+        linked++;
+      } else {
+        const ticketId = uuid();
+        db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
+          VALUES (?, ?, ?, 'internal', 'action', 'backlog', ?, ?, 'action-item', 'system')`)
+          .run(ticketId, action.title, action.description, urgencyToPriority(action.urgency), action.id);
+        db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(ticketId, action.id);
+        created++;
+      }
+    }
+    res.json({ ok: true, linked, created, total: unlinked.length });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
