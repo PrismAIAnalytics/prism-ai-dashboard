@@ -14,15 +14,27 @@ const Anthropic = require('@anthropic-ai/sdk');
 const stripeService = require('./services/stripeService');
 const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
+const os = require('os');
+const CLAUDE_USAGE_PATH = process.env.CLAUDE_USAGE_PATH || path.join(os.homedir(), '.claude', 'usage-data');
 
 // Load .env file (lightweight, no dependency)
 try {
   const envFile = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
   for (const line of envFile.split('\n')) {
-    const m = line.match(/^\s*([^#=]+?)\s*=\s*(.*?)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+    const trimmed = line.replace(/\r$/, '');
+    const m = trimmed.match(/^\s*([^#=]+?)\s*=\s*(.*)$/);
+    if (m && !process.env[m[1]]) {
+      // Strip surrounding quotes from value
+      let val = m[2].trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      process.env[m[1]] = val;
+    }
   }
-} catch (e) { /* no .env file */ }
+} catch (e) {
+  if (e.code !== 'ENOENT') console.warn('[.env] Failed to load:', e.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -589,6 +601,50 @@ function initDB() {
       status TEXT DEFAULT 'pending',
       created_at TEXT DEFAULT (datetime('now')),
       completed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS dev_sessions (
+      session_id TEXT PRIMARY KEY,
+      project_path TEXT,
+      start_time TEXT,
+      duration_minutes INTEGER DEFAULT 0,
+      user_message_count INTEGER DEFAULT 0,
+      assistant_message_count INTEGER DEFAULT 0,
+      tool_counts TEXT,
+      tool_errors INTEGER DEFAULT 0,
+      tool_error_categories TEXT,
+      lines_added INTEGER DEFAULT 0,
+      lines_removed INTEGER DEFAULT 0,
+      files_modified INTEGER DEFAULT 0,
+      git_commits INTEGER DEFAULT 0,
+      languages TEXT,
+      uses_mcp INTEGER DEFAULT 0,
+      imported_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS dev_facets (
+      session_id TEXT PRIMARY KEY REFERENCES dev_sessions(session_id),
+      underlying_goal TEXT,
+      goal_categories TEXT,
+      outcome TEXT,
+      friction_counts TEXT,
+      friction_detail TEXT,
+      primary_success TEXT,
+      brief_summary TEXT,
+      claude_helpfulness TEXT,
+      session_type TEXT,
+      imported_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS dev_insight_tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT,
+      insight_type TEXT NOT NULL,
+      insight_key TEXT NOT NULL,
+      ticket_id TEXT REFERENCES tickets(id),
+      action_item_id INTEGER REFERENCES action_items(id),
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(session_id, insight_type, insight_key)
     );
   `);
 }
@@ -3866,6 +3922,7 @@ app.use((err, req, res, _next) => {
 
 // ─── CIS Compliance Chat ────────────────────────────────────────────────────
 const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+console.log(`[Chat] ANTHROPIC_API_KEY: ${anthropic ? 'loaded' : 'NOT SET — AI chat disabled'}`);
 
 const CIS_SYSTEM_PROMPT = `You are PRISMA — Prism Risk Intelligence & Security Management Advisor.
 You are an AI compliance analyst for Prism AI Analytics.
@@ -4258,6 +4315,274 @@ app.patch('/api/actions/:id', requireAuth, [
     params.push(req.params.id);
     db.prepare(`UPDATE action_items SET ${updates.join(', ')} WHERE id = ?`).run(...params);
     res.json({ ok: true, data: db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ─── Development Insights Endpoints ─────────────────────────────────────────
+
+// Sync: import facets + session-meta JSON into SQLite
+app.post('/api/dev-insights/sync', requireAuth, (req, res) => {
+  try {
+    const facetsDir = path.join(CLAUDE_USAGE_PATH, 'facets');
+    const metaDir = path.join(CLAUDE_USAGE_PATH, 'session-meta');
+    let importedSessions = 0, importedFacets = 0;
+
+    const insertSession = db.prepare(`INSERT OR IGNORE INTO dev_sessions
+      (session_id, project_path, start_time, duration_minutes, user_message_count, assistant_message_count,
+       tool_counts, tool_errors, tool_error_categories, lines_added, lines_removed, files_modified,
+       git_commits, languages, uses_mcp)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+    const insertFacet = db.prepare(`INSERT OR IGNORE INTO dev_facets
+      (session_id, underlying_goal, goal_categories, outcome, friction_counts, friction_detail,
+       primary_success, brief_summary, claude_helpfulness, session_type)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`);
+
+    const syncAll = db.transaction(() => {
+      // Import session-meta files
+      if (fs.existsSync(metaDir)) {
+        for (const file of fs.readdirSync(metaDir).filter(f => f.endsWith('.json'))) {
+          try {
+            const d = JSON.parse(fs.readFileSync(path.join(metaDir, file), 'utf8'));
+            const r = insertSession.run(
+              d.session_id, d.project_path || null, d.start_time || null,
+              d.duration_minutes || 0, d.user_message_count || 0, d.assistant_message_count || 0,
+              JSON.stringify(d.tool_counts || {}), d.tool_errors || 0,
+              JSON.stringify(d.tool_error_categories || {}),
+              d.lines_added || 0, d.lines_removed || 0, d.files_modified || 0,
+              d.git_commits || 0, JSON.stringify(d.languages || {}), d.uses_mcp ? 1 : 0
+            );
+            if (r.changes > 0) importedSessions++;
+          } catch (_) { /* skip malformed files */ }
+        }
+      }
+      // Import facet files
+      if (fs.existsSync(facetsDir)) {
+        for (const file of fs.readdirSync(facetsDir).filter(f => f.endsWith('.json'))) {
+          try {
+            const d = JSON.parse(fs.readFileSync(path.join(facetsDir, file), 'utf8'));
+            const sid = d.session_id || file.replace('.json', '');
+            const r = insertFacet.run(
+              sid, d.underlying_goal || null, JSON.stringify(d.goal_categories || {}),
+              d.outcome || null, JSON.stringify(d.friction_counts || {}),
+              d.friction_detail || null, d.primary_success || null,
+              d.brief_summary || null, d.claude_helpfulness || null, d.session_type || null
+            );
+            if (r.changes > 0) importedFacets++;
+          } catch (_) { /* skip malformed files */ }
+        }
+      }
+    });
+    syncAll();
+    res.json({ ok: true, importedSessions, importedFacets });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Import: accept sessions + facets via POST body (for pushing to remote environments)
+app.post('/api/dev-insights/import', requireAuth, express.json({ limit: '5mb' }), (req, res) => {
+  try {
+    const { sessions = [], facets = [] } = req.body || {};
+    if (!sessions.length && !facets.length) return res.status(400).json({ ok: false, error: 'Provide sessions and/or facets arrays' });
+
+    let importedSessions = 0, importedFacets = 0;
+    const insertSession = db.prepare(`INSERT OR IGNORE INTO dev_sessions
+      (session_id, project_path, start_time, duration_minutes, user_message_count, assistant_message_count,
+       tool_counts, tool_errors, tool_error_categories, lines_added, lines_removed, files_modified,
+       git_commits, languages, uses_mcp)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const insertFacet = db.prepare(`INSERT OR IGNORE INTO dev_facets
+      (session_id, underlying_goal, goal_categories, outcome, friction_counts, friction_detail,
+       primary_success, brief_summary, claude_helpfulness, session_type)
+      VALUES (?,?,?,?,?,?,?,?,?,?)`);
+
+    const importAll = db.transaction(() => {
+      for (const d of sessions) {
+        const r = insertSession.run(
+          d.session_id, d.project_path || null, d.start_time || null,
+          d.duration_minutes || 0, d.user_message_count || 0, d.assistant_message_count || 0,
+          typeof d.tool_counts === 'string' ? d.tool_counts : JSON.stringify(d.tool_counts || {}),
+          d.tool_errors || 0,
+          typeof d.tool_error_categories === 'string' ? d.tool_error_categories : JSON.stringify(d.tool_error_categories || {}),
+          d.lines_added || 0, d.lines_removed || 0, d.files_modified || 0,
+          d.git_commits || 0,
+          typeof d.languages === 'string' ? d.languages : JSON.stringify(d.languages || {}),
+          d.uses_mcp ? 1 : 0
+        );
+        if (r.changes > 0) importedSessions++;
+      }
+      for (const d of facets) {
+        const r = insertFacet.run(
+          d.session_id, d.underlying_goal || null,
+          typeof d.goal_categories === 'string' ? d.goal_categories : JSON.stringify(d.goal_categories || {}),
+          d.outcome || null,
+          typeof d.friction_counts === 'string' ? d.friction_counts : JSON.stringify(d.friction_counts || {}),
+          d.friction_detail || null, d.primary_success || null,
+          d.brief_summary || null, d.claude_helpfulness || null, d.session_type || null
+        );
+        if (r.changes > 0) importedFacets++;
+      }
+    });
+    importAll();
+    res.json({ ok: true, importedSessions, importedFacets });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Export: return all synced data (for pushing to another environment)
+app.get('/api/dev-insights/export', requireAuth, (req, res) => {
+  try {
+    const sessions = db.prepare('SELECT * FROM dev_sessions').all();
+    const facets = db.prepare('SELECT * FROM dev_facets').all();
+    res.json({ ok: true, sessions, facets });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Auto-ticket: create tickets for friction items and failed outcomes
+app.post('/api/dev-insights/auto-ticket', requireAuth, (req, res) => {
+  try {
+    const facets = db.prepare('SELECT * FROM dev_facets').all();
+    const sessions = db.prepare('SELECT * FROM dev_sessions').all();
+    const sessionMap = {};
+    sessions.forEach(s => { sessionMap[s.session_id] = s; });
+
+    let created = 0;
+    const checkDup = db.prepare('SELECT 1 FROM dev_insight_tickets WHERE session_id = ? AND insight_type = ? AND insight_key = ?');
+    const insertTracker = db.prepare('INSERT INTO dev_insight_tickets (session_id, insight_type, insight_key, ticket_id, action_item_id) VALUES (?,?,?,?,?)');
+
+    const createInsightTicket = db.transaction((sessionId, insightType, insightKey, title, description, urgency) => {
+      if (checkDup.get(sessionId, insightType, insightKey)) return null;
+      const urg = urgency || 'this_month';
+      const result = db.prepare('INSERT INTO action_items (title, description, urgency, priority, tools_to_use, status) VALUES (?,?,?,?,?,?)')
+        .run(title, description || null, urg, 50, null, 'pending');
+      const actionId = result.lastInsertRowid;
+      const ticketId = uuid();
+      db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
+        VALUES (?, ?, ?, 'internal', 'dev-insight', 'backlog', ?, ?, 'dev-insight,claude-code', 'system')`)
+        .run(ticketId, title, description || null, urgencyToPriority(urg), actionId);
+      db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(ticketId, actionId);
+      insertTracker.run(sessionId, insightType, insightKey, ticketId, actionId);
+      return { ticketId, actionId };
+    });
+
+    for (const f of facets) {
+      const fc = JSON.parse(f.friction_counts || '{}');
+      const goal = f.underlying_goal || f.brief_summary || 'Unknown session';
+      const detail = f.friction_detail || '';
+
+      // Friction triggers
+      if ((fc.buggy_code || 0) > 0) {
+        const r = createInsightTicket(f.session_id, 'friction', `buggy_code:${f.session_id}`,
+          `Dev Friction: Buggy code in session`, `${goal}\n\nFriction: ${detail}`, 'this_week');
+        if (r) created++;
+      }
+      if ((fc.wrong_approach || 0) > 0) {
+        const r = createInsightTicket(f.session_id, 'friction', `wrong_approach:${f.session_id}`,
+          `Dev Friction: Wrong approach taken`, `${goal}\n\nFriction: ${detail}`, 'this_week');
+        if (r) created++;
+      }
+      if ((fc.excessive_changes || 0) > 0) {
+        const r = createInsightTicket(f.session_id, 'friction', `excessive_changes:${f.session_id}`,
+          `Dev Friction: Excessive changes`, `${goal}\n\nFriction: ${detail}`, 'next_2_weeks');
+        if (r) created++;
+      }
+
+      // Outcome triggers
+      if (f.outcome === 'not_achieved') {
+        const r = createInsightTicket(f.session_id, 'failed_outcome', f.session_id,
+          `Dev: Goal not achieved`, `${goal}\n\nFriction: ${detail}`, 'this_week');
+        if (r) created++;
+      }
+      if (f.outcome === 'partially_achieved') {
+        const r = createInsightTicket(f.session_id, 'failed_outcome', f.session_id,
+          `Dev: Goal partially achieved`, `${goal}\n\nFriction: ${detail}`, 'next_2_weeks');
+        if (r) created++;
+      }
+
+      // High error rate
+      const sess = sessionMap[f.session_id];
+      if (sess && sess.tool_errors >= 10) {
+        const r = createInsightTicket(f.session_id, 'error_category', `high_errors:${f.session_id}`,
+          `Dev: High error rate (${sess.tool_errors} errors)`, `${goal}\n\n${sess.tool_errors} tool errors in session`, 'next_30_days');
+        if (r) created++;
+      }
+    }
+
+    res.json({ ok: true, ticketsCreated: created });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// Summary: aggregated dev insights metrics
+app.get('/api/dev-insights/summary', requireAuth, (req, res) => {
+  try {
+    const sessions = db.prepare('SELECT * FROM dev_sessions').all();
+    const facets = db.prepare('SELECT * FROM dev_facets').all();
+    const trackers = db.prepare('SELECT session_id, insight_type, insight_key FROM dev_insight_tickets').all();
+    const ticketedSet = new Set(trackers.map(t => `${t.session_id}:${t.insight_type}:${t.insight_key}`));
+
+    const totalSessions = sessions.length;
+    const totalDuration = sessions.reduce((s, r) => s + (r.duration_minutes || 0), 0);
+    const avgDuration = totalSessions ? Math.round(totalDuration / totalSessions) : 0;
+    const totalLinesAdded = sessions.reduce((s, r) => s + (r.lines_added || 0), 0);
+    const totalLinesRemoved = sessions.reduce((s, r) => s + (r.lines_removed || 0), 0);
+
+    // Outcome distribution
+    const outcomes = {};
+    facets.forEach(f => { outcomes[f.outcome || 'unknown'] = (outcomes[f.outcome || 'unknown'] || 0) + 1; });
+
+    // Friction totals
+    const frictionTotals = { buggy_code: 0, wrong_approach: 0, excessive_changes: 0, misunderstood_request: 0 };
+    facets.forEach(f => {
+      const fc = JSON.parse(f.friction_counts || '{}');
+      Object.keys(fc).forEach(k => { frictionTotals[k] = (frictionTotals[k] || 0) + fc[k]; });
+    });
+    const totalFriction = Object.values(frictionTotals).reduce((a, b) => a + b, 0);
+
+    // Success rate
+    const achieved = (outcomes.fully_achieved || 0) + (outcomes.mostly_achieved || 0);
+    const successRate = facets.length ? Math.round((achieved / facets.length) * 100) : 0;
+
+    // Recent friction items
+    const recentFriction = facets
+      .filter(f => {
+        const fc = JSON.parse(f.friction_counts || '{}');
+        return Object.values(fc).some(v => v > 0) || f.outcome === 'not_achieved' || f.outcome === 'partially_achieved';
+      })
+      .map(f => {
+        const fc = JSON.parse(f.friction_counts || '{}');
+        const sess = sessions.find(s => s.session_id === f.session_id);
+        const frictionTypes = Object.entries(fc).filter(([, v]) => v > 0).map(([k]) => k);
+        const ticketed = frictionTypes.some(ft => ticketedSet.has(`${f.session_id}:friction:${ft}:${f.session_id}`)) ||
+          ticketedSet.has(`${f.session_id}:failed_outcome:${f.session_id}`);
+        return {
+          session_id: f.session_id,
+          goal: f.underlying_goal || f.brief_summary || 'Unknown',
+          outcome: f.outcome,
+          friction_types: frictionTypes,
+          friction_detail: f.friction_detail,
+          date: sess?.start_time || null,
+          ticketed
+        };
+      })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 10);
+
+    // Unticketed count
+    let unticketedCount = 0;
+    facets.forEach(f => {
+      const fc = JSON.parse(f.friction_counts || '{}');
+      if ((fc.buggy_code || 0) > 0 && !ticketedSet.has(`${f.session_id}:friction:buggy_code:${f.session_id}`)) unticketedCount++;
+      if ((fc.wrong_approach || 0) > 0 && !ticketedSet.has(`${f.session_id}:friction:wrong_approach:${f.session_id}`)) unticketedCount++;
+      if (f.outcome === 'not_achieved' && !ticketedSet.has(`${f.session_id}:failed_outcome:${f.session_id}`)) unticketedCount++;
+      if (f.outcome === 'partially_achieved' && !ticketedSet.has(`${f.session_id}:failed_outcome:${f.session_id}`)) unticketedCount++;
+    });
+
+    res.json({
+      ok: true,
+      data: {
+        totalSessions, avgDuration, successRate, totalFriction,
+        totalLinesAdded, totalLinesRemoved, unticketedCount,
+        outcomes, frictionTotals, recentFriction
+      }
+    });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

@@ -273,6 +273,27 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .urgency-next_2_weeks { background: rgba(251,191,36,0.15); color: var(--amber); }
 .urgency-next_30_days { background: rgba(74,109,181,0.2); color: var(--blue); }
 
+/* ─── Dev Insights ─── */
+.insights-header { display: flex; justify-content: space-between; align-items: center; }
+.insights-header h3 { margin: 0; }
+.btn-sync { background: var(--purple); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.btn-sync:hover { filter: brightness(1.2); }
+.friction-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+.friction-buggy_code { background: rgba(248,113,113,0.2); color: var(--red); }
+.friction-wrong_approach { background: rgba(251,191,36,0.2); color: var(--amber); }
+.friction-excessive_changes { background: rgba(168,85,247,0.2); color: var(--purple); }
+.friction-misunderstood_request { background: rgba(74,109,181,0.2); color: var(--blue); }
+.outcome-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.outcome-fully_achieved { background: rgba(52,211,153,0.2); color: var(--green); }
+.outcome-mostly_achieved { background: rgba(52,211,153,0.15); color: var(--green); }
+.outcome-partially_achieved { background: rgba(251,191,36,0.2); color: var(--amber); }
+.outcome-not_achieved { background: rgba(248,113,113,0.2); color: var(--red); }
+.ticketed-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; background: rgba(52,211,153,0.2); color: var(--green); margin-left: 6px; }
+.insight-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.insight-item:last-child { border-bottom: none; }
+.insight-goal { font-size: 13px; color: var(--text); margin-bottom: 4px; }
+.insight-meta { font-size: 11px; color: var(--muted); }
+
 /* ─── Tickets / Kanban ─── */
 .ticket-views { display: flex; gap: 8px; }
 .ticket-views button {
@@ -996,6 +1017,26 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="actions-list" class="scroll-y" style="max-height:340px"></div>
         </div>
       </div>
+
+      <!-- Development Insights -->
+      <div class="card" style="margin-top:20px">
+        <div class="insights-header">
+          <h3>Development Insights <span class="badge" id="insights-session-badge">0</span></h3>
+          <button class="btn-sync" onclick="syncDevInsights()" id="btn-sync-insights">Sync &amp; Create Tickets</button>
+        </div>
+        <div id="insights-kpis" class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin:16px 0"></div>
+        <div class="grid-2">
+          <div style="position:relative;height:260px">
+            <canvas id="chart-outcomes"></canvas>
+          </div>
+          <div style="position:relative;height:260px">
+            <canvas id="chart-friction"></canvas>
+          </div>
+        </div>
+        <h4 style="margin:16px 0 8px;color:var(--muted);font-size:13px">Recent Friction &amp; Failures</h4>
+        <div id="insights-friction-list" class="scroll-y" style="max-height:260px"></div>
+      </div>
+
       <div class="card" style="margin-top:20px">
         <h3>SWOT Analysis</h3>
         <div class="swot-grid">
@@ -4203,12 +4244,13 @@ loaders.tools = async () => {
 };
 
 // --- BUSINESS HEALTH ---
-let chartMaturity = null;
+let chartMaturity = null, chartOutcomes = null, chartFrictionBar = null;
 loaders.health = async () => {
-  const [summaryRes2, maturityRes, actionsRes] = await Promise.all([
+  const [summaryRes2, maturityRes, actionsRes, insightsRes] = await Promise.all([
     api('tools/summary'),
     api('maturity'),
-    api('actions')
+    api('actions'),
+    api('dev-insights/summary')
   ]);
   const assetSummaryRes = await api('assets/summary');
   const summary2 = summaryRes2.data || summaryRes2;
@@ -4271,6 +4313,9 @@ loaders.health = async () => {
       </div>
     </div>
   `).join('');
+
+  // Dev insights subsection
+  renderDevInsights(insightsRes.data || {});
 };
 
 async function toggleAction(id, done) {
@@ -4281,6 +4326,130 @@ async function toggleAction(id, done) {
     body: JSON.stringify({ status })
   });
   loaders.health();
+}
+
+function renderDevInsights(d) {
+  if (!d || !d.totalSessions) {
+    $('#insights-session-badge').textContent = '0';
+    $('#insights-kpis').innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;grid-column:1/-1">No insights data. Click "Sync & Create Tickets" to import.</div>';
+    $('#insights-friction-list').innerHTML = '';
+    return;
+  }
+
+  $('#insights-session-badge').textContent = d.totalSessions;
+  $('#insights-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Sessions</div><div class="value" style="color:var(--purple)">${d.totalSessions}</div></div>
+    <div class="kpi"><div class="label">Avg Duration</div><div class="value">${d.avgDuration}m</div></div>
+    <div class="kpi"><div class="label">Success Rate</div><div class="value ${d.successRate >= 80 ? 'text-green' : d.successRate >= 50 ? 'text-amber' : 'text-red'}">${d.successRate}%</div></div>
+    <div class="kpi"><div class="label">Total Friction</div><div class="value text-red">${d.totalFriction}</div></div>
+    <div class="kpi"><div class="label">Lines Written</div><div class="value" style="color:var(--green)">${(d.totalLinesAdded || 0).toLocaleString()}</div></div>
+    <div class="kpi"><div class="label">Unticketed</div><div class="value ${d.unticketedCount > 0 ? 'text-amber' : 'text-green'}">${d.unticketedCount}</div></div>
+  `;
+
+  // Outcomes doughnut
+  if (chartOutcomes) chartOutcomes.destroy();
+  const oc = d.outcomes || {};
+  const outcomeLabels = ['Fully Achieved', 'Mostly Achieved', 'Partially Achieved', 'Not Achieved'];
+  const outcomeValues = [oc.fully_achieved || 0, oc.mostly_achieved || 0, oc.partially_achieved || 0, oc.not_achieved || 0];
+  const outcomeColors = ['rgba(52,211,153,0.8)', 'rgba(52,211,153,0.5)', 'rgba(251,191,36,0.7)', 'rgba(248,113,113,0.7)'];
+  chartOutcomes = new Chart($('#chart-outcomes').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: outcomeLabels, datasets: [{ data: outcomeValues, backgroundColor: outcomeColors, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: '#ccc', font: { size: 11 }, padding: 12 } },
+        title: { display: true, text: 'Session Outcomes', color: '#e0e0e0', font: { size: 13 } } }
+    }
+  });
+
+  // Friction bar chart
+  if (chartFrictionBar) chartFrictionBar.destroy();
+  const ft = d.frictionTotals || {};
+  const frLabels = Object.keys(ft).map(k => k.replace(/_/g, ' '));
+  const frValues = Object.values(ft);
+  const frColors = Object.keys(ft).map(k =>
+    k === 'buggy_code' ? 'rgba(248,113,113,0.7)' :
+    k === 'wrong_approach' ? 'rgba(251,191,36,0.7)' :
+    k === 'excessive_changes' ? 'rgba(168,85,247,0.7)' :
+    'rgba(74,109,181,0.7)'
+  );
+  chartFrictionBar = new Chart($('#chart-friction').getContext('2d'), {
+    type: 'bar',
+    data: { labels: frLabels, datasets: [{ data: frValues, backgroundColor: frColors, borderRadius: 4, barThickness: 28 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        title: { display: true, text: 'Friction by Type', color: '#e0e0e0', font: { size: 13 } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8888aa', stepSize: 1 } },
+        y: { grid: { display: false }, ticks: { color: '#e0e0e0', font: { size: 12 } } }
+      }
+    }
+  });
+
+  // Recent friction list
+  const items = d.recentFriction || [];
+  $('#insights-friction-list').innerHTML = items.length ? items.map(item => {
+    const dateStr = item.date ? new Date(item.date).toLocaleDateString() : '';
+    const frictionTags = (item.friction_types || []).map(ft => `<span class="friction-tag friction-${ft}">${ft.replace(/_/g, ' ')}</span>`).join('');
+    const outcomeBadge = item.outcome ? `<span class="outcome-badge outcome-${item.outcome}">${item.outcome.replace(/_/g, ' ')}</span>` : '';
+    const ticketBadge = item.ticketed ? '<span class="ticketed-badge">ticketed</span>' : '';
+    return `<div class="insight-item">
+      <div style="flex:1">
+        <div class="insight-goal">${item.goal}${ticketBadge}</div>
+        <div class="insight-meta">${dateStr} ${frictionTags} ${outcomeBadge}</div>
+      </div>
+    </div>`;
+  }).join('') : '<div style="text-align:center;color:var(--muted);padding:20px">No friction items found</div>';
+}
+
+async function syncDevInsights() {
+  const btn = $('#btn-sync-insights');
+  btn.textContent = 'Syncing...';
+  btn.disabled = true;
+  try {
+    // Step 1: Sync from local filesystem into local DB
+    const syncRes = await api('dev-insights/sync', { method: 'POST' });
+
+    // Step 2: Auto-create tickets for friction/failures
+    const ticketRes = await api('dev-insights/auto-ticket', { method: 'POST' });
+
+    // Step 3: If running locally, push data to production DB
+    const PROD_URL = 'https://web-production-7058a.up.railway.app';
+    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    let pushed = 0;
+    if (isLocal && SESSION_TOKEN) {
+      try {
+        btn.textContent = 'Pushing to production...';
+        const exportRes = await api('dev-insights/export');
+        if (exportRes.sessions?.length || exportRes.facets?.length) {
+          const pushRes = await fetch(PROD_URL + '/api/dev-insights/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SESSION_TOKEN },
+            body: JSON.stringify({ sessions: exportRes.sessions, facets: exportRes.facets })
+          }).then(r => r.json()).catch(() => ({}));
+          pushed = (pushRes.importedSessions || 0) + (pushRes.importedFacets || 0);
+          // Also create tickets on production
+          if (pushed > 0) {
+            await fetch(PROD_URL + '/api/dev-insights/auto-ticket', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + SESSION_TOKEN }
+            }).catch(() => {});
+          }
+        }
+      } catch (_) { /* production push is best-effort */ }
+    }
+
+    const imported = (syncRes.importedSessions || 0) + (syncRes.importedFacets || 0);
+    const tickets = ticketRes.ticketsCreated || 0;
+    const pushMsg = pushed > 0 ? `, ${pushed} pushed to prod` : '';
+    btn.textContent = `Done! ${imported} imported, ${tickets} tickets${pushMsg}`;
+    setTimeout(() => { btn.textContent = 'Sync & Create Tickets'; btn.disabled = false; }, 4000);
+    loaders.health();
+  } catch (e) {
+    btn.textContent = 'Error - Retry';
+    btn.disabled = false;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
