@@ -150,6 +150,27 @@ app.post('/api/auth/change-password', express.json(), (req, res) => {
     res.json({ ok: true, message: 'Password updated' });
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
 });
+// POST — admin: reset training tickets to current Anthropic curriculum.
+// Protected by X-Admin-Key header matching process.env.ADMIN_KEY.
+// Registered BEFORE requireAuth so it uses its own auth mechanism (destructive op).
+app.post('/api/admin/reset-training-tickets', express.json(), (req, res) => {
+  try {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey) {
+      return res.status(503).json({ ok: false, error: 'ADMIN_KEY not configured on server' });
+    }
+    const provided = req.header('X-Admin-Key');
+    if (!provided || provided !== adminKey) {
+      return res.status(401).json({ ok: false, error: 'Invalid or missing X-Admin-Key header' });
+    }
+    const { resetTrainingTickets } = require('./scripts/training-curriculum');
+    const result = resetTrainingTickets(db);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // Apply auth to all /api/* routes
 app.use('/api', requireAuth);
 
@@ -2501,6 +2522,21 @@ app.get('/api/clients', (req, res) => {
     ORDER BY c.company_name
   `).all();
   res.json(rows);
+});
+
+// Team members — simple list for dropdowns (assignees, etc.)
+app.get('/api/team', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, first_name, last_name, email, role, status
+      FROM team_members
+      WHERE status = 'active'
+      ORDER BY first_name
+    `).all();
+    res.json({ ok: true, members: rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // Projects

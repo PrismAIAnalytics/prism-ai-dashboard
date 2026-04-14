@@ -782,6 +782,13 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <button onclick="ticketFilterCat('delivery', this)">Delivery</button>
           <button onclick="ticketFilterCat('general', this)">General</button>
         </div>
+        <select id="ticket-sort" onchange="ticketSetSort(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:13px;cursor:pointer">
+          <option value="created_desc">Newest First</option>
+          <option value="created_asc">Oldest First</option>
+          <option value="due_asc">Due Date (Soonest)</option>
+          <option value="due_desc">Due Date (Latest)</option>
+          <option value="priority">Priority (High → Low)</option>
+        </select>
       </div>
       <div id="tickets-kanban" class="kanban-board"></div>
       <div id="tickets-list" class="card" style="display:none"><div id="tickets-list-table" class="scroll-y" style="max-height:600px"></div></div>
@@ -2288,6 +2295,7 @@ async function crmSubmitEdit(id) {
 let ticketView = 'kanban';
 let ticketTypeFilter = 'all';
 let ticketCatFilter = 'all';
+let ticketSortKey = 'created_desc';
 let allTickets = [];
 
 loaders.tickets = async () => {
@@ -2308,9 +2316,29 @@ loaders.tickets = async () => {
   ticketRender();
 };
 
+function ticketSortList(arr) {
+  const PRIO_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+  return [...arr].sort((a, b) => {
+    switch (ticketSortKey) {
+      case 'created_asc': return (a.created_at || '').localeCompare(b.created_at || '');
+      case 'created_desc': return (b.created_at || '').localeCompare(a.created_at || '');
+      case 'due_asc': return (a.due_date || '9999').localeCompare(b.due_date || '9999');
+      case 'due_desc': return (b.due_date || '').localeCompare(a.due_date || '');
+      case 'priority': return (PRIO_ORDER[a.priority] ?? 9) - (PRIO_ORDER[b.priority] ?? 9);
+      default: return 0;
+    }
+  });
+}
+
+function ticketSetSort(val) {
+  ticketSortKey = val;
+  ticketRender();
+}
+
 function ticketRender() {
   let filtered = ticketTypeFilter === 'all' ? allTickets : allTickets.filter(t => t.ticket_type === ticketTypeFilter);
   if (ticketCatFilter !== 'all') filtered = filtered.filter(t => t.category === ticketCatFilter);
+  filtered = ticketSortList(filtered);
   if (ticketView === 'kanban') {
     $('#tickets-kanban').style.display = 'flex';
     $('#tickets-list').style.display = 'none';
@@ -2502,34 +2530,59 @@ async function ticketCreate() {
 async function ticketShowDetail(id) {
   const ticket = allTickets.find(t => t.id === id);
   if (!ticket) return;
-  // Load comments
-  let comments = [];
-  try { const cRes = await api(`tickets/${id}/comments`); comments = cRes.comments || []; } catch(e) {}
+  // Load comments, clients, projects, team members in parallel
+  let comments = [], clients = [], projects = [], teamMembers = [];
+  try {
+    const [cRes, crmRes, projRes, tmRes] = await Promise.all([
+      api(`tickets/${id}/comments`).catch(() => ({ comments: [] })),
+      api('crm').catch(() => ({})),
+      api('projects').catch(() => ({})),
+      api('team').catch(() => ({}))
+    ]);
+    comments = cRes.comments || [];
+    clients = (crmRes.customers || crmRes.clients || []).filter(c => c.is_active !== 0);
+    projects = Array.isArray(projRes) ? projRes : (projRes.projects || []);
+    teamMembers = Array.isArray(tmRes) ? tmRes : (tmRes.members || []);
+  } catch(e) {}
 
   const statuses = ['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled'];
   const priorities = ['low', 'medium', 'high', 'urgent'];
+  const categories = ['general', 'action', 'training', 'delivery', 'development', 'marketing', 'sales', 'admin', 'support'];
+  const types = ['internal', 'client'];
+  const esc = (s) => (s == null ? '' : String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'));
 
   const modal = document.createElement('div');
   modal.id = 'ticket-detail-modal';
   modal.className = 'ticket-modal-overlay';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   modal.innerHTML = `<div class="ticket-modal">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <h3 style="flex:1;margin-right:12px">${ticket.title}</h3>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <input id="td-title" value="${esc(ticket.title)}" style="flex:1;font-size:18px;font-weight:700;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);padding:6px 8px;font-family:inherit"
+        onfocus="this.style.borderColor='var(--border)';this.style.background='var(--bg)'"
+        onblur="this.style.borderColor='transparent';this.style.background='transparent';ticketQuickUpdate('${id}','title',this.value)">
       <button class="btn-sm btn-danger" onclick="ticketDelete('${id}');document.getElementById('ticket-detail-modal')?.remove()">Delete</button>
     </div>
-    ${ticket.description ? `<p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">${ticket.description}</p>` : ''}
-    <div class="modal-row">
+    <label style="margin-top:10px">Description</label>
+    <textarea id="td-desc" placeholder="Details, context, acceptance criteria..." style="min-height:80px"
+      onblur="ticketQuickUpdate('${id}','description',this.value || null)">${esc(ticket.description)}</textarea>
+    <div class="modal-row" style="margin-top:10px">
       <div><label>Status</label><select id="td-status" onchange="ticketQuickUpdate('${id}','status',this.value)">${statuses.map(s => `<option value="${s}" ${s === ticket.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}</select></div>
       <div><label>Priority</label><select id="td-priority" onchange="ticketQuickUpdate('${id}','priority',this.value)">${priorities.map(p => `<option value="${p}" ${p === ticket.priority ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
     </div>
     <div class="modal-row" style="margin-top:10px">
-      <div><label>Type</label><span class="tag tag-${ticket.ticket_type}" style="font-size:12px;padding:3px 10px;border-radius:6px">${ticket.ticket_type}</span></div>
-      <div><label>Due Date</label><span style="font-size:13px">${ticket.due_date ? fmtDate(ticket.due_date) : '—'}</span></div>
+      <div><label>Type</label><select id="td-type" onchange="ticketQuickUpdate('${id}','ticket_type',this.value)">${types.map(t => `<option value="${t}" ${t === ticket.ticket_type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      <div><label>Category</label><select id="td-cat" onchange="ticketQuickUpdate('${id}','category',this.value)">${categories.map(c => `<option value="${c}" ${c === ticket.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     </div>
-    ${ticket.client_name ? `<div style="margin-top:10px"><label>Client</label><span style="font-size:13px;color:var(--sky)">${ticket.client_name}${ticket.project_name ? ' → ' + ticket.project_name : ''}</span></div>` : ''}
-    ${ticket.assignee_name ? `<div style="margin-top:10px"><label>Assigned To</label><span style="font-size:13px">${ticket.assignee_name}</span></div>` : ''}
-    ${ticket.tags ? `<div style="margin-top:10px"><label>Tags</label><span style="font-size:12px;color:var(--muted)">${ticket.tags}</span></div>` : ''}
+    <div class="modal-row" style="margin-top:10px">
+      <div><label>Due Date</label><input id="td-due" type="date" value="${esc(ticket.due_date || '')}" onchange="ticketQuickUpdate('${id}','due_date',this.value || null)"></div>
+      <div><label>Assigned To</label><select id="td-assign" onchange="ticketQuickUpdate('${id}','assigned_to',this.value || null)"><option value="">— Unassigned —</option>${teamMembers.map(m => `<option value="${m.id}" ${m.id === ticket.assigned_to ? 'selected' : ''}>${m.first_name} ${m.last_name}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-row" style="margin-top:10px">
+      <div><label>Client</label><select id="td-client" onchange="ticketQuickUpdate('${id}','client_id',this.value || null)"><option value="">— None —</option>${clients.map(c => `<option value="${c.id}" ${c.id === ticket.client_id ? 'selected' : ''}>${c.company_name || c.crm_contact_name || c.id}</option>`).join('')}</select></div>
+      <div><label>Project</label><select id="td-project" onchange="ticketQuickUpdate('${id}','project_id',this.value || null)"><option value="">— None —</option>${projects.map(p => `<option value="${p.id}" ${p.id === ticket.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div>
+    </div>
+    <label style="margin-top:10px">Tags (comma-separated)</label>
+    <input id="td-tags" value="${esc(ticket.tags || '')}" placeholder="e.g. urgent, sprint-3, onboarding" onblur="ticketQuickUpdate('${id}','tags',this.value || null)">
     <div style="margin-top:10px;font-size:11px;color:var(--muted)">Created ${fmtDate(ticket.created_at?.split('T')[0])}${ticket.created_by ? ' by ' + ticket.created_by : ''}</div>
 
     <div class="ticket-comments">
