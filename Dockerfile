@@ -43,6 +43,7 @@ COPY import-excel-crm.js ./
 COPY Procfile ./
 COPY services/ ./services/
 COPY public/ ./public/
+COPY scripts/ ./scripts/
 
 # Create data directory for SQLite
 # NOTE: Running as root so Railway-mounted volumes are writable.
