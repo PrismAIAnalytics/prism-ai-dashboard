@@ -4499,37 +4499,44 @@ app.post('/api/dev-insights/auto-ticket', requireAuth, (req, res) => {
       return { ticketId, actionId };
     });
 
+    // Truncate goal to keep ticket titles readable
+    const shortGoal = (g) => {
+      const s = (g || 'Unknown session').replace(/\s+/g, ' ').trim();
+      return s.length > 70 ? s.slice(0, 67) + '...' : s;
+    };
+
     for (const f of facets) {
       const fc = JSON.parse(f.friction_counts || '{}');
       const goal = f.underlying_goal || f.brief_summary || 'Unknown session';
+      const goalShort = shortGoal(goal);
       const detail = f.friction_detail || '';
 
       // Friction triggers
       if ((fc.buggy_code || 0) > 0) {
         const r = createInsightTicket(f.session_id, 'friction', `buggy_code:${f.session_id}`,
-          `Dev Friction: Buggy code in session`, `${goal}\n\nFriction: ${detail}`, 'this_week');
+          `Buggy code: ${goalShort}`, `${goal}\n\nFriction: ${detail}`, 'this_week');
         if (r) created++;
       }
       if ((fc.wrong_approach || 0) > 0) {
         const r = createInsightTicket(f.session_id, 'friction', `wrong_approach:${f.session_id}`,
-          `Dev Friction: Wrong approach taken`, `${goal}\n\nFriction: ${detail}`, 'this_week');
+          `Wrong approach: ${goalShort}`, `${goal}\n\nFriction: ${detail}`, 'this_week');
         if (r) created++;
       }
       if ((fc.excessive_changes || 0) > 0) {
         const r = createInsightTicket(f.session_id, 'friction', `excessive_changes:${f.session_id}`,
-          `Dev Friction: Excessive changes`, `${goal}\n\nFriction: ${detail}`, 'next_2_weeks');
+          `Excessive changes: ${goalShort}`, `${goal}\n\nFriction: ${detail}`, 'next_2_weeks');
         if (r) created++;
       }
 
       // Outcome triggers
       if (f.outcome === 'not_achieved') {
         const r = createInsightTicket(f.session_id, 'failed_outcome', f.session_id,
-          `Dev: Goal not achieved`, `${goal}\n\nFriction: ${detail}`, 'this_week');
+          `Goal not achieved: ${goalShort}`, `${goal}\n\nFriction: ${detail}`, 'this_week');
         if (r) created++;
       }
       if (f.outcome === 'partially_achieved') {
         const r = createInsightTicket(f.session_id, 'failed_outcome', f.session_id,
-          `Dev: Goal partially achieved`, `${goal}\n\nFriction: ${detail}`, 'next_2_weeks');
+          `Goal partially achieved: ${goalShort}`, `${goal}\n\nFriction: ${detail}`, 'next_2_weeks');
         if (r) created++;
       }
 
@@ -4537,7 +4544,7 @@ app.post('/api/dev-insights/auto-ticket', requireAuth, (req, res) => {
       const sess = sessionMap[f.session_id];
       if (sess && sess.tool_errors >= 10) {
         const r = createInsightTicket(f.session_id, 'error_category', `high_errors:${f.session_id}`,
-          `Dev: High error rate (${sess.tool_errors} errors)`, `${goal}\n\n${sess.tool_errors} tool errors in session`, 'next_30_days');
+          `High error rate (${sess.tool_errors}): ${goalShort}`, `${goal}\n\n${sess.tool_errors} tool errors in session`, 'next_30_days');
         if (r) created++;
       }
     }
