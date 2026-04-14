@@ -4862,7 +4862,12 @@ if (APP_ENV === 'demo') {
         cwd: __dirname,
         env: { ...process.env, DB_PATH }  // pass persistent volume path to child
       });
-      console.log('Demo seed complete.');
+      console.log('Demo seed complete. Re-seeding default tickets…');
+      // seed-demo.js wipes the tickets table but doesn't recreate them.
+      // Call seedTickets() again so the demo environment has working ticket data
+      // tied to the team_members created by seed-demo.js.
+      try { seedTickets(); console.log('Default tickets re-seeded.'); }
+      catch (e) { console.error('Ticket re-seed failed:', e.message); }
     }
   } catch (e) { console.error('Demo auto-seed failed:', e.message); }
 }
