@@ -4857,7 +4857,11 @@ if (APP_ENV === 'demo') {
     const clientCount = db.prepare('SELECT COUNT(*) as n FROM clients').get().n;
     if (clientCount === 0) {
       console.log('Demo environment detected with empty DB — running seed...');
-      require('child_process').execSync('node seed-demo.js --reset', { stdio: 'inherit', cwd: __dirname });
+      require('child_process').execSync('node seed-demo.js --reset', {
+        stdio: 'inherit',
+        cwd: __dirname,
+        env: { ...process.env, DB_PATH }  // pass persistent volume path to child
+      });
       console.log('Demo seed complete.');
     }
   } catch (e) { console.error('Demo auto-seed failed:', e.message); }
