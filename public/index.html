@@ -1108,14 +1108,22 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div id="health-kpis" class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-bottom:24px"></div>
       <div class="grid-2">
         <div class="card">
-          <h3>AI Maturity Scores</h3>
-          <div style="position:relative;height:320px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3 style="margin:0">AI Maturity Scores</h3>
+            <span id="maturity-last-badge" class="badge" style="font-size:11px"></span>
+          </div>
+          <div style="position:relative;height:260px;margin-top:8px">
             <canvas id="maturity-chart"></canvas>
           </div>
+          <div id="maturity-list" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
+          <button class="btn-sync" style="margin-top:10px" onclick="openMaturityAddModal()">+ Add maturity area</button>
         </div>
         <div class="card">
-          <h3>Action Items <span class="badge" id="actions-count">0</span></h3>
-          <div id="actions-list" class="scroll-y" style="max-height:340px"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h3 style="margin:0">Action Items <span class="badge" id="actions-count">0</span></h3>
+            <button class="btn-sync" onclick="openActionModal()">+ Add action</button>
+          </div>
+          <div id="actions-list" class="scroll-y" style="max-height:380px;margin-top:10px"></div>
         </div>
       </div>
 
@@ -1139,45 +1147,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       </div>
 
       <div class="card" style="margin-top:20px">
-        <h3>SWOT Analysis</h3>
-        <div class="swot-grid">
-          <div class="swot-quad swot-s">
-            <div class="swot-label">Strengths</div>
-            <ul>
-              <li>133 AI tools already mapped and operational</li>
-              <li>Full CRM pipeline with 12-stage workflow</li>
-              <li>Deep data analytics expertise (10+ years)</li>
-              <li>Custom skills built for specific business needs</li>
-            </ul>
-          </div>
-          <div class="swot-quad swot-w">
-            <div class="swot-label">Weaknesses</div>
-            <ul>
-              <li>Solo founder bottleneck on delivery</li>
-              <li>No dedicated sales team or outbound motion</li>
-              <li>Financial operations at lowest maturity (15%)</li>
-              <li>Limited brand visibility in target market</li>
-            </ul>
-          </div>
-          <div class="swot-quad swot-o">
-            <div class="swot-label">Opportunities</div>
-            <ul>
-              <li>SMBs underserved in AI consulting space</li>
-              <li>Growing demand for AI readiness assessments</li>
-              <li>Retainer model for recurring revenue</li>
-              <li>Charlotte/regional market expansion</li>
-            </ul>
-          </div>
-          <div class="swot-quad swot-t">
-            <div class="swot-label">Threats</div>
-            <ul>
-              <li>Large consultancies moving downmarket</li>
-              <li>Rapid AI tool commoditization</li>
-              <li>Client budget uncertainty in economic shifts</li>
-              <li>Regulatory changes affecting AI adoption</li>
-            </ul>
-          </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <h3 style="margin:0">SWOT Analysis</h3>
+          <span id="swot-last-badge" class="badge" style="font-size:11px"></span>
         </div>
+        <div class="swot-grid" id="swot-grid" style="margin-top:10px"></div>
       </div>
     </div>
 
@@ -2472,10 +2446,35 @@ function catBadge(cat) {
   return `<span class="tag" style="background:${c.bg};color:${c.color}">${cat}</span>`;
 }
 
+const SOURCE_COLORS = {
+  'action-item': { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
+  'dev-insight': { bg: 'rgba(139,92,246,0.15)', color: '#a78bfa' },
+  'manual':      { bg: 'rgba(107,114,128,0.15)', color: '#9ca3af' },
+  'project':     { bg: 'rgba(74,109,181,0.15)', color: '#7aa5e8' },
+  'client':      { bg: 'rgba(52,211,153,0.15)', color: '#34d399' },
+  'training':    { bg: 'rgba(236,72,153,0.15)', color: '#ec4899' },
+  'maturity':    { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
+  'swot':        { bg: 'rgba(168,85,247,0.15)', color: '#c084fc' },
+  'seed':        { bg: 'rgba(148,163,184,0.15)', color: '#94a3b8' }
+};
+function sourceBadge(src) {
+  if (!src) return '';
+  const c = SOURCE_COLORS[src] || SOURCE_COLORS.manual;
+  return `<span class="tag" style="background:${c.bg};color:${c.color}">src:${src}</span>`;
+}
+function ticketKeyPill(key) {
+  if (!key) return '';
+  return `<span class="tag" style="background:rgba(255,255,255,0.06);color:var(--muted);font-family:monospace;font-size:10px">${key}</span>`;
+}
+
 function ticketCard(t) {
   const today = new Date().toISOString().split('T')[0];
   const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
   return `<div class="ticket-card" onclick="ticketShowDetail('${t.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px">
+      ${ticketKeyPill(t.ticket_key)}
+      ${sourceBadge(t.source)}
+    </div>
     <div class="ticket-title">${t.title}</div>
     <div class="ticket-meta">
       <span class="tag tag-${t.priority}">${t.priority}</span>
@@ -2513,10 +2512,12 @@ function ticketRenderKanban(tickets) {
 function ticketRenderList(tickets) {
   if (!tickets.length) { $('#tickets-list-table').innerHTML = '<p style="color:var(--muted);padding:20px">No tickets yet — create your first one.</p>'; return; }
   const today = new Date().toISOString().split('T')[0];
-  let html = `<table><thead><tr><th>Title</th><th>Category</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due</th><th></th></tr></thead><tbody>`;
+  let html = `<table><thead><tr><th>Key</th><th>Source</th><th>Title</th><th>Category</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due</th><th></th></tr></thead><tbody>`;
   for (const t of tickets) {
     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
     html += `<tr style="cursor:pointer" onclick="ticketShowDetail('${t.id}')">
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${t.ticket_key || '—'}</td>
+      <td>${sourceBadge(t.source)}</td>
       <td style="font-weight:600">${t.title}</td>
       <td>${catBadge(t.category || 'general')}</td>
       <td><span class="tag tag-${t.ticket_type}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.ticket_type}</span></td>
@@ -2650,6 +2651,11 @@ async function ticketShowDetail(id) {
   modal.className = 'ticket-modal-overlay';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
   modal.innerHTML = `<div class="ticket-modal">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px">
+      ${ticketKeyPill(ticket.ticket_key)}
+      ${sourceBadge(ticket.source)}
+      ${ticket.source ? `<span style="color:var(--muted);font-size:11px">created from ${ticket.source.replace(/-/g,' ')}</span>` : ''}
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
       <input id="td-title" value="${esc(ticket.title)}" style="flex:1;font-size:18px;font-weight:700;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);padding:6px 8px;font-family:inherit"
         onfocus="this.style.borderColor='var(--border)';this.style.background='var(--bg)'"
@@ -4392,12 +4398,32 @@ loaders.tools = async () => {
 
 // --- BUSINESS HEALTH ---
 let chartMaturity = null, chartOutcomes = null, chartFrictionBar = null;
+const COMPUTABLE_AREAS = new Set(['Financial Operations', 'Sales & Pipeline', 'Marketing & Content']);
+const CANONICAL_AREAS = [
+  'Brand & Identity', 'Service Design & Pricing', 'Knowledge Management',
+  'Technical Infrastructure', 'Sales & Pipeline', 'Marketing & Content',
+  'Client Delivery Ops', 'Financial Operations'
+];
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function timeAgo(iso) {
+  if (!iso) return 'never';
+  const then = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  const s = Math.floor((Date.now() - then.getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  if (s < 86400*30) return Math.floor(s/86400) + 'd ago';
+  if (s < 86400*365) return Math.floor(s/86400/30) + 'mo ago';
+  return Math.floor(s/86400/365) + 'y ago';
+}
+
 loaders.health = async () => {
-  const [summaryRes2, maturityRes, actionsRes, insightsRes] = await Promise.all([
+  const [summaryRes2, maturityRes, actionsRes, insightsRes, swotRes] = await Promise.all([
     api('tools/summary'),
     api('maturity'),
     api('actions'),
-    api('dev-insights/summary')
+    api('dev-insights/summary'),
+    api('swot')
   ]);
   const assetSummaryRes = await api('assets/summary');
   const summary2 = summaryRes2.data || summaryRes2;
@@ -4414,7 +4440,7 @@ loaders.health = async () => {
     <div class="kpi"><div class="label">Plugins</div><div class="value" style="color:var(--blue)">${byCat2.plugin || 0}</div></div>
     <div class="kpi"><div class="label">Connectors</div><div class="value" style="color:var(--green)">${byCat2.connector || 0}</div></div>
     <div class="kpi"><div class="label">Business Docs</div><div class="value">${assetSummary.total || 0}</div></div>
-    <div class="kpi"><div class="label">Avg Maturity</div><div class="value ${avgMaturity >= 50 ? 'text-green' : avgMaturity >= 30 ? 'text-amber' : 'text-red'}">${avgMaturity}%</div></div>
+    <div class="kpi"><div class="label">Avg Maturity</div><div class="value ${avgMaturity >= 50 ? 'text-green' : avgMaturity >= 30 ? 'text-amber' : 'text-red'}">${maturityData.length ? avgMaturity + '%' : '—'}</div></div>
     <div class="kpi"><div class="label">Actions Pending</div><div class="value text-amber">${pendingActions}</div></div>
   `;
 
@@ -4427,19 +4453,9 @@ loaders.health = async () => {
 
   chartMaturity = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data: scores,
-        backgroundColor: colors,
-        borderRadius: 4,
-        barThickness: 24
-      }]
-    },
+    data: { labels, datasets: [{ data: scores, backgroundColor: colors, borderRadius: 4, barThickness: 20 }] },
     options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + '%' } } },
       scales: {
         x: { max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8888aa', callback: v => v + '%' } },
@@ -4448,18 +4464,76 @@ loaders.health = async () => {
     }
   });
 
+  // "Last assessed" badge for maturity card
+  const lastMaturity = maturityData.reduce((m, r) => {
+    const t = r.updated_at || r.assessed_at;
+    return (!m || (t && t > m)) ? t : m;
+  }, null);
+  $('#maturity-last-badge').textContent = lastMaturity ? 'Last reviewed: ' + timeAgo(lastMaturity) : 'No assessments yet';
+
+  // Maturity list (editable + recompute)
+  if (maturityData.length === 0) {
+    const missing = CANONICAL_AREAS.map(a => `
+      <div class="action-item" style="justify-content:space-between">
+        <div>
+          <div class="action-title">${esc(a)}</div>
+          <div class="action-desc" style="color:var(--muted)">No assessment yet</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${COMPUTABLE_AREAS.has(a) ? `<button class="btn-sync" onclick="recomputeMaturity('${esc(a)}')">Compute</button>` : ''}
+          <button class="btn-sync" onclick="openMaturityEditModal(${JSON.stringify({area:a}).replace(/"/g,'&quot;')})">+ Assess</button>
+        </div>
+      </div>
+    `).join('');
+    $('#maturity-list').innerHTML = `<div style="color:var(--muted);font-size:12px;margin-bottom:6px">Add your first assessment for each area:</div>${missing}`;
+  } else {
+    $('#maturity-list').innerHTML = maturityData.map(m => {
+      const badge = m.source === 'computed' ? `<span class="badge" style="background:rgba(74,109,181,0.2);color:var(--blue);font-size:10px">computed</span>` : '';
+      const canCompute = COMPUTABLE_AREAS.has(m.area);
+      const when = m.updated_at || m.assessed_at;
+      return `
+        <div class="action-item" style="justify-content:space-between;align-items:flex-start">
+          <div style="min-width:0;flex:1">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              <span class="action-title">${esc(m.area)}</span>
+              <span class="badge">${m.score}%</span>
+              ${badge}
+              <span style="color:var(--muted);font-size:11px">${when ? timeAgo(when) : ''}</span>
+            </div>
+            <div class="action-desc" style="margin-top:4px">${esc(m.analysis || '')}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            ${canCompute ? `<button class="btn-sync" onclick="recomputeMaturity('${esc(m.area)}')">↻</button>` : ''}
+            <button class="btn-sync" onclick='openMaturityEditModal(${JSON.stringify(m).replace(/'/g, "&#39;")})'>Edit</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   // Action items
   $('#actions-count').textContent = pendingActions;
-  $('#actions-list').innerHTML = actionsData.map(a => `
-    <div class="action-item">
-      <input type="checkbox" ${a.status === 'done' ? 'checked' : ''} onchange="toggleAction(${a.id}, this.checked)">
-      <div>
-        <div class="action-title" style="${a.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${a.title}</div>
-        <div class="action-desc">${a.description || ''}</div>
-        <span class="action-urgency urgency-${a.urgency}">${a.urgency.replace(/_/g, ' ')}</span>
+  if (actionsData.length === 0) {
+    $('#actions-list').innerHTML = `<div style="color:var(--muted);padding:20px;text-align:center">No action items yet.<br><button class="btn-sync" style="margin-top:10px" onclick="openActionModal()">+ Add your first action</button></div>`;
+  } else {
+    $('#actions-list').innerHTML = actionsData.map(a => `
+      <div class="action-item">
+        <input type="checkbox" ${a.status === 'done' ? 'checked' : ''} onchange="toggleAction(${a.id}, this.checked)">
+        <div style="flex:1;min-width:0">
+          <div class="action-title" style="${a.status === 'done' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(a.title)}</div>
+          <div class="action-desc">${esc(a.description || '')}</div>
+          <span class="action-urgency urgency-${a.urgency}">${a.urgency.replace(/_/g, ' ')}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn-sync" onclick='openActionModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>Edit</button>
+          <button class="btn-sync" style="background:rgba(248,113,113,0.2)" onclick="deleteAction(${a.id})">✕</button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+  }
+
+  // SWOT render (pass full response so renderer can use source_latest)
+  renderSwot(swotRes);
 
   // Dev insights subsection
   renderDevInsights(insightsRes.data || {});
@@ -4467,11 +4541,172 @@ loaders.health = async () => {
 
 async function toggleAction(id, done) {
   const status = done ? 'done' : 'pending';
-  await fetch('/api/actions/' + id, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SESSION_TOKEN },
-    body: JSON.stringify({ status })
+  await apiWrite('actions/' + id, 'PATCH', { status });
+  loaders.health();
+}
+
+async function deleteAction(id) {
+  if (!confirm('Delete this action item?')) return;
+  await apiWrite('actions/' + id, 'DELETE');
+  loaders.health();
+}
+
+async function recomputeMaturity(area) {
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  const res = await apiWrite('maturity/' + encodeURIComponent(area) + '/recompute', 'POST', {});
+  if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+  if (!res || !res.ok) { alert((res && res.error) || 'Compute failed'); return; }
+  // Open edit modal pre-filled with proposal
+  openMaturityEditModal({
+    area,
+    score: res.score,
+    analysis: res.analysis,
+    _signals: res.signals,
+    _proposedSource: 'computed'
   });
+}
+
+// ─── SWOT (derived from maturity + insights + actions) ──
+function renderSwot(payload) {
+  const data = (payload && payload.data) || payload || { strengths:[], weaknesses:[], opportunities:[], threats:[] };
+  const LABEL = { strengths: 'Strengths', weaknesses: 'Weaknesses', opportunities: 'Opportunities', threats: 'Threats' };
+  const CLASS = { strengths: 'swot-s', weaknesses: 'swot-w', opportunities: 'swot-o', threats: 'swot-t' };
+  const srcLatest = payload && payload.source_latest;
+  $('#swot-last-badge').textContent = srcLatest
+    ? 'Derived from sources last updated ' + timeAgo(srcLatest)
+    : 'Auto-derived — add maturity data to populate';
+  const html = ['strengths','weaknesses','opportunities','threats'].map(q => {
+    const items = (data[q] || []).map(it => `
+      <li style="margin-bottom:6px" title="${esc(it.detail || '')}">
+        <div>${esc(it.text)}</div>
+        <div style="color:var(--muted);font-size:10px;margin-top:2px">↳ ${esc(it.source || '')}</div>
+      </li>
+    `).join('');
+    return `
+      <div class="swot-quad ${CLASS[q]}">
+        <div class="swot-label">${LABEL[q]}</div>
+        <ul>${items || `<li style="color:var(--muted);list-style:none;margin-left:-18px">No signals in this quadrant yet.</li>`}</ul>
+      </div>
+    `;
+  }).join('');
+  $('#swot-grid').innerHTML = html;
+}
+
+// ─── Maturity modal ──
+function openMaturityAddModal() {
+  openMaturityEditModal({ area: '', score: 50, analysis: '' });
+}
+
+function openMaturityEditModal(m) {
+  const existing = document.getElementById('maturity-modal');
+  if (existing) existing.remove();
+  const isNew = !m || !m.assessed_at;
+  const canCompute = m && m.area && COMPUTABLE_AREAS.has(m.area);
+  const signalHtml = m && m._signals ? `
+    <div style="background:rgba(74,109,181,0.08);padding:10px;border-radius:6px;margin-top:8px;font-size:12px">
+      <div style="font-weight:600;color:var(--blue);margin-bottom:6px">Signal breakdown</div>
+      ${m._signals.map(s => `<div style="display:flex;justify-content:space-between;color:var(--muted)"><span>${esc(s.name)} (w${s.weight})</span><span>${Math.round(s.value)} — ${esc(s.detail)}</span></div>`).join('')}
+    </div>` : '';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'maturity-modal';
+  const areaField = m && m.id
+    ? `<input id="mat-area" value="${esc(m.area)}" readonly style="opacity:0.6">`
+    : `<input id="mat-area" value="${esc(m.area || '')}" placeholder="e.g. Brand & Identity" list="mat-area-suggestions">
+       <datalist id="mat-area-suggestions">${CANONICAL_AREAS.map(a => `<option value="${esc(a)}">`).join('')}</datalist>`;
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3 style="margin:0 0 12px">${isNew ? 'Add' : 'Edit'} maturity assessment</h3>
+      <div class="modal-row" style="grid-template-columns:1fr">
+        <label>Area ${areaField}</label>
+      </div>
+      <div class="modal-row" style="grid-template-columns:1fr">
+        <label>Score: <span id="mat-score-val">${m.score ?? 50}</span>%
+          <input id="mat-score" type="range" min="0" max="100" value="${m.score ?? 50}" oninput="document.getElementById('mat-score-val').textContent=this.value">
+        </label>
+      </div>
+      <div class="modal-row" style="grid-template-columns:1fr">
+        <label>Analysis<textarea id="mat-analysis" rows="4">${esc(m.analysis || '')}</textarea></label>
+      </div>
+      ${signalHtml}
+      <div class="modal-actions">
+        <button onclick="document.getElementById('maturity-modal').remove()">Cancel</button>
+        ${canCompute ? `<button onclick="recomputeInModal('${esc(m.area)}')">Recompute from data</button>` : ''}
+        <button class="btn-primary" onclick="submitMaturity('${m && m._proposedSource ? 'computed' : 'manual'}')">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function recomputeInModal(area) {
+  const res = await apiWrite('maturity/' + encodeURIComponent(area) + '/recompute', 'POST', {});
+  if (!res.ok) { alert(res.error || 'Compute failed'); return; }
+  openMaturityEditModal({ area, score: res.score, analysis: res.analysis, _signals: res.signals, _proposedSource: 'computed' });
+}
+
+async function submitMaturity(defaultSource) {
+  const area = document.getElementById('mat-area').value.trim();
+  if (!area) { alert('Area is required'); return; }
+  const body = {
+    score: parseInt(document.getElementById('mat-score').value, 10),
+    analysis: document.getElementById('mat-analysis').value.trim(),
+    source: defaultSource || 'manual'
+  };
+  const res = await apiWrite('maturity/' + encodeURIComponent(area), 'PATCH', body);
+  if (!res.ok) { alert(res.error || 'Save failed'); return; }
+  document.getElementById('maturity-modal').remove();
+  loaders.health();
+}
+
+// ─── Action modal ──
+function openActionModal(a) {
+  const existing = document.getElementById('action-modal');
+  if (existing) existing.remove();
+  const isEdit = !!(a && a.id);
+  a = a || {};
+  const urg = a.urgency || 'this_month';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay'; overlay.id = 'action-modal';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3 style="margin:0 0 12px">${isEdit ? 'Edit' : 'Add'} action item</h3>
+      <div class="modal-row" style="grid-template-columns:1fr">
+        <label>Title<input id="act-title" value="${esc(a.title || '')}"></label>
+      </div>
+      <div class="modal-row" style="grid-template-columns:1fr">
+        <label>Description<textarea id="act-desc" rows="3">${esc(a.description || '')}</textarea></label>
+      </div>
+      <div class="modal-row">
+        <label>Urgency
+          <select id="act-urg">
+            ${['immediate','this_week','next_2_weeks','this_month','next_30_days','this_quarter'].map(u => `<option value="${u}" ${u===urg?'selected':''}>${u.replace(/_/g,' ')}</option>`).join('')}
+          </select>
+        </label>
+        <label>Priority (1-100)<input id="act-pri" type="number" min="1" max="100" value="${a.priority || 50}"></label>
+      </div>
+      <div class="modal-row" style="grid-template-columns:1fr">
+        <label>Tools to use (comma-separated)<input id="act-tools" value="${esc(a.tools_to_use || '')}"></label>
+      </div>
+      <div class="modal-actions">
+        <button onclick="document.getElementById('action-modal').remove()">Cancel</button>
+        <button class="btn-primary" onclick="submitAction(${isEdit ? a.id : 'null'})">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function submitAction(id) {
+  const body = {
+    title: document.getElementById('act-title').value.trim(),
+    description: document.getElementById('act-desc').value.trim(),
+    urgency: document.getElementById('act-urg').value,
+    priority: parseInt(document.getElementById('act-pri').value, 10) || 50,
+    tools_to_use: document.getElementById('act-tools').value.trim()
+  };
+  if (!body.title) { alert('Title is required'); return; }
+  const res = id ? await apiWrite('actions/' + id, 'PATCH', body) : await apiWrite('actions', 'POST', body);
+  if (!res.ok) { alert(res.error || 'Save failed'); return; }
+  document.getElementById('action-modal').remove();
   loaders.health();
 }
 

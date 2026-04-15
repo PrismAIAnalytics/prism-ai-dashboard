@@ -670,6 +670,28 @@ function initDB() {
   `);
 }
 
+// Ticket source helpers ─────────────────────────────────────────────────────
+const TICKET_SOURCE_PREFIX = {
+  'action-item': 'ACT', 'dev-insight': 'INS', 'manual': 'TKT',
+  'project': 'PROJ', 'client': 'CLI', 'training': 'TRN',
+  'swot': 'SWT', 'maturity': 'MAT', 'seed': 'SEED'
+};
+function nextTicketKey(source) {
+  const prefix = TICKET_SOURCE_PREFIX[source] || 'TKT';
+  const row = db.prepare("SELECT ticket_key FROM tickets WHERE ticket_key LIKE ? ORDER BY ticket_key DESC LIMIT 1").get(prefix + '-%');
+  let n = 1;
+  if (row && row.ticket_key) {
+    const m = row.ticket_key.match(/-(\d+)$/);
+    if (m) n = parseInt(m[1], 10) + 1;
+  }
+  return `${prefix}-${String(n).padStart(4, '0')}`;
+}
+function mergeSourceTag(existingTags, source) {
+  const set = new Set((existingTags || '').split(',').map(t => t.trim()).filter(Boolean));
+  set.add(`src:${source}`);
+  return Array.from(set).join(',');
+}
+
 function urgencyToPriority(urgency) {
   const map = { immediate: 'urgent', this_week: 'high', next_2_weeks: 'medium', this_month: 'medium', next_30_days: 'low', this_quarter: 'low' };
   return map[urgency] || 'medium';
@@ -972,6 +994,79 @@ migrateCRMColumns();
   try { db.exec("ALTER TABLE tickets ADD COLUMN notion_page_id TEXT"); } catch(e) {}
 })();
 
+// Tickets: ticket_key (human-readable, prefixed by source) + source (origin trigger)
+(function migrateTicketKeys() {
+  const cols = db.prepare("PRAGMA table_info(tickets)").all().map(r => r.name);
+  if (!cols.includes('ticket_key')) {
+    try { db.exec("ALTER TABLE tickets ADD COLUMN ticket_key TEXT"); } catch(e) {}
+  }
+  if (!cols.includes('source')) {
+    try { db.exec("ALTER TABLE tickets ADD COLUMN source TEXT"); } catch(e) {}
+  }
+  try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_ticket_key ON tickets(ticket_key) WHERE ticket_key IS NOT NULL"); } catch(e) {}
+
+  // Backfill source + ticket_key for legacy rows lacking them
+  try {
+    const legacy = db.prepare("SELECT id, category, tags, action_item_id FROM tickets WHERE source IS NULL OR ticket_key IS NULL").all();
+    const prefixFor = (src) => ({
+      'action-item': 'ACT', 'dev-insight': 'INS', 'manual': 'TKT',
+      'project': 'PROJ', 'client': 'CLI', 'training': 'TRN',
+      'swot': 'SWT', 'maturity': 'MAT', 'seed': 'SEED'
+    }[src] || 'TKT');
+    const inferSource = (row) => {
+      const tags = (row.tags || '').toLowerCase();
+      if (row.category === 'dev-insight' || tags.includes('dev-insight')) return 'dev-insight';
+      if (row.category === 'action' || tags.includes('action-item') || row.action_item_id) return 'action-item';
+      if (row.category === 'training' || tags.includes('training')) return 'training';
+      if (row.category === 'project') return 'project';
+      if (row.category === 'client') return 'client';
+      return 'manual';
+    };
+    const maxByPrefix = {};
+    db.prepare("SELECT ticket_key FROM tickets WHERE ticket_key IS NOT NULL").all().forEach(r => {
+      const m = (r.ticket_key || '').match(/^([A-Z]+)-(\d+)$/);
+      if (m) maxByPrefix[m[1]] = Math.max(maxByPrefix[m[1]] || 0, parseInt(m[2], 10));
+    });
+    const upd = db.prepare("UPDATE tickets SET source = ?, ticket_key = ?, tags = ? WHERE id = ?");
+    const batch = db.transaction(() => {
+      for (const row of legacy) {
+        const src = inferSource(row);
+        const pref = prefixFor(src);
+        maxByPrefix[pref] = (maxByPrefix[pref] || 0) + 1;
+        const key = `${pref}-${String(maxByPrefix[pref]).padStart(4, '0')}`;
+        // Merge source into tags (csv) — keep existing tags, ensure source tag present
+        const tagSet = new Set((row.tags || '').split(',').map(t => t.trim()).filter(Boolean));
+        tagSet.add(`src:${src}`);
+        upd.run(src, key, Array.from(tagSet).join(','), row.id);
+      }
+    });
+    batch();
+    if (legacy.length > 0) console.log(`[migrate] Backfilled ticket_key + source on ${legacy.length} legacy ticket(s).`);
+  } catch(e) { console.warn('[migrate] ticket backfill skipped:', e.message); }
+})();
+
+// Maturity scores: updated_at + source (manual|computed), plus swot_items table
+(function migrateMaturityAndSwot() {
+  const cols = db.prepare("PRAGMA table_info(maturity_scores)").all().map(r => r.name);
+  if (!cols.includes('updated_at')) {
+    try { db.exec("ALTER TABLE maturity_scores ADD COLUMN updated_at TEXT"); } catch(e) {}
+    try { db.exec("UPDATE maturity_scores SET updated_at = assessed_at WHERE updated_at IS NULL"); } catch(e) {}
+  }
+  if (!cols.includes('source')) {
+    try { db.exec("ALTER TABLE maturity_scores ADD COLUMN source TEXT DEFAULT 'manual'"); } catch(e) {}
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS swot_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quadrant TEXT NOT NULL CHECK(quadrant IN ('strengths','weaknesses','opportunities','threats')),
+      text TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 100,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+})();
+
 // Add category column to services table
 (function migrateServicesCategory() {
   const cols = db.prepare("PRAGMA table_info(services)").all().map(r => r.name);
@@ -1269,37 +1364,12 @@ function seedInventory() {
     insAsset.run(`Revenue Workstream: ${ws}`, 'Revenue', 'docx', 'complete', `${ws} revenue strategy`);
   });
 
-  // Maturity Scores
-  const insMaturity = db.prepare('INSERT INTO maturity_scores (area, score, rating, analysis) VALUES (?,?,?,?)');
-  const maturityData = [
-    ['Brand & Identity', 90, 'strong', 'Most mature area. Brand guidelines are complete and codified in both a DOCX and a custom skill that auto-loads for every task. Color palette, typography, voice guidelines, tone-by-channel rules, document standards, and file naming conventions are all documented.'],
-    ['Service Design & Pricing', 85, 'strong', 'Four distinct service lines with clear pricing are defined and documented. Three retainer tiers ($2K-$8.5K/month) are proposal-ready. Phase 2 productized offerings are planned. The only gap is no templated proposal document.'],
-    ['Knowledge Management', 80, 'strong', 'Notion workspace is well-architected with 6 databases and 20+ knowledge pages. Knowledge Library provides searchable institutional knowledge. Main gap: knowledge split across Notion, local files, and Google Drive without single source of truth.'],
-    ['Technical Infrastructure', 75, 'good', 'Impressive for a 2-month-old company. AI analytics pipeline connecting 7 APIs, CRM buildout with 20+ endpoints, CIS Dashboard MCP connector, sandbox datasets ready for demos. Gap: CRM still in development while tracking clients in Excel.'],
-    ['Sales & Pipeline', 50, 'developing', 'Tools ready but execution early. Apollo connector enables prospecting, discovery-call-prep skill and 4 intake forms create complete workflow. Gap: no visible prospecting sequence running, no outreach templates deployed, no pipeline review cadence.'],
-    ['Marketing & Content', 45, 'developing', 'Strategy is thorough but execution has not started. Complete playbook exists. Social media launch planned for June 2026. No blog posts, LinkedIn posts, or email sequences published yet. Content creation skills ready to activate immediately.'],
-    ['Client Delivery Ops', 40, 'developing', 'Framework exists but not stress-tested at scale. Client folder template, service forms, and prompt library are ready. Gap: no completed case studies, no post-engagement feedback forms, no SOW templates, no QA checklist.'],
-    ['Financial Operations', 30, 'early', 'Most significant gap. Despite having 8 finance plugin skills, no accounting system connected, no invoicing workflow, no financial reporting cadence. Revenue tracking spreadsheet is the only financial artifact.'],
-  ];
-  maturityData.forEach(m => insMaturity.run(...m));
+  // Maturity scores and Action Items are NOT seeded — they are owned by the operator
+  // via inline editing on the Business Health page. See computeMaturity* fns and
+  // /api/maturity/:area/recompute for the 3 computable areas.
+  // SWOT items are likewise stored in swot_items and edited via /api/swot.
 
-  // Action Items
-  const insAction = db.prepare('INSERT INTO action_items (priority, urgency, title, description, tools_to_use, status) VALUES (?,?,?,?,?,?)');
-  const actions = [
-    [1, 'immediate', 'Set up invoicing & payment tracking', 'Connect Stripe or QuickBooks. Use finance:journal-entry skill to establish chart of accounts. Create basic P&L. ~$24K in active projects with no visible invoicing system.', 'finance:journal-entry,finance:financial-statements', 'pending'],
-    [2, 'immediate', 'Create a client contract template', 'Use legal:review-contract skill to draft standard MSA and SOW template. Legal folder has LLC docs but no client-facing agreements.', 'legal:review-contract,docx', 'pending'],
-    [3, 'immediate', 'Run an Apollo prospecting sequence', 'Define ICP (Charlotte-area SMBs in finance, healthcare, retail, hospitality, real estate). Generate personalized emails. Enroll leads in outreach sequence.', 'apollo:prospect,sales:draft-outreach,apollo:sequence-load', 'pending'],
-    [4, 'next_2_weeks', 'Build a client proposal template', 'Use docx skill + prismai-company-profile to create branded fill-in-the-blank proposal template. Combine with Notion proposal guide.', 'docx,prismai-company-profile', 'pending'],
-    [5, 'next_2_weeks', 'Pre-build June content library', 'Create social launch campaign. Draft 12-16 LinkedIn posts. Schedule in Notion Content Calendar.', 'marketing:campaign-plan,marketing:content-creation', 'pending'],
-    [6, 'next_2_weeks', 'Create a demo dashboard from sandbox data', 'Use 13 sandbox CSVs to create interactive analytics dashboard as a sales tool.', 'data:build-dashboard,data:explore-data', 'pending'],
-    [7, 'next_2_weeks', 'Set up weekly status report cadence', 'Create recurring weekly business review tracking pipeline value, active projects, revenue, tasks, content.', 'operations:status-report,schedule', 'pending'],
-    [8, 'next_30_days', 'Build your first case study', 'Use Cafe Uvee engagement to create templated case study (Challenge, Approach, Results).', 'docx,prismai-company-profile', 'pending'],
-    [9, 'next_30_days', 'Consolidate duplicate files', 'Designate single sources of truth for brand guidelines, business plan, knowledge base, and prompt library. Archive duplicates.', null, 'pending'],
-    [10, 'next_30_days', 'Create client onboarding runbook', 'Document end-to-end onboarding: signed contract to folder creation to kickoff call to first deliverable.', 'operations:runbook', 'pending'],
-  ];
-  actions.forEach(a => insAction.run(...a));
-
-  console.log('  Operational inventory seeded (tools, assets, maturity, actions).');
+  console.log('  Operational inventory seeded (tools, assets).');
 }
 
 // Auth helpers
@@ -3674,11 +3744,14 @@ app.post('/api/tickets', requireAuth, [
   try {
     const id = uuid();
     const { title, description, ticket_type, category, status, priority, assigned_to, client_id, project_id, due_date, tags } = req.body;
-    db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, assigned_to, client_id, project_id, due_date, tags, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      id, title, description || null, ticket_type || 'internal', category || 'general',
+    const source = req.body.source || (category === 'training' ? 'training' : category === 'project' ? 'project' : category === 'client' ? 'client' : 'manual');
+    const ticket_key = nextTicketKey(source);
+    const mergedTags = mergeSourceTag(tags, source);
+    db.prepare(`INSERT INTO tickets (id, ticket_key, source, title, description, ticket_type, category, status, priority, assigned_to, client_id, project_id, due_date, tags, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      id, ticket_key, source, title, description || null, ticket_type || 'internal', category || 'general',
       status || 'backlog', priority || 'medium', assigned_to || null, client_id || null,
-      project_id || null, due_date || null, tags || null, req.user?.username || 'system'
+      project_id || null, due_date || null, mergedTags, req.user?.username || 'system'
     );
     const ticket = db.prepare('SELECT * FROM tickets WHERE id = ?').get(id);
     res.status(201).json({ ok: true, ticket });
@@ -3690,6 +3763,7 @@ app.post('/api/tickets', requireAuth, [
 // PATCH — update ticket
 app.patch('/api/tickets/:id', requireAuth, (req, res) => {
   try {
+    // Note: ticket_key and source are immutable — they identify origin
     const allowed = ['title', 'description', 'ticket_type', 'category', 'status', 'priority', 'assigned_to', 'client_id', 'project_id', 'due_date', 'tags', 'sort_order', 'notion_page_id'];
     const updates = {};
     for (const k of allowed) {
@@ -4245,7 +4319,7 @@ app.patch('/api/maturity/:area', requireAuth, [
   try {
     const area = decodeURIComponent(req.params.area);
     const existing = db.prepare('SELECT * FROM maturity_scores WHERE area = ?').get(area);
-    if (!existing) return res.status(404).json({ ok: false, error: 'Maturity area not found' });
+    // If no row yet, we UPSERT at the end of this handler (first-run UX).
     const updates = [];
     const params = [];
     if (req.body.score !== undefined) {
@@ -4254,12 +4328,295 @@ app.patch('/api/maturity/:area', requireAuth, [
       const rating = s >= 75 ? 'strong' : s >= 50 ? 'good' : s >= 30 ? 'developing' : 'early';
       updates.push('rating = ?'); params.push(rating);
     }
-    if (req.body.analysis) { updates.push('analysis = ?'); params.push(req.body.analysis); }
+    if (req.body.analysis !== undefined) { updates.push('analysis = ?'); params.push(req.body.analysis); }
+    if (req.body.source && ['manual','computed'].includes(req.body.source)) {
+      updates.push('source = ?'); params.push(req.body.source);
+    }
     if (updates.length === 0) return res.status(400).json({ ok: false, error: 'No fields to update' });
     updates.push("assessed_at = datetime('now')");
+    updates.push("updated_at = datetime('now')");
     params.push(area);
-    db.prepare(`UPDATE maturity_scores SET ${updates.join(', ')} WHERE area = ?`).run(...params);
+    // UPSERT — allow creating a new area if it doesn't exist yet (first-run UX)
+    if (!existing) {
+      const score = req.body.score ?? 0;
+      const rating = score >= 75 ? 'strong' : score >= 50 ? 'good' : score >= 30 ? 'developing' : 'early';
+      db.prepare(`INSERT INTO maturity_scores (area, score, rating, analysis, source, assessed_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`)
+        .run(area, score, rating, req.body.analysis || '', req.body.source || 'manual');
+    } else {
+      db.prepare(`UPDATE maturity_scores SET ${updates.join(', ')} WHERE area = ?`).run(...params);
+    }
     res.json({ ok: true, data: db.prepare('SELECT * FROM maturity_scores WHERE area = ?').get(area) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ─── Maturity Compute Functions (3 computable areas) ───────────────────────
+function scoreToRating(s) {
+  return s >= 75 ? 'strong' : s >= 50 ? 'good' : s >= 30 ? 'developing' : 'early';
+}
+function weightedScore(signals) {
+  const totalW = signals.reduce((s, x) => s + x.weight, 0) || 1;
+  const sum = signals.reduce((s, x) => s + x.weight * Math.max(0, Math.min(100, x.value)), 0);
+  return Math.round(sum / totalW);
+}
+function buildAnalysis(signals, areaLabel) {
+  const strong = signals.filter(s => s.value >= 75).map(s => `${s.name} (${Math.round(s.value)})`);
+  const gaps = signals.filter(s => s.value < 50).map(s => s.name);
+  const parts = [];
+  if (strong.length) parts.push(`Strong: ${strong.join(', ')}.`);
+  if (gaps.length) parts.push(`Gaps: ${gaps.join(', ')}.`);
+  if (!parts.length) parts.push(`${areaLabel} has baseline signal across all tracked inputs — room to deepen each.`);
+  return parts.join(' ');
+}
+
+async function computeFinancialOps() {
+  const signals = [];
+  // QuickBooks connected
+  let qbConnected = 0;
+  try { qbConnected = db.prepare('SELECT COUNT(*) n FROM qbo_tokens').get().n > 0 ? 100 : 0; } catch(e) {}
+  signals.push({ name: 'QuickBooks connected', weight: 3, value: qbConnected, detail: qbConnected ? 'OAuth tokens present' : 'Not connected' });
+  // Stripe reachable
+  let stripeVal = 0;
+  try {
+    const bal = await Promise.race([
+      stripeService.getBalance(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000))
+    ]);
+    stripeVal = bal ? 100 : 0;
+  } catch(e) { stripeVal = 0; }
+  signals.push({ name: 'Stripe reachable', weight: 3, value: stripeVal, detail: stripeVal ? 'Balance retrieved' : 'Unreachable or unconfigured' });
+  // Invoices issued
+  let inv = 0; try { inv = db.prepare('SELECT COUNT(*) n FROM invoices').get().n; } catch(e) {}
+  signals.push({ name: 'Invoices issued (local)', weight: 2, value: Math.min(100, inv * 20), detail: `${inv} invoices` });
+  // Payments recorded
+  let pay = 0; try { pay = db.prepare('SELECT COUNT(*) n FROM payments').get().n; } catch(e) {}
+  signals.push({ name: 'Payments recorded', weight: 2, value: Math.min(100, pay * 20), detail: `${pay} payments` });
+  // Expenses tracked
+  let exp = 0; try { exp = db.prepare('SELECT COUNT(*) n FROM expenses').get().n; } catch(e) {}
+  signals.push({ name: 'Expenses tracked', weight: 1, value: Math.min(100, exp * 10), detail: `${exp} expenses` });
+  // Retainers active
+  let ret = 0; try { ret = db.prepare("SELECT COUNT(*) n FROM retainers WHERE status='active'").get().n; } catch(e) {}
+  signals.push({ name: 'Active retainers', weight: 1, value: Math.min(100, ret * 33), detail: `${ret} active` });
+  const score = weightedScore(signals);
+  return { score, rating: scoreToRating(score), analysis: buildAnalysis(signals, 'Financial Operations'), signals };
+}
+
+function computeSalesPipeline() {
+  const signals = [];
+  let total = 0; try { total = db.prepare("SELECT COUNT(*) n FROM crm_customers WHERE active=1").get().n; } catch(e) {}
+  signals.push({ name: 'CRM customers tracked', weight: 2, value: Math.min(100, total * 10), detail: `${total} customers` });
+  let active30 = 0;
+  try { active30 = db.prepare("SELECT COUNT(DISTINCT customer_id) n FROM crm_activity WHERE created_at > datetime('now','-30 days')").get().n; } catch(e) {}
+  signals.push({ name: 'Activity in last 30d', weight: 3, value: Math.min(100, active30 * 15), detail: `${active30} customers touched` });
+  let pipeVal = 0;
+  try { pipeVal = db.prepare("SELECT COALESCE(SUM(CAST(crm_budget AS REAL)),0) v FROM crm_customers WHERE active=1 AND stage NOT IN ('Closed Won','No Sale','On Hold')").get().v || 0; } catch(e) {}
+  signals.push({ name: 'Open pipeline value', weight: 2, value: Math.min(100, pipeVal / 1000), detail: `$${Math.round(pipeVal).toLocaleString()}` });
+  let sources = 0; try { sources = db.prepare("SELECT COUNT(DISTINCT source) n FROM crm_customers WHERE source IS NOT NULL AND source != ''").get().n; } catch(e) {}
+  signals.push({ name: 'Lead source diversity', weight: 1, value: Math.min(100, sources * 25), detail: `${sources} sources` });
+  let won = 0, lost = 0;
+  try { won = db.prepare("SELECT COUNT(*) n FROM crm_customers WHERE stage='Closed Won'").get().n; } catch(e) {}
+  try { lost = db.prepare("SELECT COUNT(*) n FROM crm_customers WHERE stage='No Sale'").get().n; } catch(e) {}
+  const ratio = (won + lost) === 0 ? 0 : (won / (won + lost)) * 100;
+  signals.push({ name: 'Won/Lost ratio', weight: 2, value: ratio, detail: `${won} won / ${lost} lost` });
+  const score = weightedScore(signals);
+  return { score, rating: scoreToRating(score), analysis: buildAnalysis(signals, 'Sales & Pipeline'), signals };
+}
+
+function computeMarketingContent() {
+  const signals = [];
+  let marketingAssets = 0;
+  try { marketingAssets = db.prepare("SELECT COUNT(*) n FROM business_assets WHERE folder='Marketing' AND status='complete'").get().n; } catch(e) {}
+  signals.push({ name: 'Completed marketing assets', weight: 3, value: Math.min(100, marketingAssets * 15), detail: `${marketingAssets} complete` });
+  let tools = 0;
+  try { tools = db.prepare("SELECT COUNT(*) n FROM tools WHERE category IN ('custom_skill','plugin') AND (name LIKE '%marketing%' OR name LIKE '%content%' OR name LIKE '%social%' OR description LIKE '%marketing%')").get().n; } catch(e) {}
+  signals.push({ name: 'Marketing tools/skills ready', weight: 2, value: Math.min(100, tools * 10), detail: `${tools} tools` });
+  let published = 0;
+  try { published = db.prepare("SELECT COUNT(*) n FROM business_assets WHERE folder IN ('Marketing','Content') AND status='complete'").get().n; } catch(e) {}
+  signals.push({ name: 'Published content pieces', weight: 3, value: Math.min(100, published * 8), detail: `${published} pieces` });
+  const score = weightedScore(signals);
+  return { score, rating: scoreToRating(score), analysis: buildAnalysis(signals, 'Marketing & Content'), signals };
+}
+
+const COMPUTE_MAP = {
+  'Financial Operations': computeFinancialOps,
+  'Sales & Pipeline': computeSalesPipeline,
+  'Marketing & Content': computeMarketingContent,
+};
+
+app.post('/api/maturity/:area/recompute', requireAuth, async (req, res) => {
+  try {
+    const area = decodeURIComponent(req.params.area);
+    const fn = COMPUTE_MAP[area];
+    if (!fn) return res.status(404).json({ ok: false, error: 'This area requires manual assessment — no compute function defined.' });
+    const result = await fn();
+    res.json({ ok: true, area, ...result });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ─── SWOT — DERIVED from Business Health + Insights ─────────────────────────
+// Strengths: maturity areas scored >= 75; high dev success rate
+// Weaknesses: maturity areas scored < 50; high dev friction
+// Opportunities: computable areas with ready tools but low output; unticketed insights
+// Threats: stale maturity (> 30d); immediate/overdue action items; recurring friction categories
+app.get('/api/swot', requireAuth, async (req, res) => {
+  try {
+    const out = { strengths: [], weaknesses: [], opportunities: [], threats: [] };
+    let latestSource = null;
+    const touch = (t) => { if (t && (!latestSource || t > latestSource)) latestSource = t; };
+
+    // ── Maturity-driven ────────────────────────────────────────────────────
+    const maturity = db.prepare('SELECT * FROM maturity_scores').all();
+    maturity.forEach(m => {
+      touch(m.updated_at || m.assessed_at);
+      if (m.score >= 75) {
+        out.strengths.push({
+          text: `${m.area} at ${m.score}% (${m.rating})`,
+          source: `Maturity: ${m.area}`,
+          detail: m.analysis || ''
+        });
+      } else if (m.score < 50) {
+        out.weaknesses.push({
+          text: `${m.area} at only ${m.score}% (${m.rating})`,
+          source: `Maturity: ${m.area}`,
+          detail: m.analysis || ''
+        });
+      }
+      // Stale assessment
+      const when = m.updated_at || m.assessed_at;
+      if (when) {
+        const ageDays = (Date.now() - new Date(when.includes('T') ? when : when.replace(' ', 'T') + 'Z').getTime()) / 86400000;
+        if (ageDays > 30) {
+          out.threats.push({
+            text: `${m.area} assessment is ${Math.round(ageDays)} days old — may be stale`,
+            source: `Maturity: ${m.area}`,
+            detail: `Last reviewed ${when}`
+          });
+        }
+      }
+    });
+
+    // ── Opportunity: computable area has strong "ready" signals but weak "output" signals ──
+    const computableAreas = ['Financial Operations', 'Sales & Pipeline', 'Marketing & Content'];
+    for (const area of computableAreas) {
+      try {
+        const fn = COMPUTE_MAP[area];
+        if (!fn) continue;
+        const r = await fn();
+        touch(new Date().toISOString());
+        const ready = r.signals.filter(s => /connected|reachable|ready|diversity|tools/i.test(s.name) && s.value >= 60);
+        const gaps = r.signals.filter(s => /invoices|published|activity|pipeline value|payments|won/i.test(s.name) && s.value < 50);
+        if (ready.length && gaps.length) {
+          out.opportunities.push({
+            text: `${area}: ${ready.map(s => s.name).join(' + ')} ready — unlock with ${gaps.map(s => s.name.toLowerCase()).join(', ')}`,
+            source: `Signals: ${area}`,
+            detail: `Current score ${r.score}%. Gaps: ${gaps.map(s => `${s.name} (${s.detail})`).join('; ')}`
+          });
+        }
+      } catch(e) { /* skip */ }
+    }
+
+    // ── Action items: overdue / immediate pending → Threats ────────────────
+    try {
+      const overdue = db.prepare(`SELECT * FROM action_items
+        WHERE status != 'done' AND urgency IN ('immediate','this_week')
+        ORDER BY priority LIMIT 5`).all();
+      overdue.forEach(a => {
+        touch(a.created_at);
+        out.threats.push({
+          text: `Overdue: ${a.title}`,
+          source: `Action #${a.id}`,
+          detail: `Urgency: ${a.urgency.replace(/_/g,' ')}. ${a.description || ''}`
+        });
+      });
+    } catch(e) {}
+
+    // ── Dev insights ────────────────────────────────────────────────────────
+    try {
+      const sessions = db.prepare('SELECT COUNT(*) n, COALESCE(SUM(lines_added),0) la FROM dev_sessions').get();
+      const facets = db.prepare('SELECT * FROM dev_facets').all();
+      if (sessions.n > 0 && facets.length > 0) {
+        const outcomes = {};
+        facets.forEach(f => { outcomes[f.outcome || 'unknown'] = (outcomes[f.outcome || 'unknown'] || 0) + 1; });
+        const achieved = (outcomes.fully_achieved || 0) + (outcomes.mostly_achieved || 0);
+        const successRate = Math.round((achieved / facets.length) * 100);
+        if (successRate >= 75) {
+          out.strengths.push({
+            text: `Dev throughput: ${successRate}% session success rate across ${sessions.n} sessions`,
+            source: 'Insights: dev sessions',
+            detail: `${sessions.la.toLocaleString()} lines written`
+          });
+        } else if (successRate < 50 && facets.length >= 5) {
+          out.weaknesses.push({
+            text: `Dev sessions only ${successRate}% successful — quality or scoping gap`,
+            source: 'Insights: dev sessions',
+            detail: `${facets.length} sessions analyzed`
+          });
+        }
+
+        // Friction categories
+        const friction = { buggy_code: 0, wrong_approach: 0, excessive_changes: 0, misunderstood_request: 0 };
+        facets.forEach(f => {
+          const fc = JSON.parse(f.friction_counts || '{}');
+          Object.keys(fc).forEach(k => { friction[k] = (friction[k] || 0) + fc[k]; });
+        });
+        Object.entries(friction).forEach(([k, v]) => {
+          if (v >= 3) {
+            out.threats.push({
+              text: `Recurring friction: ${k.replace(/_/g,' ')} (${v} occurrences)`,
+              source: 'Insights: friction',
+              detail: 'Consider a hook or tooling fix to prevent repeat'
+            });
+          }
+        });
+
+        // Unticketed failures → Opportunity
+        const trackers = db.prepare('SELECT session_id, insight_type, insight_key FROM dev_insight_tickets').all();
+        const ticketedSet = new Set(trackers.map(t => `${t.session_id}:${t.insight_type}:${t.insight_key}`));
+        let unticketed = 0;
+        facets.forEach(f => {
+          if ((f.outcome === 'not_achieved' || f.outcome === 'partially_achieved') &&
+              !ticketedSet.has(`${f.session_id}:failed_outcome:${f.session_id}`)) unticketed++;
+        });
+        if (unticketed > 0) {
+          out.opportunities.push({
+            text: `${unticketed} unticketed dev failures could become improvement tickets`,
+            source: 'Insights: unticketed',
+            detail: 'Click "Sync & Create Tickets" to convert'
+          });
+        }
+      }
+    } catch(e) {}
+
+    // ── Tools/assets coverage ──────────────────────────────────────────────
+    try {
+      const toolCount = db.prepare("SELECT COUNT(*) n FROM tools").get().n;
+      if (toolCount >= 100) {
+        out.strengths.push({
+          text: `${toolCount} AI tools / skills / plugins mapped and operational`,
+          source: 'Inventory: tools',
+          detail: 'Broad tooling surface area'
+        });
+      }
+      const assetCount = db.prepare("SELECT COUNT(*) n FROM business_assets WHERE status='complete'").get().n;
+      if (assetCount >= 20) {
+        out.strengths.push({
+          text: `${assetCount} completed business assets in inventory`,
+          source: 'Inventory: assets',
+          detail: 'Reusable documentation and templates'
+        });
+      }
+    } catch(e) {}
+
+    // Fallback: if any quadrant empty and no maturity data at all, suggest first step
+    if (maturity.length === 0) {
+      out.opportunities.push({
+        text: 'Add maturity assessments to populate SWOT automatically',
+        source: 'System',
+        detail: 'SWOT derives from maturity scores + insights + action items'
+      });
+    }
+
+    res.json({ ok: true, data: out, generated_at: new Date().toISOString(), source_latest: latestSource });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -4291,9 +4648,11 @@ app.post('/api/actions', requireAuth, [
       );
       const actionId = result.lastInsertRowid;
       const ticketId = uuid();
-      db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
-        VALUES (?, ?, ?, 'internal', 'action', 'backlog', ?, ?, 'action-item', 'system')`)
-        .run(ticketId, title, description || null, urgencyToPriority(urg), actionId);
+      const ticketKey = nextTicketKey('action-item');
+      const tags = mergeSourceTag(`action-item,urgency:${urg}`, 'action-item');
+      db.prepare(`INSERT INTO tickets (id, ticket_key, source, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
+        VALUES (?, ?, 'action-item', ?, ?, 'internal', 'action', 'backlog', ?, ?, ?, 'system')`)
+        .run(ticketId, ticketKey, title, description || null, urgencyToPriority(urg), actionId, tags);
       db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(ticketId, actionId);
       return { actionId, ticketId };
     });
@@ -4319,9 +4678,11 @@ app.post('/api/actions/backfill-tickets', requireAuth, (req, res) => {
         linked++;
       } else {
         const ticketId = uuid();
-        db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
-          VALUES (?, ?, ?, 'internal', 'action', 'backlog', ?, ?, 'action-item', 'system')`)
-          .run(ticketId, action.title, action.description, urgencyToPriority(action.urgency), action.id);
+        const ticketKey = nextTicketKey('action-item');
+        const tags = mergeSourceTag(`action-item,urgency:${action.urgency}`, 'action-item');
+        db.prepare(`INSERT INTO tickets (id, ticket_key, source, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
+          VALUES (?, ?, 'action-item', ?, ?, 'internal', 'action', 'backlog', ?, ?, ?, 'system')`)
+          .run(ticketId, ticketKey, action.title, action.description, urgencyToPriority(action.urgency), action.id, tags);
         db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(ticketId, action.id);
         created++;
       }
@@ -4345,12 +4706,30 @@ app.patch('/api/actions/:id', requireAuth, [
       if (req.body.status === 'done') { updates.push("completed_at = datetime('now')"); }
       else { updates.push('completed_at = NULL'); }
     }
-    if (req.body.title) { updates.push('title = ?'); params.push(req.body.title); }
-    if (req.body.description) { updates.push('description = ?'); params.push(req.body.description); }
+    if (req.body.title !== undefined) { updates.push('title = ?'); params.push(req.body.title); }
+    if (req.body.description !== undefined) { updates.push('description = ?'); params.push(req.body.description); }
+    if (req.body.urgency && ['immediate','this_week','next_2_weeks','this_month','next_30_days','this_quarter'].includes(req.body.urgency)) {
+      updates.push('urgency = ?'); params.push(req.body.urgency);
+    }
+    if (req.body.priority !== undefined) { updates.push('priority = ?'); params.push(parseInt(req.body.priority, 10) || 50); }
+    if (req.body.tools_to_use !== undefined) { updates.push('tools_to_use = ?'); params.push(req.body.tools_to_use); }
     if (updates.length === 0) return res.status(400).json({ ok: false, error: 'No fields to update' });
     params.push(req.params.id);
     db.prepare(`UPDATE action_items SET ${updates.join(', ')} WHERE id = ?`).run(...params);
     res.json({ ok: true, data: db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id) });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.delete('/api/actions/:id', requireAuth, (req, res) => {
+  try {
+    // Unlink ticket first if present
+    const a = db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id);
+    if (!a) return res.status(404).json({ ok: false, error: 'Action item not found' });
+    if (a.ticket_id) {
+      try { db.prepare("UPDATE tickets SET action_item_id = NULL WHERE id = ?").run(a.ticket_id); } catch(e) {}
+    }
+    const r = db.prepare('DELETE FROM action_items WHERE id = ?').run(req.params.id);
+    res.json({ ok: true, deleted: r.changes });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -4491,9 +4870,11 @@ app.post('/api/dev-insights/auto-ticket', requireAuth, (req, res) => {
         .run(title, description || null, urg, 50, null, 'pending');
       const actionId = result.lastInsertRowid;
       const ticketId = uuid();
-      db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
-        VALUES (?, ?, ?, 'internal', 'dev-insight', 'backlog', ?, ?, 'dev-insight,claude-code', 'system')`)
-        .run(ticketId, title, description || null, urgencyToPriority(urg), actionId);
+      const ticketKey = nextTicketKey('dev-insight');
+      const tagStr = mergeSourceTag(`dev-insight,claude-code,insight:${insightType},key:${insightKey}`, 'dev-insight');
+      db.prepare(`INSERT INTO tickets (id, ticket_key, source, title, description, ticket_type, category, status, priority, action_item_id, tags, created_by)
+        VALUES (?, ?, 'dev-insight', ?, ?, 'internal', 'dev-insight', 'backlog', ?, ?, ?, 'system')`)
+        .run(ticketId, ticketKey, title, description || null, urgencyToPriority(urg), actionId, tagStr);
       db.prepare('UPDATE action_items SET ticket_id = ? WHERE id = ?').run(ticketId, actionId);
       insertTracker.run(sessionId, insightType, insightKey, ticketId, actionId);
       return { ticketId, actionId };
