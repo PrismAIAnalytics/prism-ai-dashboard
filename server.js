@@ -4691,6 +4691,42 @@ app.post('/api/actions/backfill-tickets', requireAuth, (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// Backfill: assign ticket_key + source to any tickets missing them
+app.post('/api/actions/backfill-ticket-keys', requireAuth, (req, res) => {
+  try {
+    const legacy = db.prepare("SELECT id, category, tags, action_item_id FROM tickets WHERE source IS NULL OR ticket_key IS NULL").all();
+    if (legacy.length === 0) return res.json({ ok: true, backfilled: 0, message: 'All tickets already have source and ticket_key' });
+    const inferSource = (row) => {
+      const tags = (row.tags || '').toLowerCase();
+      if (row.category === 'dev-insight' || tags.includes('dev-insight')) return 'dev-insight';
+      if (row.category === 'action' || tags.includes('action-item') || row.action_item_id) return 'action-item';
+      if (row.category === 'training' || tags.includes('training')) return 'training';
+      if (row.category === 'project') return 'project';
+      if (row.category === 'client') return 'client';
+      return 'manual';
+    };
+    const maxByPrefix = {};
+    db.prepare("SELECT ticket_key FROM tickets WHERE ticket_key IS NOT NULL").all().forEach(r => {
+      const m = (r.ticket_key || '').match(/^([A-Z]+)-(\d+)$/);
+      if (m) maxByPrefix[m[1]] = Math.max(maxByPrefix[m[1]] || 0, parseInt(m[2], 10));
+    });
+    const upd = db.prepare("UPDATE tickets SET source = ?, ticket_key = ?, tags = ? WHERE id = ?");
+    const batch = db.transaction(() => {
+      for (const row of legacy) {
+        const src = inferSource(row);
+        const pref = TICKET_SOURCE_PREFIX[src] || 'TKT';
+        maxByPrefix[pref] = (maxByPrefix[pref] || 0) + 1;
+        const key = `${pref}-${String(maxByPrefix[pref]).padStart(4, '0')}`;
+        const tagSet = new Set((row.tags || '').split(',').map(t => t.trim()).filter(Boolean));
+        tagSet.add(`src:${src}`);
+        upd.run(src, key, Array.from(tagSet).join(','), row.id);
+      }
+    });
+    batch();
+    res.json({ ok: true, backfilled: legacy.length });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 app.patch('/api/actions/:id', requireAuth, [
   body('status').optional().isIn(['pending', 'in_progress', 'done']).withMessage('Invalid status'),
 ], (req, res) => {

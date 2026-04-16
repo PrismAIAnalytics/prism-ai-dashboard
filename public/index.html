@@ -648,7 +648,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 <button id="nav-toggle" aria-label="Open menu" onclick="document.body.classList.toggle('nav-open')">&#9776;</button>
 <div id="nav-overlay" onclick="document.body.classList.remove('nav-open')"></div>
 <div class="shell">
-  <nav onclick="if(event.target.tagName==='A'){document.body.classList.remove('nav-open')}">
+  <nav onclick="const a=event.target.closest('a[data-page]');if(a){document.body.classList.remove('nav-open');showPage(a.dataset.page,a);event.preventDefault()}">
     <div class="logo" style="display:flex;align-items:center;gap:10px">
       <img src="/prism-mark.png" alt="" style="width:24px;height:24px">
       <div style="line-height:1.2">
@@ -2580,6 +2580,10 @@ async function ticketShowCreateModal() {
       <div><label>Assigned To</label><select id="tk-assign"><option value="">— Unassigned —</option>${Array.isArray(teamMembers) ? teamMembers.map(m => `<option value="${m.id}">${m.first_name} ${m.last_name}</option>`).join('') : ''}</select></div>
       <div><label>Category</label><select id="tk-cat"><option value="general">General</option><option value="development">Development</option><option value="marketing">Marketing</option><option value="sales">Sales</option><option value="admin">Admin</option><option value="support">Support</option><option value="training">Training</option></select></div>
     </div>
+    <div class="modal-row">
+      <div><label>Source</label><select id="tk-source"><option value="manual">Manual</option><option value="action-item">Action Item</option><option value="dev-insight">Dev Insight</option><option value="training">Training</option><option value="project">Project</option><option value="client">Client</option></select></div>
+      <div></div>
+    </div>
     <label>Tags (comma-separated)</label>
     <input id="tk-tags" placeholder="e.g. urgent, sprint-3, onboarding">
     <div class="modal-actions">
@@ -2605,6 +2609,7 @@ async function ticketCreate() {
     project_id: document.getElementById('tk-project').value || null,
     assigned_to: document.getElementById('tk-assign').value || null,
     category: document.getElementById('tk-cat').value,
+    source: document.getElementById('tk-source').value,
     tags: document.getElementById('tk-tags').value.trim() || null,
   };
   const res = await fetch('/api/tickets', {
