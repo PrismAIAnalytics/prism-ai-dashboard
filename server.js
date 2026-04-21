@@ -14,6 +14,9 @@ const Anthropic = require('@anthropic-ai/sdk');
 const stripeService = require('./services/stripeService');
 const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
+const readinessScoring = require('./lib/readiness-scoring');
+const serviceRecommender = require('./lib/service-recommender');
+const emailSender = require('./lib/email-sender');
 const os = require('os');
 const CLAUDE_USAGE_PATH = process.env.CLAUDE_USAGE_PATH || path.join(os.homedir(), '.claude', 'usage-data');
 
@@ -169,6 +172,204 @@ app.post('/api/admin/reset-training-tickets', express.json(), (req, res) => {
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+// ─── Public lead capture ────────────────────────────────────────────────────
+// POST /api/leads — called from the website contact form (via Netlify function
+// forwarder). Creates a client + contact + user + magic-link token, and emails
+// the prospect both a magic link and a temporary password.
+// Public (registered BEFORE /api auth middleware).
+//
+// Body expected from Netlify forwarder:
+//   { first_name, last_name, email, company, service_of_interest, message?, source? }
+//
+// Security considerations:
+//  - email uniqueness enforced via users.username UNIQUE
+//  - idempotent on email collision: returns ok:true with existing client_id
+//    (prevents the form from double-creating if Netlify retries)
+//  - rate limiter (already mounted globally) caps abuse
+app.post('/api/leads', (req, res) => {
+  const body = req.body || {};
+  const first = (body.first_name || '').trim();
+  const last = (body.last_name || '').trim();
+  const email = (body.email || '').trim().toLowerCase();
+  const company = (body.company || '').trim();
+  const service = (body.service_of_interest || '').trim();
+  const message = (body.message || '').trim();
+  const source = (body.source || 'website_contact_form').trim();
+
+  if (!first || !last || !email || !company) {
+    return res.status(400).json({ ok: false, error: 'first_name, last_name, email, and company are required' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ ok: false, error: 'Invalid email' });
+  }
+
+  // Idempotency: if a user with this email already exists, return their client_id.
+  const existingUser = db.prepare('SELECT u.id, u.username, c.id AS client_id FROM users u LEFT JOIN contacts ct ON ct.email = u.username LEFT JOIN clients c ON c.id = ct.client_id WHERE u.username = ?').get(email);
+  if (existingUser && existingUser.client_id) {
+    return res.json({ ok: true, already_exists: true, client_id: existingUser.client_id, message: 'Lead already on file; no new record created.' });
+  }
+
+  // Generate IDs + credentials
+  const clientId = uuid();
+  const contactId = uuid();
+  const userId = uuid();
+  const salt = crypto.randomBytes(16).toString('hex');
+  const tempPassword = crypto.randomBytes(9).toString('base64').replace(/[+/=]/g, '').slice(0, 12);
+  const passwordHash = hashPassword(tempPassword, salt);
+  const magicToken = crypto.randomBytes(32).toString('hex');
+  const magicExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+  const tx = db.transaction(() => {
+    db.prepare('INSERT INTO clients (id, company_name, crm_status, crm_lead_source, crm_contact_name, crm_contact_email, crm_service, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+      clientId, company, 'New Lead', source, `${first} ${last}`, email, service || null,
+      message ? `Initial message: ${message}` : null
+    );
+    db.prepare('INSERT INTO contacts (id, client_id, first_name, last_name, email, job_title, is_primary) VALUES (?, ?, ?, ?, ?, ?, 1)').run(
+      contactId, clientId, first, last, email, body.job_title || null
+    );
+    db.prepare('INSERT INTO users (id, username, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)').run(
+      userId, email, passwordHash, salt, 'client'
+    );
+    db.prepare('INSERT INTO magic_link_tokens (token, user_id, purpose, expires_at) VALUES (?, ?, ?, ?)').run(
+      magicToken, userId, 'login', magicExpires
+    );
+  });
+  try {
+    tx();
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'Failed to create lead: ' + e.message });
+  }
+
+  // Fire-and-forget email (don't block the response waiting for the email provider)
+  const portalUrl = process.env.PORTAL_BASE_URL || `http://localhost:${PORT}`;
+  const magicUrl = `${portalUrl}/api/auth/magic/${magicToken}`;
+  const assessmentUrl = `${portalUrl}/prism-ai-readiness-assessment.html?client=${clientId}`;
+  const subject = `Welcome to Prism AI Analytics — your next step`;
+  const text = [
+    `Hi ${first},`,
+    ``,
+    `Thanks for reaching out. I'd love to learn more about what you're trying to solve.`,
+    ``,
+    `As a first step, I'd recommend taking our 6-dimension AI Readiness Assessment — it takes about 12–15 minutes and gives us a shared starting point for our conversation.`,
+    ``,
+    `Take the assessment: ${assessmentUrl}`,
+    ``,
+    `You also have access to the Prism client portal, where you can see your assessment results, tailored service recommendations, and catalog pricing.`,
+    ``,
+    `Sign in with one click (no password needed): ${magicUrl}`,
+    ``,
+    `Or use these credentials:`,
+    `  Email: ${email}`,
+    `  Temporary password: ${tempPassword}`,
+    ``,
+    `I'll follow up personally within 2 business days. If you have questions, just reply to this email.`,
+    ``,
+    `Michele Fisher`,
+    `Prism AI Analytics`,
+    `michele@prismaianalytics.com`,
+  ].join('\n');
+  emailSender.send({ to: email, subject, text, tags: { type: 'lead_welcome', client_id: clientId }, db }).catch(e => {
+    console.warn('[leads] email send failed (lead still created):', e.message);
+  });
+
+  res.json({ ok: true, client_id: clientId, user_id: userId, assessment_url: assessmentUrl });
+});
+
+// GET /api/auth/magic/:token — consume a magic link, create a session, redirect to portal.
+// Public. Single-use; tokens are marked consumed on success.
+app.get('/api/auth/magic/:token', (req, res) => {
+  const t = String(req.params.token || '');
+  if (!t || !/^[a-f0-9]{64}$/.test(t)) {
+    return res.status(400).send('Invalid token');
+  }
+  const row = db.prepare(`SELECT t.token, t.user_id, t.expires_at, t.consumed_at, u.username, u.role
+                          FROM magic_link_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = ?`).get(t);
+  if (!row) return res.status(404).send('Token not found');
+  if (row.consumed_at) return res.status(410).send('This link has already been used. Sign in with your temporary password or request a new link.');
+  if (new Date(row.expires_at) < new Date()) return res.status(410).send('This link has expired. Request a new one.');
+
+  db.prepare("UPDATE magic_link_tokens SET consumed_at = datetime('now') WHERE token = ?").run(t);
+  const { token, expires_at } = createSession(row.user_id);
+  // Set an HttpOnly cookie the frontend can use. SameSite=Lax so top-level
+  // navigation from email clients still carries the cookie.
+  res.setHeader('Set-Cookie', `prism_session=${token}; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; HttpOnly`);
+  // Redirect to the portal (or for now, to the assessment form until /portal lands)
+  const target = row.role === 'client' ? '/portal' : '/';
+  res.redirect(302, target);
+});
+
+// Public POST for client self-serve AI Readiness Assessment submissions.
+// Must be registered BEFORE the global /api auth middleware so clients without
+// dashboard credentials (accessed via ?client=<uuid> URL) can submit.
+// GET /api/assessments and GET /api/assessments/:clientId remain admin-protected.
+// Side effects beyond INSERT:
+//   - Computes top-3 service recommendations (price-gated, stored for admin only)
+//   - Auto-advances the client's CRM stage from 'assessment' → 'proposal' if set
+app.post('/api/assessments', (req, res) => {
+  const { client_id, project_id, assessed_by, responses, category_of_interest } = req.body || {};
+  if (!client_id || !responses || typeof responses !== 'object') {
+    return res.status(400).json({ ok: false, error: 'client_id and responses are required' });
+  }
+  const clientExists = db.prepare('SELECT 1 FROM clients WHERE id = ?').get(client_id);
+  if (!clientExists) {
+    return res.status(404).json({ ok: false, error: 'Client not found' });
+  }
+  let result;
+  try {
+    result = readinessScoring.score(responses);
+  } catch (e) {
+    return res.status(400).json({ ok: false, error: 'Invalid responses: ' + e.message });
+  }
+  const { dimensions, overall, band } = result;
+
+  // Generate service recommendations (admin-only — NOT returned to the public form)
+  let recs = { services: [], track: null, total_low: 0, total_high: 0 };
+  try {
+    recs = serviceRecommender.recommend(
+      { band, dimensions, category: category_of_interest, responses },
+      db
+    );
+  } catch (e) {
+    console.error('[recommender] failed:', e.message);
+  }
+
+  const id = uuid();
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    db.prepare(`INSERT INTO ai_readiness_assessments
+      (id, client_id, project_id, assessed_by, assessment_date,
+       data_infra, tech_stack, process_maturity, team_readiness, governance, strategic_alignment,
+       overall_score, readiness_band, responses_json,
+       primary_outcome, timeline_driver, category_of_interest, recommended_services_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        id, client_id, project_id || null, assessed_by || null, today,
+        dimensions.data_infra, dimensions.tech_stack, dimensions.process_maturity,
+        dimensions.team_readiness, dimensions.governance, dimensions.strategic_alignment,
+        overall, band, JSON.stringify(responses),
+        responses['6.3'] || null, responses['6.4'] || null,
+        category_of_interest || null, JSON.stringify(recs)
+      );
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'DB insert failed: ' + e.message });
+  }
+
+  // Auto-advance CRM stage on the clients row itself (CRM lives on clients table
+  // via the crm_status column — see CRM_STAGES map). Silent on any error so the
+  // assessment insert never fails because of CRM bookkeeping.
+  try {
+    const row = db.prepare('SELECT crm_status FROM clients WHERE id = ?').get(client_id);
+    if (row && row.crm_status === 'Assessment In Progress') {
+      db.prepare("UPDATE clients SET crm_status = 'Proposal Sent', crm_last_status_change = datetime('now') WHERE id = ?").run(client_id);
+    }
+  } catch (e) {
+    console.warn('[assessments] CRM stage auto-advance skipped:', e.message);
+  }
+
+  // Public response — score + band only, NO prices.
+  // Admin view exposes recommendations via GET /api/assessments.
+  res.json({ ok: true, id, dimensions, overall, band });
 });
 
 // Apply auth to all /api/* routes
@@ -387,10 +588,24 @@ function initDB() {
       project_id TEXT REFERENCES projects(id),
       assessed_by TEXT REFERENCES team_members(id),
       assessment_date TEXT NOT NULL,
-      data_quality INTEGER, data_accessibility INTEGER,
-      process_documentation INTEGER, technology_stack INTEGER,
-      team_ai_readiness INTEGER, leadership_commitment INTEGER,
-      summary TEXT, recommendations TEXT
+      -- 6 canonical dimension scores (1-5 scale, averaged from sub-questions)
+      data_infra REAL,
+      tech_stack REAL,
+      process_maturity REAL,
+      team_readiness REAL,
+      governance REAL,
+      strategic_alignment REAL,
+      overall_score REAL,
+      readiness_band TEXT,
+      responses_json TEXT,
+      primary_outcome TEXT,
+      timeline_driver TEXT,
+      category_of_interest TEXT,          -- from website dropdown, optional
+      recommended_services_json TEXT,     -- top 3 service recs + prices + rationale
+      summary TEXT,
+      recommendations TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS certifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -815,8 +1030,9 @@ function seedIfEmpty() {
   });
 
   // Add CCA cert records for both Michele and Izayah
-  insCert.run(mId, 'Claude Certified Architect — Foundations', 'Anthropic Academy / Skilljar', 'in_progress');
-  insCert.run(izId, 'Claude Certified Architect — Foundations', 'Anthropic Academy / Skilljar', 'in_progress');
+  const insCertCCA = db.prepare('INSERT INTO certifications (team_member_id, name, provider, status) VALUES (?,?,?,?)');
+  insCertCCA.run(mId, 'Claude Certified Architect — Foundations', 'Anthropic Academy / Skilljar', 'in_progress');
+  insCertCCA.run(izId, 'Claude Certified Architect — Foundations', 'Anthropic Academy / Skilljar', 'in_progress');
 
   // Clients
   const getInd = db.prepare('SELECT id FROM industries WHERE name = ?');
@@ -955,12 +1171,14 @@ function seedIfEmpty() {
   const insAct = db.prepare('INSERT INTO activity_log (entity_type, entity_id, team_member_id, action, summary, logged_at) VALUES (?,?,?,?,?,?)');
   actData.forEach(a => insAct.run(...a));
 
-  // AI Readiness Assessment
+  // AI Readiness Assessment (canonical 6-dimension taxonomy)
   db.prepare(`INSERT INTO ai_readiness_assessments (id, client_id, project_id, assessed_by, assessment_date,
-    data_quality, data_accessibility, process_documentation, technology_stack, team_ai_readiness, leadership_commitment,
-    summary, recommendations) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    data_infra, tech_stack, process_maturity, team_readiness, governance, strategic_alignment,
+    overall_score, readiness_band,
+    summary, recommendations) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(uuid(), clientData[0].id, projData[0].id, mId, '2026-06-14',
-      3, 2, 3, 4, 2, 4,
+      2.5, 4.0, 3.0, 2.0, 3.0, 4.0,
+      3.1, 'Developing',
       'Solid leadership buy-in and modern tech, but data accessibility and team readiness are lagging.',
       'Centralize data from CRM and accounting. Recommend Power BI dashboards and phased AI adoption.');
 
@@ -1067,14 +1285,43 @@ migrateCRMColumns();
   `);
 })();
 
-// Add category column to services table
-(function migrateServicesCategory() {
+// Magic-link tokens table (for passwordless login emailed to newly captured leads)
+(function ensureMagicLinkTokens() {
+  db.exec(`CREATE TABLE IF NOT EXISTS magic_link_tokens (
+    token TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    purpose TEXT DEFAULT 'login',       -- 'login' | 'password_reset'
+    created_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL,
+    consumed_at TEXT                    -- NULL until used; then set to datetime('now')
+  )`);
+})();
+
+// Ensure email_log table exists for audit trail even when running in stub mode
+(function ensureEmailLogTable() {
+  try { emailSender.ensureEmailLog(db); } catch (e) { /* non-fatal */ }
+})();
+
+// Add category + examples_json columns to services table (schema-only; the
+// categorization UPDATE runs post-seed — see applyServiceCategories() below).
+(function migrateServicesColumns() {
   const cols = db.prepare("PRAGMA table_info(services)").all().map(r => r.name);
   if (!cols.includes('category')) {
     db.exec("ALTER TABLE services ADD COLUMN category TEXT DEFAULT 'Data & Analytics'");
-    db.exec("UPDATE services SET category = 'Compliance & Security' WHERE name IN ('CIS/STIG Coverage Gap Assessment','Drift Detection Blueprint','Remediation Automation Sprint','Compliance Data Hub','Managed Compliance Engineering','Audit Evidence Automation','AI Governance & Hardening Assessment')");
+  }
+  if (!cols.includes('examples_json')) {
+    db.exec("ALTER TABLE services ADD COLUMN examples_json TEXT");
   }
 })();
+
+// Idempotent post-seed categorization — invoked from the bottom of the file
+// after seedIfEmpty() so the services rows actually exist when this runs.
+function applyServiceCategories() {
+  db.exec(`UPDATE services SET category = 'Compliance & Security'
+           WHERE name IN ('CIS/STIG Coverage Gap Assessment','Drift Detection Blueprint','Remediation Automation Sprint',
+                          'Compliance Data Hub','Managed Compliance Engineering','Audit Evidence Automation',
+                          'AI Governance & Hardening Assessment')`);
+}
 
 // Add benchmark_version + benchmark_status columns to benchmark_rules
 (function migrateBenchmarkRulesColumns() {
@@ -1455,6 +1702,7 @@ function seedTickets() {
 seedIfEmpty();
 seedUsersIfEmpty();
 seedInventory();
+applyServiceCategories();
 seedTickets();
 
 // ─── External Service Initialization ───────────────────────────────────────
@@ -2686,6 +2934,28 @@ app.get('/api/services', (req, res) => {
   res.json(rows);
 });
 
+// ─── AI Readiness Assessments (admin-only reads) ────────────────────────────
+// Note: POST /api/assessments is registered ABOVE the auth middleware so clients
+// can self-serve submissions via the live form (?client=<uuid>).
+// The GET routes below sit behind auth — only dashboard users can read assessments.
+
+// GET /api/assessments/:clientId — latest assessment for a client
+app.get('/api/assessments/:clientId', (req, res) => {
+  const row = db.prepare(`SELECT * FROM ai_readiness_assessments
+    WHERE client_id = ? ORDER BY assessment_date DESC, created_at DESC LIMIT 1`).get(req.params.clientId);
+  if (!row) return res.status(404).json({ ok: false, error: 'No assessment found for this client' });
+  res.json({ ok: true, assessment: row });
+});
+
+// GET /api/assessments — all assessments (admin view)
+app.get('/api/assessments', (req, res) => {
+  const rows = db.prepare(`SELECT a.*, c.company_name AS client_name
+    FROM ai_readiness_assessments a
+    LEFT JOIN clients c ON a.client_id = c.id
+    ORDER BY a.assessment_date DESC, a.created_at DESC`).all();
+  res.json({ ok: true, assessments: rows });
+});
+
 // Certifications
 app.get('/api/certifications', (req, res) => {
   const rows = db.prepare('SELECT * FROM certifications ORDER BY status, name').all();
@@ -3432,7 +3702,7 @@ app.patch('/api/milestones/:id', [
 // GET — list all daily reviews (most recent first)
 app.get('/api/daily-reviews', requireAuth, (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 30, 100);
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit) || 365, 365) : 365;
     const rows = db.prepare('SELECT * FROM daily_reviews ORDER BY review_date DESC LIMIT ?').all(limit);
     res.json({ ok: true, reviews: rows });
   } catch (e) {

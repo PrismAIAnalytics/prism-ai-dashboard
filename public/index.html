@@ -672,6 +672,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <a href="javascript:void(0)" data-page="crm" onclick="showPage('crm', this)">&#9830; CRM</a>
     <a href="javascript:void(0)" data-page="pipeline" onclick="showPage('pipeline', this)">&#9656; Pipeline</a>
     <a href="javascript:void(0)" data-page="projects" onclick="showPage('projects', this)">&#9635; Projects</a>
+    <a href="/prism-ai-readiness-assessment.html" target="_blank" rel="noopener">&#9650; AI Readiness Assessment</a>
     <div class="nav-section">Compliance</div>
     <a href="javascript:void(0)" data-page="compliance" onclick="showPage('compliance', this)">&#9878; Security Baselines</a>
     <div class="nav-section">Finance</div>
@@ -3778,20 +3779,31 @@ function renderReviewCard(r, docs) {
 
   if (!sections) sections = '<div style="color:var(--muted);font-size:13px">No updates recorded for this day.</div>';
 
+  const srcId = 'src-' + r.review_date;
+  const sourcesHtml = r.sources_reviewed
+    ? `<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+        <div onclick="(()=>{const el=document.getElementById('${srcId}');const ch=document.getElementById('${srcId}-ch');el.style.display=el.style.display==='none'?'block':'none';ch.style.transform=el.style.display==='none'?'rotate(0deg)':'rotate(90deg)'})()" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;width:fit-content">
+          <span id="${srcId}-ch" style="font-size:10px;color:var(--muted);transition:transform 0.2s;display:inline-block">&#9654;</span>
+          <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600">&#128269; Sources Reviewed</span>
+        </div>
+        <div id="${srcId}" style="display:none;margin-top:8px;font-size:12px;color:var(--muted);line-height:1.7;padding-left:4px">
+          ${r.sources_reviewed.replace(/\.\s+(?=[A-Z])/g, '.<br>').replace(/\n/g, '<br>')}
+        </div>
+      </div>`
+    : '';
+
   return `<div id="review-${r.review_date}" class="card" style="padding:24px;margin-bottom:20px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
       <div>
         <div style="font-size:16px;font-weight:bold;color:var(--text)">${dayName}</div>
         ${sprintInfo ? `<div style="font-size:12px;color:var(--purple);margin-top:4px">${sprintInfo}</div>` : ''}
       </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="btn-sm" onclick="openDocModalForDate('${r.review_date}')" style="font-size:11px;display:flex;align-items:center;gap:4px">&#128206; Link Document</button>
-        ${r.sources_reviewed ? `<div style="font-size:11px;color:var(--muted);max-width:200px;text-align:right">${r.sources_reviewed}</div>` : ''}
-      </div>
+      <button class="btn-sm" onclick="openDocModalForDate('${r.review_date}')" style="font-size:11px;display:flex;align-items:center;gap:4px">&#128206; Link Document</button>
     </div>
     ${r.summary ? `<div style="font-size:14px;color:var(--text);margin-bottom:16px;padding:12px;background:var(--bg);border-radius:8px;border-left:3px solid var(--royal)">${r.summary}</div>` : ''}
     ${sections}
     <div id="review-docs-${r.review_date}" style="margin-top:16px"></div>
+    ${sourcesHtml}
   </div>`;
 }
 
