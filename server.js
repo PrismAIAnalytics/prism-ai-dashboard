@@ -174,6 +174,36 @@ app.post('/api/admin/reset-training-tickets', express.json(), (req, res) => {
   }
 });
 
+// POST — admin: set or create a user's password. Idempotent. Creates the user
+// if missing, linking to a team_member by email when one matches. Protected
+// by X-Admin-Key header. Intended for emergency recovery / initial bootstrap.
+app.post('/api/admin/set-user-password', express.json(), (req, res) => {
+  try {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey) return res.status(503).json({ ok: false, error: 'ADMIN_KEY not configured on server' });
+    if (req.header('X-Admin-Key') !== adminKey) return res.status(401).json({ ok: false, error: 'Invalid or missing X-Admin-Key header' });
+    const { username, new_password, team_member_email, role } = req.body || {};
+    if (!username || !new_password) return res.status(400).json({ ok: false, error: 'username and new_password required' });
+    if (String(new_password).length < 8) return res.status(400).json({ ok: false, error: 'new_password must be at least 8 chars' });
+    const uname = String(username).toLowerCase().trim();
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = hashPassword(String(new_password), salt);
+    const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(uname);
+    if (existing) {
+      db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, existing.id);
+      return res.json({ ok: true, created: false, username: uname, userId: existing.id });
+    }
+    const tmEmail = String(team_member_email || uname).toLowerCase().trim();
+    const tm = db.prepare("SELECT id FROM team_members WHERE lower(email) = ?").get(tmEmail);
+    const userId = uuid();
+    db.prepare('INSERT INTO users (id, username, password_hash, salt, team_member_id, role) VALUES (?,?,?,?,?,?)')
+      .run(userId, uname, hash, salt, tm ? tm.id : null, role || 'admin');
+    return res.json({ ok: true, created: true, username: uname, userId, linkedTeamMember: tm ? tm.id : null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ─── Public lead capture ────────────────────────────────────────────────────
 // POST /api/leads — called from the website contact form (via Netlify function
 // forwarder). Creates a client + contact + user + magic-link token, and emails
