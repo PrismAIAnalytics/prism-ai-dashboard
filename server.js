@@ -204,6 +204,50 @@ app.post('/api/admin/set-user-password', express.json(), (req, res) => {
   }
 });
 
+// GET — admin: download a live, consistent backup of the SQLite DB.
+// Uses SQLite's VACUUM INTO to produce a safe point-in-time copy while the
+// server is live (no locks, no corruption risk). Read-only: the live DB is
+// never modified. Protected by X-Admin-Key header.
+// Response: application/octet-stream, filename prism-YYYYMMDD-HHMMSS.db
+app.get('/api/admin/backup-db', (req, res) => {
+  let tmpFile = null;
+  try {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey) return res.status(503).json({ ok: false, error: 'ADMIN_KEY not configured on server' });
+    if (req.header('X-Admin-Key') !== adminKey) return res.status(401).json({ ok: false, error: 'Invalid or missing X-Admin-Key header' });
+
+    const stamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+    tmpFile = path.join(os.tmpdir(), `prism-backup-${stamp}-${process.pid}.db`);
+    // VACUUM INTO requires that the target path does not exist.
+    if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+
+    // Produce consistent copy. VACUUM INTO is safe against a live WAL-mode DB.
+    db.prepare("VACUUM INTO ?").run(tmpFile);
+
+    const stat = fs.statSync(tmpFile);
+    const downloadName = `prism-${stamp}.db`;
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('X-Backup-Source', DB_PATH);
+    res.setHeader('X-Backup-Bytes', String(stat.size));
+
+    const stream = fs.createReadStream(tmpFile);
+    stream.on('close', () => {
+      try { if (tmpFile && fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch (_) { /* best effort */ }
+    });
+    stream.on('error', (err) => {
+      try { if (tmpFile && fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch (_) { /* best effort */ }
+      if (!res.headersSent) res.status(500).json({ ok: false, error: err.message });
+      else res.destroy(err);
+    });
+    stream.pipe(res);
+  } catch (e) {
+    try { if (tmpFile && fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch (_) { /* best effort */ }
+    if (!res.headersSent) res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ─── Public lead capture ────────────────────────────────────────────────────
 // POST /api/leads — called from the website contact form (via Netlify function
 // forwarder). Creates a client + contact + user + magic-link token, and emails
