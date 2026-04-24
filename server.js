@@ -426,6 +426,21 @@ function waitForVolume(dir, retries = 15, delay = 2000) {
 }
 
 function getDBPath() {
+  // DB_PATH env var is authoritative. Set this in any environment backed by
+  // a persistent volume (Railway, Fly, Render, etc). We deliberately do NOT
+  // silently fall back to ephemeral disk if the volume fails to mount —
+  // a crash-loop is far safer than silent data loss on every redeploy.
+  if (process.env.DB_PATH) {
+    const p = process.env.DB_PATH;
+    const dir = path.dirname(p);
+    if (dir !== __dirname && !waitForVolume(dir)) {
+      console.error(`FATAL: DB_PATH=${p} set but mount ${dir} never became ready. ` +
+        `Refusing to start on ephemeral disk — unset DB_PATH or attach the volume.`);
+      process.exit(1);
+    }
+    return p;
+  }
+  // Legacy behavior for envs that haven't set DB_PATH yet.
   if (process.env.NODE_ENV === 'production') {
     const volumeDir = '/app/data';
     if (waitForVolume(volumeDir)) {
