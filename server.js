@@ -1658,52 +1658,71 @@ function seedTickets() {
   const mId = michele ? michele.id : null;
   const iId = izayah ? izayah.id : null;
 
-  const ins = db.prepare(`INSERT INTO tickets (id, title, description, ticket_type, category, status, priority, assigned_to, due_date, tags, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+  const ins = db.prepare(`INSERT INTO tickets (id, ticket_key, source, title, description, ticket_type, category, status, priority, assigned_to, due_date, tags, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+
+  const srcFor = (category) =>
+    category === 'training' ? 'training' :
+    category === 'delivery' ? 'project'  :
+    category === 'action'   ? 'action-item' :
+                              'manual';
+
+  const seed = (title, description, ticket_type, category, status, priority, assigned_to, due_date, tags) => {
+    const src = srcFor(category);
+    ins.run(
+      uuid(), nextTicketKey(src), src,
+      title, description, ticket_type, category, status, priority,
+      assigned_to, due_date, mergeSourceTag(tags, src), 'system'
+    );
+  };
 
   const batch = db.transaction(() => {
     // ─── Action Item tickets (from inventory analysis) ───
-    ins.run(uuid(), 'Set up invoicing & payment tracking', 'Connect Stripe or QuickBooks. Use finance:journal-entry skill to establish chart of accounts. Create basic P&L.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-15', 'finance,action-item', 'system');
-    ins.run(uuid(), 'Create client contract template', 'Use legal:review-contract skill to draft standard MSA and SOW template.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-18', 'legal,action-item', 'system');
-    ins.run(uuid(), 'Run Apollo prospecting sequence', 'Define ICP (Charlotte-area SMBs). Generate personalized outreach emails. Enroll leads.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-20', 'sales,action-item', 'system');
-    ins.run(uuid(), 'Build client proposal template', 'Use docx skill + prismai-company-profile to create branded fill-in-the-blank proposal.', 'internal', 'action', 'backlog', 'high', mId, '2026-04-30', 'sales,action-item', 'system');
-    ins.run(uuid(), 'Pre-build June content library', 'Create social launch campaign. Draft 12-16 LinkedIn posts. Schedule in Notion Content Calendar.', 'internal', 'action', 'backlog', 'high', mId, '2026-05-15', 'marketing,action-item', 'system');
-    ins.run(uuid(), 'Create demo dashboard from sandbox data', 'Use 13 sandbox CSVs to create interactive analytics dashboard as a sales tool.', 'internal', 'action', 'backlog', 'high', mId, '2026-05-20', 'data,action-item', 'system');
-    ins.run(uuid(), 'Set up weekly status report cadence', 'Create recurring weekly business review tracking pipeline value, active projects, revenue.', 'internal', 'action', 'backlog', 'medium', mId, '2026-05-01', 'operations,action-item', 'system');
-    ins.run(uuid(), 'Build first case study', 'Use Cafe Uvee engagement to create templated case study (Challenge, Approach, Results).', 'internal', 'action', 'backlog', 'medium', mId, '2026-05-30', 'marketing,action-item', 'system');
-    ins.run(uuid(), 'Consolidate duplicate files', 'Designate single sources of truth for brand guidelines, business plan, knowledge base, and prompt library.', 'internal', 'action', 'backlog', 'medium', mId, '2026-06-15', 'operations,action-item', 'system');
-    ins.run(uuid(), 'Create client onboarding runbook', 'Document end-to-end onboarding: signed contract to folder creation to kickoff call to first deliverable.', 'internal', 'action', 'backlog', 'medium', mId, '2026-06-30', 'operations,action-item', 'system');
+    seed('Set up invoicing & payment tracking', 'Connect Stripe or QuickBooks. Use finance:journal-entry skill to establish chart of accounts. Create basic P&L.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-15', 'finance,action-item');
+    seed('Create client contract template', 'Use legal:review-contract skill to draft standard MSA and SOW template.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-18', 'legal,action-item');
+    seed('Run Apollo prospecting sequence', 'Define ICP (Charlotte-area SMBs). Generate personalized outreach emails. Enroll leads.', 'internal', 'action', 'todo', 'urgent', mId, '2026-04-20', 'sales,action-item');
+    seed('Build client proposal template', 'Use docx skill + prismai-company-profile to create branded fill-in-the-blank proposal.', 'internal', 'action', 'backlog', 'high', mId, '2026-04-30', 'sales,action-item');
+    seed('Pre-build June content library', 'Create social launch campaign. Draft 12-16 LinkedIn posts. Schedule in Notion Content Calendar.', 'internal', 'action', 'backlog', 'high', mId, '2026-05-15', 'marketing,action-item');
+    seed('Create demo dashboard from sandbox data', 'Use 13 sandbox CSVs to create interactive analytics dashboard as a sales tool.', 'internal', 'action', 'backlog', 'high', mId, '2026-05-20', 'data,action-item');
+    seed('Set up weekly status report cadence', 'Create recurring weekly business review tracking pipeline value, active projects, revenue.', 'internal', 'action', 'backlog', 'medium', mId, '2026-05-01', 'operations,action-item');
+    seed('Build first case study', 'Use Cafe Uvee engagement to create templated case study (Challenge, Approach, Results).', 'internal', 'action', 'backlog', 'medium', mId, '2026-05-30', 'marketing,action-item');
+    seed('Consolidate duplicate files', 'Designate single sources of truth for brand guidelines, business plan, knowledge base, and prompt library.', 'internal', 'action', 'backlog', 'medium', mId, '2026-06-15', 'operations,action-item');
+    seed('Create client onboarding runbook', 'Document end-to-end onboarding: signed contract to folder creation to kickoff call to first deliverable.', 'internal', 'action', 'backlog', 'medium', mId, '2026-06-30', 'operations,action-item');
 
     // ─── Training tickets (Michele) ───
-    ins.run(uuid(), 'Complete Google AI Essentials certification', 'Continue Coursera modules. Target completion for client credibility.', 'internal', 'training', 'in_progress', 'high', mId, '2026-04-15', 'certification,training', 'system');
-    ins.run(uuid(), 'Complete AI for Everyone course (Andrew Ng)', 'Enroll on Coursera. 4-week course covers AI strategy concepts useful for client conversations.', 'internal', 'training', 'backlog', 'medium', mId, '2026-05-01', 'certification,training', 'system');
-    ins.run(uuid(), 'Pass PL-300: Power BI Data Analyst certification', 'Begin Microsoft Learn path. Schedule exam after 6-8 weeks of study.', 'internal', 'training', 'backlog', 'high', mId, '2026-06-15', 'certification,training', 'system');
-    ins.run(uuid(), 'Complete AI for Business Strategy (Wharton)', 'Enroll on Coursera. Wharton credential strengthens enterprise client positioning.', 'internal', 'training', 'backlog', 'medium', mId, '2026-07-15', 'certification,training', 'system');
-    ins.run(uuid(), 'Pass AWS Certified AI Practitioner exam', 'Begin AWS training materials. Cloud AI cert opens enterprise doors.', 'internal', 'training', 'backlog', 'medium', mId, '2026-09-01', 'certification,training', 'system');
+    seed('Complete Google AI Essentials certification', 'Continue Coursera modules. Target completion for client credibility.', 'internal', 'training', 'in_progress', 'high', mId, '2026-04-15', 'certification,training');
+    seed('Complete AI for Everyone course (Andrew Ng)', 'Enroll on Coursera. 4-week course covers AI strategy concepts useful for client conversations.', 'internal', 'training', 'backlog', 'medium', mId, '2026-05-01', 'certification,training');
+    seed('Pass PL-300: Power BI Data Analyst certification', 'Begin Microsoft Learn path. Schedule exam after 6-8 weeks of study.', 'internal', 'training', 'backlog', 'high', mId, '2026-06-15', 'certification,training');
+    seed('Complete AI for Business Strategy (Wharton)', 'Enroll on Coursera. Wharton credential strengthens enterprise client positioning.', 'internal', 'training', 'backlog', 'medium', mId, '2026-07-15', 'certification,training');
+    seed('Pass AWS Certified AI Practitioner exam', 'Begin AWS training materials. Cloud AI cert opens enterprise doors.', 'internal', 'training', 'backlog', 'medium', mId, '2026-09-01', 'certification,training');
 
     // ─── Training tickets (Izayah — onboarding) ───
-    ins.run(uuid(), 'Complete CCA Agentic Architecture domain', 'Work through all 7 items in the Agentic Architecture & Orchestration domain.', 'internal', 'training', 'in_progress', 'high', iId, '2026-04-30', 'cca,training,onboarding', 'system');
-    ins.run(uuid(), 'Complete CCA Claude Code Config domain', 'Work through all 7 items in the Claude Code Config & Workflows domain.', 'internal', 'training', 'todo', 'high', iId, '2026-05-15', 'cca,training,onboarding', 'system');
-    ins.run(uuid(), 'Complete CCA Prompt Engineering domain', 'Work through all 7 items in the Prompt Engineering & Design domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-05-30', 'cca,training,onboarding', 'system');
-    ins.run(uuid(), 'Complete CCA Tool Design/MCP domain', 'Work through all 7 items in the Tool Design & MCP Integration domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-06-15', 'cca,training,onboarding', 'system');
-    ins.run(uuid(), 'Complete CCA Context Management domain', 'Work through all 7 items in the Context Management & Optimization domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-06-30', 'cca,training,onboarding', 'system');
-    ins.run(uuid(), 'Complete AI Fluency course (Anthropic)', 'AI Fluency: Framework & Foundations — 4 hours, 15 lessons.', 'internal', 'training', 'todo', 'high', iId, '2026-04-30', 'course,training,onboarding', 'system');
-    ins.run(uuid(), 'Complete Building with Claude API course', 'Building with Claude API — 6 hours, 20 lessons.', 'internal', 'training', 'backlog', 'medium', iId, '2026-05-15', 'course,training,onboarding', 'system');
+    seed('Complete CCA Agentic Architecture domain', 'Work through all 7 items in the Agentic Architecture & Orchestration domain.', 'internal', 'training', 'in_progress', 'high', iId, '2026-04-30', 'cca,training,onboarding');
+    seed('Complete CCA Claude Code Config domain', 'Work through all 7 items in the Claude Code Config & Workflows domain.', 'internal', 'training', 'todo', 'high', iId, '2026-05-15', 'cca,training,onboarding');
+    seed('Complete CCA Prompt Engineering domain', 'Work through all 7 items in the Prompt Engineering & Design domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-05-30', 'cca,training,onboarding');
+    seed('Complete CCA Tool Design/MCP domain', 'Work through all 7 items in the Tool Design & MCP Integration domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-06-15', 'cca,training,onboarding');
+    seed('Complete CCA Context Management domain', 'Work through all 7 items in the Context Management & Optimization domain.', 'internal', 'training', 'backlog', 'medium', iId, '2026-06-30', 'cca,training,onboarding');
+    seed('Complete AI Fluency course (Anthropic)', 'AI Fluency: Framework & Foundations — 4 hours, 15 lessons.', 'internal', 'training', 'todo', 'high', iId, '2026-04-30', 'course,training,onboarding');
+    seed('Complete Building with Claude API course', 'Building with Claude API — 6 hours, 20 lessons.', 'internal', 'training', 'backlog', 'medium', iId, '2026-05-15', 'course,training,onboarding');
 
     // ─── Client-facing tickets (seed examples) ───
-    ins.run(uuid(), 'Prepare AI Readiness Assessment framework', 'Expand Form2 (5-dimension assessment) into full 20-30 question framework for client engagements.', 'client', 'delivery', 'in_progress', 'high', mId, '2026-04-20', 'ai-bridge,assessment', 'system');
-    ins.run(uuid(), 'Build automated scoring rubric', 'Create weighted scoring model in Python or spreadsheet. Leverage existing 1-5 scale from Form2.', 'client', 'delivery', 'backlog', 'high', mId, '2026-04-30', 'ai-bridge,assessment', 'system');
-    ins.run(uuid(), 'Design branded PDF report template', 'Use Prism Brand Guidelines to design assessment output report with visuals.', 'client', 'delivery', 'backlog', 'medium', mId, '2026-05-15', 'ai-bridge,branding', 'system');
+    seed('Prepare AI Readiness Assessment framework', 'Expand Form2 (5-dimension assessment) into full 20-30 question framework for client engagements.', 'client', 'delivery', 'in_progress', 'high', mId, '2026-04-20', 'ai-bridge,assessment');
+    seed('Build automated scoring rubric', 'Create weighted scoring model in Python or spreadsheet. Leverage existing 1-5 scale from Form2.', 'client', 'delivery', 'backlog', 'high', mId, '2026-04-30', 'ai-bridge,assessment');
+    seed('Design branded PDF report template', 'Use Prism Brand Guidelines to design assessment output report with visuals.', 'client', 'delivery', 'backlog', 'medium', mId, '2026-05-15', 'ai-bridge,branding');
   });
 
   batch();
   console.log('Tickets seeded: action items, training, and delivery tasks');
 }
 
-seedIfEmpty();
-seedUsersIfEmpty();
-seedInventory();
 applyServiceCategories();
-seedTickets();
+if (APP_ENV !== 'production') {
+  seedIfEmpty();
+  seedUsersIfEmpty();
+  seedInventory();
+  seedTickets();
+} else {
+  console.log('[startup] APP_ENV=production — skipping demo seed functions.');
+}
 
 // ─── External Service Initialization ───────────────────────────────────────
 stripeService.init();
