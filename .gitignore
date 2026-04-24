@@ -6,6 +6,9 @@ prism.db
 prism.db-wal
 prism.db-shm
 
+# DB snapshots from /api/admin/backup-db (never commit these — contain prod data)
+backups/
+
 # Environment (secrets)
 .env
 
