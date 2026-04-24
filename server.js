@@ -514,14 +514,23 @@ function getDBPath() {
     }
     return p;
   }
-  // Legacy behavior for envs that haven't set DB_PATH yet.
+  // Production environments must use a persistent volume. If DB_PATH wasn't
+  // set explicitly, try the conventional /app/data mount. If that mount is
+  // not available, crash loudly — a silent fallback to ephemeral disk caused
+  // two prior production data wipes (see INCIDENT_FINDINGS.md).
   if (process.env.NODE_ENV === 'production') {
     const volumeDir = '/app/data';
     if (waitForVolume(volumeDir)) {
       return path.join(volumeDir, 'prism.db');
     }
-    console.warn('Volume not available — falling back to local directory');
+    console.error(
+      `FATAL: NODE_ENV=production but no persistent volume is available at ${volumeDir}. ` +
+      `Refusing to start on ephemeral disk — every redeploy would wipe the database. ` +
+      `Fix: attach a Railway volume mounted at ${volumeDir}, OR set DB_PATH to a mounted path.`
+    );
+    process.exit(1);
   }
+  // Non-production (local dev / tests): write to the project directory.
   return path.join(__dirname, 'prism.db');
 }
 
