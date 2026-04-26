@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(empty — pick the next task from "Up Next" and move it here)_ | | | | |
+| T-007 | GitHub Action: snapshot prod via `/api/admin/backup-db` on every push to main, uploaded as Actions artifact (90-day retention) | `task/auto-backup-on-deploy` | Claude Code | 2026-04-26 13:30 |
 
 ---
 
@@ -17,9 +17,6 @@
 
 | ID | Title | Why it matters | Owner candidate |
 |----|-------|----------------|-----------------|
-| T-004 | **Enable GitHub branch protection** on `main` — require PR, block direct pushes, block force-pushes | Makes "never push to main" enforceable instead of polite | Michele (GitHub UI, 2 min) |
-| T-005 | **Decide: keep Railway auto-deploy or switch to manual `railway up`** | Auto-deploy + solo + AI = the conditions that wiped prod twice. Recommendation: manual until T-001 + T-004 + a few clean deploys build trust | Michele (decision), then Cowork (implement) |
-| T-007 | Add GitHub Action that runs the admin DB-dump on PR-merge **before** Railway redeploys | Automates the backup step so a tired Michele can't forget it | Claude Code |
 | T-008 | Spin up a staging Railway service from a `staging` branch | Gives a non-prod target to test risky changes against | Claude Code |
 
 ---
@@ -43,6 +40,8 @@ _(none yet)_
 | T-002 | Take first real backup of prod `prism.db` and store off-disk | 2026-04-26 | 5 .db backups copied from `Development/dashboard/backups/` to `Admin/DB-Backups/` (workspace-root, in Obsidian vault — auto-syncs to cloud if vault sync is on). Files: prism-7058a × 2 (legacy source), prism-dabe × 2 (pre-T-001 + pre-T-009), prism-dabe-post-restore (current dabe state, 516 KB). |
 | T-003 | Move AI-coordination protocol docs into dashboard repo (single source of truth) | 2026-04-26 | Merged via PR #3 as `d585608` (squash). Moved WORKFLOW + INCIDENT_FINDINGS + TASKS + DEPLOY_RUNBOOK + PR_JOB_AID into `Development/dashboard/`. All cross-references fixed for sibling layout. Workspace-root CLAUDE.md gained a redirect pointer. |
 | T-006 | Update dashboard CLAUDE.md to point at WORKFLOW.md | 2026-04-26 | Rolled into T-003. CLAUDE.md gained a "Read these before any work" section pointing at the 5 protocol docs in priority order. |
+| T-004 | Enable GitHub branch protection on `main` | 2026-04-26 | Configured via GitHub Rulesets at `PrismAIAnalytics/prism-ai-dashboard/settings/rules`. Enforces: PR required (0 approvals), block force pushes, restrict deletions, linear history. Bypass list empty (applies to admins too). Verified — direct `git push origin main` rejected with `GH013: Changes must be made through a pull request`. No merge SHA — pure GitHub UI configuration. |
+| T-005 | Decide: keep Railway auto-deploy vs switch to manual | 2026-04-26 | **Decision: keep auto-deploy.** With T-001 (volume + fail-hard) and T-004 (branch-protected main, PR-only) in place, the failure modes that wiped prod twice are closed. Remaining risk is "merge a bad PR" — addressed by self-review checklist. No implementation work; decision-only. |
 
 ---
 
