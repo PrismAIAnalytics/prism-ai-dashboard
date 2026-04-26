@@ -248,6 +248,189 @@ app.get('/api/admin/backup-db', (req, res) => {
   }
 });
 
+// POST — admin: restore selected tables from an uploaded SQLite snapshot.
+//
+// Accepts a raw .db file in the request body (Content-Type: application/octet-stream),
+// opens it read-only, and copies rows from a fixed allowlist of tables into the
+// live DB using INSERT OR IGNORE (idempotent against PK conflicts).
+//
+// Defaults to dry-run. Live writes require BOTH:
+//   - query/header `dry-run=false` (or X-Dry-Run: false)
+//   - header `X-Confirm-Token: LIVE-WRITE-CONFIRMED`
+//
+// Skips client-FK rows by NULL-ing client_id on copy (legacy clients are not
+// restored; FK target would not exist). The allowlist + null-out columns are
+// hardcoded — request payload cannot change them.
+//
+// Protected by X-Admin-Key (same as other admin endpoints).
+//
+// Returns JSON report:
+//   { ok, mode: 'dry-run'|'live', tables: [{ table, snapshotRows, liveExisting,
+//     plannedInserts, actualInserts, error? }], totals: {...} }
+const RESTORE_LIVE_CONFIRM = 'LIVE-WRITE-CONFIRMED';
+const RESTORE_PLAN = [
+  { table: 'industries' },
+  { table: 'lead_sources' },
+  { table: 'team_members' },
+  { table: 'services' },
+  { table: 'tools' },
+  { table: 'business_assets' },
+  { table: 'action_items' },
+  { table: 'users' },
+  { table: 'projects', nullColumns: ['client_id'] },
+  { table: 'tickets', where: "source IN ('manual', 'action-item')", nullColumns: ['client_id'] },
+  { table: 'invoices', nullColumns: ['client_id'] },
+  { table: 'expenses' },
+  { table: 'time_entries', nullColumns: ['client_id'] },
+  { table: 'payments' }
+];
+
+function restoreOneTable(snapDb, liveDb, plan, dryRun) {
+  const { table, where = null, nullColumns = [] } = plan;
+  // Verify table exists on both sides.
+  const snapHas = snapDb.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table);
+  const liveHas = liveDb.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table);
+  if (!snapHas) return { table, error: 'table missing on snapshot', snapshotRows: 0, liveExisting: 0, plannedInserts: 0, actualInserts: 0 };
+  if (!liveHas) return { table, error: 'table missing on live DB', snapshotRows: 0, liveExisting: 0, plannedInserts: 0, actualInserts: 0 };
+
+  const snapCols = snapDb.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  const liveCols = new Set(liveDb.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name));
+  const useCols = snapCols.filter(c => liveCols.has(c));
+  if (useCols.length === 0) {
+    return { table, error: 'no overlapping columns', snapshotRows: 0, liveExisting: 0, plannedInserts: 0, actualInserts: 0 };
+  }
+
+  const colList = useCols.map(c => `"${c}"`).join(', ');
+  const selectSql = `SELECT ${colList} FROM "${table}"${where ? ` WHERE ${where}` : ''}`;
+  const rows = snapDb.prepare(selectSql).all();
+  for (const row of rows) {
+    for (const nc of nullColumns) if (nc in row) row[nc] = null;
+  }
+  const liveExisting = liveDb.prepare(`SELECT COUNT(*) AS n FROM "${table}"`).get().n;
+
+  if (dryRun) {
+    return {
+      table, snapshotRows: rows.length, liveExisting,
+      plannedInserts: rows.length, actualInserts: 0
+    };
+  }
+
+  const placeholders = useCols.map(() => '?').join(',');
+  const stmt = liveDb.prepare(`INSERT OR IGNORE INTO "${table}" (${colList}) VALUES (${placeholders})`);
+  let inserted = 0;
+  let fkSkipped = 0;
+  let otherErrors = 0;
+  let firstError = null;
+  // Per-row try/catch so FK failures (which INSERT OR IGNORE does NOT silence
+  // — see SQLite docs sqlite.org/foreignkeys.html#fk_2) don't roll back the
+  // entire table batch. We still wrap in a transaction for atomicity within
+  // a row, and for performance.
+  const tx = liveDb.transaction((rs) => {
+    for (const r of rs) {
+      try {
+        const result = stmt.run(useCols.map(c => r[c]));
+        if (result.changes > 0) inserted++;
+      } catch (e) {
+        if (e && /FOREIGN KEY constraint failed/i.test(e.message)) {
+          fkSkipped++;
+        } else {
+          otherErrors++;
+          if (!firstError) firstError = e.message;
+        }
+      }
+    }
+  });
+  try {
+    tx(rows);
+  } catch (e) {
+    // Catastrophic: tx itself failed (shouldn't happen with the per-row catch)
+    return {
+      table, snapshotRows: rows.length, liveExisting,
+      plannedInserts: rows.length, actualInserts: 0,
+      error: `transaction failed: ${e.message}`
+    };
+  }
+  return {
+    table, snapshotRows: rows.length, liveExisting,
+    plannedInserts: rows.length, actualInserts: inserted,
+    skippedDuplicates: rows.length - inserted - fkSkipped - otherErrors,
+    skippedFkViolation: fkSkipped,
+    otherErrors,
+    error: firstError || undefined
+  };
+}
+
+app.post(
+  '/api/admin/restore-from-snapshot',
+  express.raw({ type: 'application/octet-stream', limit: '50mb' }),
+  (req, res) => {
+    let tmpFile = null;
+    let snapDb = null;
+    try {
+      const adminKey = process.env.ADMIN_KEY;
+      if (!adminKey) return res.status(503).json({ ok: false, error: 'ADMIN_KEY not configured on server' });
+      if (req.header('X-Admin-Key') !== adminKey) return res.status(401).json({ ok: false, error: 'Invalid or missing X-Admin-Key header' });
+
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || body.length < 100) {
+        return res.status(400).json({ ok: false, error: 'Request body must be a SQLite .db file (Content-Type: application/octet-stream)' });
+      }
+      // Quick sanity check: SQLite files start with "SQLite format 3\0".
+      if (body.slice(0, 16).toString('utf8') !== 'SQLite format 3\u0000') {
+        return res.status(400).json({ ok: false, error: 'Uploaded body is not a valid SQLite database file' });
+      }
+
+      // Mode resolution.
+      const dryRunHeader = req.header('X-Dry-Run');
+      const dryRunQuery = (req.query && req.query['dry-run']) || null;
+      const dryRunValue = (dryRunHeader != null ? dryRunHeader : (dryRunQuery != null ? dryRunQuery : 'true')).toString().toLowerCase();
+      const dryRun = !(dryRunValue === 'false' || dryRunValue === '0' || dryRunValue === 'no');
+      if (!dryRun) {
+        const confirm = req.header('X-Confirm-Token');
+        if (confirm !== RESTORE_LIVE_CONFIRM) {
+          return res.status(400).json({ ok: false, error: `Live writes require X-Confirm-Token: ${RESTORE_LIVE_CONFIRM}` });
+        }
+      }
+
+      // Save body to tmp .db file
+      const stamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+      tmpFile = path.join(os.tmpdir(), `prism-restore-${stamp}-${process.pid}.db`);
+      fs.writeFileSync(tmpFile, body);
+
+      // Open read-only
+      snapDb = new Database(tmpFile, { readonly: true, fileMustExist: true });
+
+      const tables = [];
+      for (const plan of RESTORE_PLAN) {
+        const r = restoreOneTable(snapDb, db, plan, dryRun);
+        tables.push(r);
+      }
+
+      const totals = tables.reduce((acc, t) => {
+        acc.snapshotRows += t.snapshotRows || 0;
+        acc.plannedInserts += t.plannedInserts || 0;
+        acc.actualInserts += t.actualInserts || 0;
+        if (t.error) acc.tablesWithErrors++;
+        return acc;
+      }, { snapshotRows: 0, plannedInserts: 0, actualInserts: 0, tablesWithErrors: 0 });
+
+      return res.json({
+        ok: true,
+        mode: dryRun ? 'dry-run' : 'live',
+        liveDbPath: DB_PATH,
+        snapshotBytes: body.length,
+        totals,
+        tables
+      });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: e.message, stack: e.stack });
+    } finally {
+      try { if (snapDb) snapDb.close(); } catch (_) { /* best effort */ }
+      try { if (tmpFile && fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch (_) { /* best effort */ }
+    }
+  }
+);
+
 // ─── Public lead capture ────────────────────────────────────────────────────
 // POST /api/leads — called from the website contact form (via Netlify function
 // forwarder). Creates a client + contact + user + magic-link token, and emails
