@@ -180,22 +180,25 @@ FATAL: NODE_ENV=production but no persistent volume is available at /app/data...
 
 ---
 
-## Step 6 — Close out the task in TASKS.md
+## Step 6 — Close out the task in TASKS.md (bundled into the next task)
 
 Per [WORKFLOW.md](WORKFLOW.md) §1, a task is **done** only when all four are true:
 
 - ✅ Branch is merged to main
-- ✅ TASKS.md row moved out of "In Progress"
+- ✅ TASKS.md row moved out of "In Progress" (with merge SHA logged in Done This Week)
 - ✅ Local working tree is clean (`git status` shows no tracked-file changes)
 - ✅ Railway deploy from that merge has finished and you've smoke-tested prod
 
-The AI usually does the TASKS.md edit, but verify:
+**The TASKS.md edit happens on the *next* task's first commit, not as a separate PR.** See [WORKFLOW.md](WORKFLOW.md) §4 "Closing a task — bundle into the next task's first commit." So right after merge:
 
-1. Open [TASKS.md](TASKS.md)
-2. **In Progress** table should show the empty placeholder row, not your just-merged task
-3. **Done This Week** should have a new row with: task ID, title, today's date, and a 1-line note including the squash-merge SHA (e.g. `d29f58e`)
+- **If you have a next task in mind:** dispatch it. The AI's first commit on the new branch will close out the previous task and claim the new one in a single TASKS.md edit. No follow-up PR needed.
+- **If you're stopping:** the In Progress row will continue to show the just-merged task until the next dispatch. That's intentional — the lock is being held until you decide what's next. No action needed from you.
 
-If In Progress still has the old row, edit it yourself or ask the AI to.
+What you DO want to verify right now:
+
+1. Branch is deleted on remote (the "Delete branch" button on the merged PR's page) — also delete locally with `git branch -d <branch>`
+2. Railway deploy succeeded and `/health` returns 200
+3. If anything looks wrong, ping the AI before dispatching the next task
 
 ---
 
