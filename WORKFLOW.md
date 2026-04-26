@@ -133,7 +133,19 @@ git pull --ff-only
 git branch -d task/csv-export
 ```
 
-Then update TASKS.md: clear the In Progress row, mark the task done.
+Also click **"Delete branch"** on the merged PR's GitHub page so the remote branch isn't left dangling.
+
+### Closing a task — bundle into the next task's first commit
+
+The merge SHA only exists *after* merge, which makes a clean close-out edit to TASKS.md impossible to bundle into the same PR that did the work. Instead of opening a tiny follow-up PR for every closure, **the close-out edit is bundled into the next task's first commit.** Lifecycle:
+
+1. Michele dispatches T-NEXT to an AI: *"Take T-NEXT. Branch `task/whatever`. You own In Progress."*
+2. AI runs `git fetch && git status` and announces (per Section 3).
+3. **First commit on the new branch** is housekeeping: `chore: close T-PREV (merged as <SHA>), claim T-NEXT`. Updates TASKS.md to (a) move T-PREV from In Progress to Done This Week with the merge SHA, and (b) move T-NEXT into the In Progress row.
+4. Subsequent commits on the same branch do the actual work for T-NEXT.
+5. PR ships everything together.
+
+If Michele stops between tasks (no T-NEXT dispatched yet), the In Progress row will continue to show the just-merged task as still In Progress until the next dispatch picks it up. Treat that as "the lock is being held by the AI that just merged" — semantically still correct (no one else should start work). Any AI session that lands during that gap should ask Michele to confirm before claiming.
 
 ---
 

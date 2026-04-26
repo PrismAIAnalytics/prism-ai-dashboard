@@ -48,11 +48,11 @@ _(none yet)_
 
 ## How to use this file
 
-1. **Starting a task:** move the row from "Up Next" into "In Progress." Fill in `Branch`, `Owner` (Michele / Cowork / Claude Code), and `Started` timestamp.
-2. **Finishing a task:** verify the four "done" criteria from [WORKFLOW.md](WORKFLOW.md) Section 1, then move the row to "Done This Week" with a `Closed` date and 1-line note.
+1. **Starting a task:** the AI claims it on its feature branch's **first commit**, which simultaneously (a) closes the previously-merged task with its SHA and (b) moves the new task into In Progress. See [WORKFLOW.md](WORKFLOW.md) §4 "Closing a task — bundle into the next task's first commit."
+2. **Finishing a task:** verify the four "done" criteria from [WORKFLOW.md](WORKFLOW.md) §1. The TASKS.md edit (move the row to Done This Week with a `Closed` date and 1-line note including the merge SHA) is bundled into the *next* task's branch — see #1.
 3. **Blocked:** move to "Blocked" with a clear blocker. Don't leave it in In Progress — that holds the lock.
 4. **Adding new tasks:** append to "Up Next" with a new T-### ID. Keep titles short; one-line "why it matters" forces clarity.
-5. **AI sessions:** before doing anything, read this file. If In Progress is non-empty and the owner isn't you, **stop and ask Michele.**
+5. **AI sessions:** before doing anything, read this file. If In Progress is non-empty and the owner isn't you, **stop and ask Michele.** (Note: an "In Progress" row may briefly reflect a just-merged task whose close-out is pending — that's the lock being held until the next dispatch picks it up.)
 
 ---
 
