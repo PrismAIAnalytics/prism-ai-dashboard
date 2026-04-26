@@ -18,12 +18,26 @@ Every merge to `main` triggers a Railway auto-deploy from GitHub. **Run this che
 - [ ] You are on a feature branch, not `main`: `git branch --show-current` (must NOT print `main`)
 - [ ] Working tree clean: `git status` shows "nothing to commit, working tree clean"
 - [ ] Latest main merged in: `git fetch origin && git merge origin/main` (resolve conflicts now, not post-deploy)
-- [ ] **DB backup taken** (see Backup section). File is timestamped, sitting locally AND uploaded to OneDrive.
-- [ ] **Railway env vars snapshotted**: `railway variables --json > backups/railway-vars-$(date +%Y%m%d-%H%M).json` then encrypt with `gpg -c` and stash in OneDrive. Tokens (Stripe, QuickBooks OAuth refresh tokens) live here — losing them is a multi-hour re-auth.
-- [ ] **Schema changed?** Copy prod `prism.db` locally, run the new `server.js` against the copy, confirm tables/rows are intact: `sqlite3 prism-prod-copy.db ".schema"` and `sqlite3 prism-prod-copy.db "SELECT name, (SELECT COUNT(*) FROM pragma_table_info(name)) FROM sqlite_master WHERE type='table';"`
-- [ ] **New env var required?** Set it in Railway dashboard BEFORE merging the code that reads it. Code that crashes on boot for a missing env var = downtime.
+- [ ] **Risky change?** Tested on staging first — see "When to test on staging" below. Document in the PR: "tested on staging at <staging URL>, observed: <outcome>."
+- [ ] **DB backup taken** — auto-handled by `pre-deploy-backup.yml` GitHub Action on push to main (T-007). Verify the workflow is green for your merge SHA in the Actions tab. Off-laptop copy lives in `Admin/DB-Backups/` (local) and via Action artifacts (90-day retention on GitHub).
+- [ ] **Railway env vars snapshotted**: `railway variables --json > backups/railway-vars-$(date +%Y%m%d-%H%M).json` then encrypt with `gpg -c` and stash off-disk. Tokens (Stripe, QuickBooks OAuth refresh tokens) live here — losing them is a multi-hour re-auth.
+- [ ] **Schema changed?** Test on staging first (see below) — staging has its own SQLite DB on its own volume, so a bad migration there doesn't touch prod. Confirm tables/rows look right via the staging UI before merging to main.
+- [ ] **New env var required?** Set it in Railway dashboard (BOTH `dabe` and `dabe-staging` if applicable) BEFORE merging the code that reads it. Code that crashes on boot for a missing env var = downtime.
 - [ ] **Smoke-test plan written** in the PR description: list the 3-5 endpoints + UI flows you will hit within 60s of deploy. Example: `GET /health`, `GET /api/clients`, `GET /api/financials/summary`, load `/dashboard.html`, click "Daily Reviews" tab.
-- [ ] **Touched Stripe or QuickBooks?** Re-read the OAuth flow in `server.js`. Confirm refresh-token storage path. Have the re-auth URL bookmarked: QuickBooks Connect button + Stripe dashboard webhook test.
+- [ ] **Touched Stripe or QuickBooks?** Re-read the OAuth flow in `server.js`. Confirm refresh-token storage path. Have the re-auth URL bookmarked: QuickBooks Connect button + Stripe dashboard webhook test. **Use staging's Stripe test-mode keys** to validate without touching real money.
+
+### When to test on staging first
+
+Run a staging round (per [WORKFLOW.md](WORKFLOW.md) §4.5) when ANY of these apply:
+
+- Schema migration (new column, new table, ALTER, etc.)
+- Auth/session changes
+- OAuth integration changes (Stripe, QuickBooks, Skilljar)
+- Anything that touches `getDBPath()`, `initDB()`, or seed functions
+- Anything the AI flagged as risky in the PR description
+- You feel uneasy
+
+Skip staging for: docs-only PRs, copy/UI tweaks that pass local `npm run dev`, dependency bumps, pure refactors with no behavior change.
 
 ---
 

@@ -147,6 +147,58 @@ The merge SHA only exists *after* merge, which makes a clean close-out edit to T
 
 If Michele stops between tasks (no T-NEXT dispatched yet), the In Progress row will continue to show the just-merged task as still In Progress until the next dispatch picks it up. Treat that as "the lock is being held by the AI that just merged" — semantically still correct (no one else should start work). Any AI session that lands during that gap should ask Michele to confirm before claiming.
 
+### 4.5 Using staging (on-demand, not mandatory)
+
+T-008 added a second Railway service deploying from the `staging` branch. Use it as a **pre-prod test target for risky changes**. Use it on demand — most PRs still go straight to main.
+
+**Use staging when:**
+- The change touches the SQLite schema (new column, new table, migration)
+- The change touches OAuth flows (Stripe, QuickBooks, Skilljar) where re-auth is painful
+- The change rewrites a hot path (auth, dashboard data fetching, financials)
+- The change is hard to test locally because of integration dependencies
+- You feel uneasy and want to see it running somewhere real first
+
+**Skip staging when:**
+- It's a docs change (like this PR you're reading)
+- It's a UI tweak that runs fine locally with `npm run dev`
+- It's a pure config change (env var, dependency bump)
+
+**Workflow:**
+
+```text
+[risky change locally]
+     │
+     ├──→ feature branch off main
+     │         │
+     │         ├──→ push to `staging` branch (force-push or fast-forward)
+     │         │         │
+     │         │         └──→ Railway dabe-staging redeploys
+     │         │                   │
+     │         │                   └──→ smoke-test against staging URL
+     │         │                             │
+     │         │                             ├──→ broken? fix on feature branch, push to staging again
+     │         │                             └──→ working? continue
+     │         │
+     │         └──→ open PR from feature branch → main
+     │                   │
+     │                   └──→ self-review → squash-merge → prod deploys
+     ↓
+[done]
+```
+
+The PR self-review checklist in §4 should mention "verified on staging" if the change went through staging — that's how the audit trail captures the test.
+
+**Pushing to `staging` directly:** unlike main, `staging` allows direct pushes (light branch protection — blocks force-push and deletion only). Pushing to staging looks like:
+
+```bash
+git checkout staging
+git pull --ff-only
+git merge --no-ff your-feature-branch     # or git reset --hard your-feature-branch
+git push origin staging
+```
+
+If staging breaks, it doesn't matter — re-seed. There's no real data to lose. See [STAGING_SETUP.md](STAGING_SETUP.md) for the one-time service setup.
+
 ---
 
 ## 5. The auto-deploy danger zone

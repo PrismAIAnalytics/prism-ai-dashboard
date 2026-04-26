@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-007 | GitHub Action: snapshot prod via `/api/admin/backup-db` on every push to main, uploaded as Actions artifact (90-day retention) | `task/auto-backup-on-deploy` | Claude Code | 2026-04-26 13:30 |
+| T-008 | Spin up a staging Railway service from a `staging` branch | `task/staging-environment` | Claude Code | 2026-04-26 13:55 |
 
 ---
 
@@ -17,7 +17,7 @@
 
 | ID | Title | Why it matters | Owner candidate |
 |----|-------|----------------|-----------------|
-| T-008 | Spin up a staging Railway service from a `staging` branch | Gives a non-prod target to test risky changes against | Claude Code |
+| _(empty — INCIDENT_FINDINGS.md punch list complete after T-008)_ | | | |
 
 ---
 
@@ -42,6 +42,7 @@ _(none yet)_
 | T-006 | Update dashboard CLAUDE.md to point at WORKFLOW.md | 2026-04-26 | Rolled into T-003. CLAUDE.md gained a "Read these before any work" section pointing at the 5 protocol docs in priority order. |
 | T-004 | Enable GitHub branch protection on `main` | 2026-04-26 | Configured via GitHub Rulesets at `PrismAIAnalytics/prism-ai-dashboard/settings/rules`. Enforces: PR required (0 approvals), block force pushes, restrict deletions, linear history. Bypass list empty (applies to admins too). Verified — direct `git push origin main` rejected with `GH013: Changes must be made through a pull request`. No merge SHA — pure GitHub UI configuration. |
 | T-005 | Decide: keep Railway auto-deploy vs switch to manual | 2026-04-26 | **Decision: keep auto-deploy.** With T-001 (volume + fail-hard) and T-004 (branch-protected main, PR-only) in place, the failure modes that wiped prod twice are closed. Remaining risk is "merge a bad PR" — addressed by self-review checklist. No implementation work; decision-only. |
+| T-007 | GitHub Action: snapshot prod via `/api/admin/backup-db` on every push to main | 2026-04-26 | Merged via PR #5 as `15b3e57` (squash). After merging, added `DABE_ADMIN_KEY` repo secret + enabled Railway "Wait for CI" toggle on dabe Source settings. First successful run uploaded `prism-dabe-pre-deploy-20260426-174559.db` as an Actions artifact (90-day retention). All future merges to main now auto-snapshot prod before Railway deploys. |
 
 ---
 
