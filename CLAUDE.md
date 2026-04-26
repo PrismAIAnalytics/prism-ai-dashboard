@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Read these before any work
+
+This repo runs under a strict AI-coordination protocol because production has been wiped twice. **Before touching any file, read in this order:**
+
+1. **[WORKFLOW.md](WORKFLOW.md)** — the protocol. WIP=1, branch-per-task, never push to main, squash-merge only.
+2. **[TASKS.md](TASKS.md)** — the lock. Confirm In Progress is empty (or owned by you) before starting work.
+3. **[INCIDENT_FINDINGS.md](INCIDENT_FINDINGS.md)** — root cause of the two prod wipes. Why the protocol exists.
+4. **[DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md)** — pre-deploy checklist and rollback procedures.
+5. **[PR_JOB_AID.md](PR_JOB_AID.md)** — operator walkthrough for opening PRs and squash-merging.
+
+If In Progress in TASKS.md is non-empty and the owner isn't you, **stop and ask Michele.**
+
 ## Environment
 - OS: Windows (PowerShell)
 - Use PowerShell-compatible syntax for environment variables (e.g., `$env:VAR` not `VAR=value`)
