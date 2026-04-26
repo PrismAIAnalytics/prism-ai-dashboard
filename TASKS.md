@@ -1,0 +1,63 @@
+# TASKS.md
+
+> **Single source of truth for what's in flight.** This file is the AI-coordination lock — see [WORKFLOW.md](WORKFLOW.md) Section 3.
+> **The "In Progress" table contains zero or one row. Never two.**
+
+---
+
+## In Progress
+
+| Task ID | Title | Branch | Owner | Started |
+|---------|-------|--------|-------|---------|
+| T-003 | Move WORKFLOW + INCIDENT_FINDINGS + TASKS + PR_JOB_AID into dashboard repo (single source of truth); add CLAUDE.md pointer (rolls in T-006) | `chore/add-workflow-docs` | Claude Code | 2026-04-26 11:05 |
+
+---
+
+## Up Next (priority order)
+
+| ID | Title | Why it matters | Owner candidate |
+|----|-------|----------------|-----------------|
+| T-004 | **Enable GitHub branch protection** on `main` — require PR, block direct pushes, block force-pushes | Makes "never push to main" enforceable instead of polite | Michele (GitHub UI, 2 min) |
+| T-005 | **Decide: keep Railway auto-deploy or switch to manual `railway up`** | Auto-deploy + solo + AI = the conditions that wiped prod twice. Recommendation: manual until T-001 + T-004 + a few clean deploys build trust | Michele (decision), then Cowork (implement) |
+| T-007 | Add GitHub Action that runs the admin DB-dump on PR-merge **before** Railway redeploys | Automates the backup step so a tired Michele can't forget it | Claude Code |
+| T-008 | Spin up a staging Railway service from a `staging` branch | Gives a non-prod target to test risky changes against | Claude Code |
+
+---
+
+## Blocked
+
+_(none yet)_
+
+| ID | Title | Blocked by | Notes |
+|----|-------|------------|-------|
+
+---
+
+## Done This Week
+
+| ID | Title | Closed | Notes |
+|----|-------|--------|-------|
+| T-000 | Stand up the council, produce WORKFLOW + RUNBOOK + INCIDENT FINDINGS + TASKS | 2026-04-24 | Cowork session output. Files live at repo root. |
+| T-001 | Close silent fallback in `getDBPath()` — crash-loud on missing volume in production | 2026-04-24 | Merged via PR #1 as `110dc3c`. Squash commit on top of `e8ac718`. Prod `/health` returned 200 post-deploy; DB accessible. Also added `backups/` to `.gitignore`. |
+| T-009 | Restore selected tables from `prism-7058a-*.db` into dabe | 2026-04-26 | Merged via PR #2 as `d29f58e` (squash). 263 of 339 planned rows restored to dabe: industries (8), lead_sources (5), team_members (2), services (5), tools (133), business_assets (54), action_items (34), users (2), tickets (13). 76 rows intentionally NOT restored: projects/invoices/time_entries/payments — all FK-bound to clients (NOT NULL constraint), and policy is "no seed clients in prod / 0 real clients yet ⇒ 0 invoices/etc." Post-restore backup at `backups/prism-dabe-post-restore-20260426-104937.db` (516 KB). |
+| T-002 | Take first real backup of prod `prism.db` and store off-disk | 2026-04-26 | 5 .db backups copied from `Development/dashboard/backups/` to `Admin/DB-Backups/` (workspace-root, in Obsidian vault — auto-syncs to cloud if vault sync is on). Files: prism-7058a × 2 (legacy source), prism-dabe × 2 (pre-T-001 + pre-T-009), prism-dabe-post-restore (current dabe state, 516 KB). |
+
+---
+
+## How to use this file
+
+1. **Starting a task:** move the row from "Up Next" into "In Progress." Fill in `Branch`, `Owner` (Michele / Cowork / Claude Code), and `Started` timestamp.
+2. **Finishing a task:** verify the four "done" criteria from [WORKFLOW.md](WORKFLOW.md) Section 1, then move the row to "Done This Week" with a `Closed` date and 1-line note.
+3. **Blocked:** move to "Blocked" with a clear blocker. Don't leave it in In Progress — that holds the lock.
+4. **Adding new tasks:** append to "Up Next" with a new T-### ID. Keep titles short; one-line "why it matters" forces clarity.
+5. **AI sessions:** before doing anything, read this file. If In Progress is non-empty and the owner isn't you, **stop and ask Michele.**
+
+---
+
+## Conventions
+
+- **Task IDs** are sequential `T-###`. Don't reuse numbers.
+- **Branches** match the task: `task/short-slug`, `fix/short-slug`, or `chore/short-slug`.
+- **One owner per row.** No "Michele + Cowork" — split the task or pick one.
+- **Dates** are `YYYY-MM-DD HH:MM` in your local timezone.
+- **WIP = 1.** If you find yourself wanting two rows in In Progress, the second one becomes a new top entry in Up Next.
