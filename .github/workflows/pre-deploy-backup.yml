@@ -1,0 +1,97 @@
+name: Pre-deploy backup
+
+# Snapshots the live dabe SQLite DB on every push to main, BEFORE Railway
+# redeploys. The artifact is uploaded with 90-day retention so any merge
+# that turns out to break prod has an immediately-prior restore point.
+#
+# How this fits with Railway:
+#   1. Merge to main → push event arrives at GitHub
+#   2. GitHub fires this workflow + Railway starts queuing a deploy
+#   3. With Railway's "Wait for CI" toggle ON (Settings → Source), Railway
+#      holds until this workflow's required check is green before deploying
+#   4. The workflow calls /api/admin/backup-db on the *currently-running*
+#      pre-merge container, gets the live DB, uploads it as an artifact
+#   5. Once green, Railway proceeds with the new deploy
+#
+# Required configuration (manual setup after first merge of this file):
+#   - Add repo secret DABE_ADMIN_KEY in Settings → Secrets and variables → Actions
+#   - Enable "Wait for CI" in Railway → dabe service → Settings → Source
+
+on:
+  push:
+    branches: [main]
+  # Allow manual trigger for ad-hoc backups (Actions tab → "Run workflow")
+  workflow_dispatch: {}
+
+# Only one backup job at a time per ref — protects against rapid-fire merges
+concurrency:
+  group: pre-deploy-backup-${{ github.ref }}
+  cancel-in-progress: false
+
+# Minimal permissions — this job only needs to write artifacts, nothing else
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DABE_URL: https://dashboard-api-production-dabe.up.railway.app
+    steps:
+      - name: Verify ADMIN_KEY secret is configured
+        run: |
+          if [ -z "${{ secrets.DABE_ADMIN_KEY }}" ]; then
+            echo "::error::DABE_ADMIN_KEY repo secret is not set."
+            echo "::error::Add it at Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Health-check dabe before backup
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o /dev/null -w "%{http_code}" "${DABE_URL}/health")
+          if [ "$status" != "200" ]; then
+            echo "::error::dabe /health returned HTTP ${status}; refusing to attempt backup against unhealthy target."
+            exit 1
+          fi
+          echo "dabe /health → 200"
+
+      - name: Snapshot dabe DB via /api/admin/backup-db
+        env:
+          ADMIN_KEY: ${{ secrets.DABE_ADMIN_KEY }}
+        run: |
+          set -euo pipefail
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          OUT="prism-dabe-pre-deploy-${STAMP}.db"
+          # -f fails on HTTP 4xx/5xx so a non-200 response causes the step to fail
+          # -D dumps response headers so we can capture X-Backup-Source / X-Backup-Bytes
+          curl -fsSL -D headers.txt \
+            -H "X-Admin-Key: ${ADMIN_KEY}" \
+            "${DABE_URL}/api/admin/backup-db" \
+            -o "${OUT}"
+          echo "--- response headers ---"
+          cat headers.txt
+          echo "--- file size ---"
+          ls -la "${OUT}"
+          # Sanity: SQLite files start with "SQLite format 3\0"
+          head -c 16 "${OUT}" | od -c | head -1
+          echo "OUTFILE=${OUT}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact (90-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-deploy-backup-${{ github.sha }}
+          path: ${{ env.OUTFILE }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          echo "## Pre-deploy backup complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- File: \`${OUTFILE}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Artifact retention: 90 days" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Railway redeploy may now proceed." >> "$GITHUB_STEP_SUMMARY"
