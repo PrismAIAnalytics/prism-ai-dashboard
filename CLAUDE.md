@@ -11,8 +11,15 @@ This repo runs under a strict AI-coordination protocol because production has be
 3. **[INCIDENT_FINDINGS.md](INCIDENT_FINDINGS.md)** — root cause of the two prod wipes. Why the protocol exists.
 4. **[DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md)** — pre-deploy checklist and rollback procedures.
 5. **[PR_JOB_AID.md](PR_JOB_AID.md)** — operator walkthrough for opening PRs and squash-merging.
+6. **[STAGING_SETUP.md](STAGING_SETUP.md)** — one-time setup guide for the staging Railway service (T-008).
 
 If In Progress in TASKS.md is non-empty and the owner isn't you, **stop and ask Michele.**
+
+## Environments
+
+- **Production:** https://dashboard-api-production-dabe.up.railway.app — deploys from `main` on every merge
+- **Staging:** `<set after T-008 Railway service is created — see STAGING_SETUP.md>` — deploys from `staging`, holds seed data only, used on-demand for risky changes per [WORKFLOW.md](WORKFLOW.md) §4.5
+- **Legacy:** https://web-production-7058a.up.railway.app — kept as a recovery source; not under active development
 
 ## Environment
 - OS: Windows (PowerShell)
