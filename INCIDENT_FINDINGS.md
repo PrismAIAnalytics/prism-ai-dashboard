@@ -1,8 +1,102 @@
 # INCIDENT_FINDINGS.md
 
-> **Incidents:** Prism AI Dashboard production data wiped (×2)
-> **Investigated:** 2026-04-24 by the council
+> **Incidents:** Prism AI Dashboard production data wiped (×3 as of 2026-04-27)
+> **Original investigation:** 2026-04-24 by the council
+> **Wipe #3 investigation:** 2026-04-27 by Claude Code (T-010)
 > **App:** Prism AI Dashboard (this repository) deployed at https://dashboard-api-production-dabe.up.railway.app
+
+---
+
+## Wipe #3 — 2026-04-26 ~18:04 UTC
+
+**TL;DR:** T-001 added a fail-hard guard but the heuristic it depends on cannot detect a missing volume on Railway. The guard passed silently against ephemeral storage, exactly like the original silent fallback it was meant to replace. Wipe #3 erased the 256 rows that T-009 had restored ~7 hours earlier.
+
+### How we found it (T-010)
+
+Read-only diagnosis on `dashboard-api` service in `production` environment of `prism-dashboard` Railway project, on 2026-04-27 morning:
+
+| Check | Value | Source |
+|---|---|---|
+| `NODE_ENV` | `production` | `railway variables` |
+| `DB_PATH` | unset | `railway variables` |
+| Volume attached to `dashboard-api` | **none** | `railway volume list` in env=production returns "No volumes found" |
+| Volume attached to `dabe-staging` | `dabe-staging-volume` at `/app/data` (5 GB) | same command in env=staging |
+| Container uptime when checked | ~20 h | `/health` endpoint |
+| Last build image timestamp | `2026-04-26T18:03:56Z` | `railway logs --build` |
+| Boot log on current container | `Volume /app/data is ready (attempt 1)` then `Opening database at: /app/data/prism.db` | `railway logs` |
+| Backup file `prism-dabe-post-restore-20260426-104937.db` | 516 KB, 256 rows, intact | `better-sqlite3` row-count read |
+
+### Actual root cause
+
+The `isVolumeReady()` function ([server.js:659-670](server.js)) determines whether `/app/data` is a real mounted volume or ephemeral storage by **doing a write-test**:
+
+```javascript
+function isVolumeReady(dir) {
+  // Check if the directory is actually writable (volume mounted), not just existing
+  // (the Dockerfile creates /app/data but it's read-only until the volume mounts)
+  try {
+    const testFile = path.join(dir, '.write-test');
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+    return true;
+  } catch {
+    return false;
+  }
+}
+```
+
+The comment claims the Dockerfile-created `/app/data` is "read-only until the volume mounts." That claim is **wrong**. The Dockerfile contains `RUN mkdir -p /app/data` running as root (build log line "stage-1 16/16"), which creates a normal writable directory at image build time. With no Railway volume attached:
+
+1. Container starts on ephemeral filesystem
+2. `/app/data` exists from the Dockerfile and is writable (root, default permissions)
+3. `isVolumeReady('/app/data')` writes `.write-test`, unlinks it, returns `true`
+4. `getDBPath()` ([server.js:704-708](server.js)) returns `/app/data/prism.db` — an ephemeral path
+5. App boots happy. **Every redeploy = fresh container = empty `/app/data/prism.db` = wipe.**
+
+The fail-hard guard from T-001 still works correctly *if it gets a chance to fire* — but `isVolumeReady` returns true before `getDBPath` ever has the opportunity to crash. The guard is gated on the wrong signal.
+
+### Why this is the same shape of bug as wipes #1 and #2
+
+| Wipe | Mechanism | Why "fix" was incomplete |
+|---|---|---|
+| #1, #2 | `console.warn('Volume not available — falling back to local directory')` then continued anyway | A warning is not a guardrail. |
+| #3 | `isVolumeReady()` write-test passes against ephemeral writable dir | A write-test is not a volume detector. |
+
+In both cases the code "checked" something that looks like volume health but is actually a free pass on ephemeral storage. T-001 closed the silent-fallback in the *control flow* but left the *signal* unchanged.
+
+### Why the original "Immediate fixes" punch list missed this
+
+INCIDENT_FINDINGS.md (this file, before this update) listed two P0 items:
+
+1. Attach a Railway persistent volume.
+2. Make `getDBPath()` fail hard.
+
+T-001 implemented #2 but **#1 was infrastructure work that needed to happen in the Railway dashboard**, not in code. The PR description for T-001 said "Add the Railway volume (in dashboard, not code)" but the dashboard step was never done. There was no automated check for it. TASKS.md did not list it as a separate task because the original recommendation bundled #1 and #2 as a single PR — but only #2 lived inside the repo.
+
+The punch list at the bottom of TASKS.md (before this update) implied the post-wipe work was complete. It was not. **8/8 was incorrect — it should have been 7/8 with the volume mount still open.**
+
+### Fix plan (T-011a + follow-ups)
+
+**T-011a (in flight):**
+
+1. Attach Railway volume to `dashboard-api` service at `/app/data`, ~1 GB. (Michele, dashboard UI.)
+2. Set `DB_PATH=/app/data/prism.db` on the same service. (Michele, dashboard UI — recommended for clarity even though the legacy `/app/data` fallback would work too.)
+3. Wait for Railway redeploy with current main code. Volume now mounts, ephemeral writes turn into volume writes. Verify `/health` is 200 and `Volume /app/data is ready` still appears in boot log.
+4. Harden `isVolumeReady()` to require `RAILWAY_VOLUME_MOUNT_PATH` to be set when running on Railway. The write-test stays as a secondary check. This makes the heuristic match the actual signal Railway exposes when a volume is attached.
+5. Land the code change via PR. New deploy boots with hardened guard against the now-attached volume — succeeds. If anyone ever detaches the volume in the future, the boot now crashes instead of silently wiping.
+
+**T-012 (next):**
+
+Re-run the T-009 restore against the now-persistent volume DB. Source: `Admin/DB-Backups/prism-dabe-post-restore-20260426-104937.db` (256 rows). Push a no-op trigger commit afterward and confirm the row counts survive a redeploy — the only proof that closes the wipe vector.
+
+### What we still don't know
+
+- **Why was `dabe-staging` set up with a volume but `dashboard-api` was not?** Both services are in the same Railway project. Either the staging setup happened after T-001 with awareness of the volume requirement and the prod fix never got bundled in, or the prod volume was attempted and silently dropped at some earlier point.
+- **Did wipe #3 destroy any data that wasn't in the post-restore backup?** Probably not — the backup was taken minutes after T-009's restore and there were no `client`-creating writes in the ~7 hours before the wipe (the prod CRM had 0 clients by policy). But QuickBooks/Stripe-driven writes (auto-pulled financials, etc.) could have been lost. Worth a quick reconcile against Stripe + QB after T-012 lands.
+
+---
+
+## Original investigation (wipes #1 and #2) — 2026-04-24
 
 ---
 
