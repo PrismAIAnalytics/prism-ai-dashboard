@@ -657,8 +657,33 @@ app.get('/health', (req, res) => {
 // Railway mounts volumes AFTER the container starts, so we must wait for the
 // volume to become writable before opening the database.
 function isVolumeReady(dir) {
-  // Check if the directory is actually writable (volume mounted), not just existing
-  // (the Dockerfile creates /app/data but it's read-only until the volume mounts)
+  // The write-test alone CANNOT detect a missing volume on Railway: the
+  // Dockerfile's `RUN mkdir -p /app/data` creates a writable directory at
+  // image build time, so the test passes against ephemeral storage. That
+  // gap wiped prod on 2026-04-26 (see INCIDENT_FINDINGS.md, Wipe #3).
+  //
+  // On Railway, a real attached volume sets RAILWAY_VOLUME_MOUNT_PATH. We
+  // require it to be set AND match the expected mount path. Off Railway
+  // (local dev, other platforms), we fall back to the write-test alone.
+  const onRailway = !!(process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_ENVIRONMENT_ID);
+  if (onRailway) {
+    const volumePath = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+    if (!volumePath) {
+      console.error(
+        `isVolumeReady: RAILWAY_VOLUME_MOUNT_PATH is unset on Railway — ` +
+        `no volume attached. Attach one in the Railway dashboard, ` +
+        `or unset NODE_ENV=production for non-prod runs.`
+      );
+      return false;
+    }
+    if (volumePath !== dir) {
+      console.error(
+        `isVolumeReady: RAILWAY_VOLUME_MOUNT_PATH=${volumePath} does not match ` +
+        `expected mount path ${dir}. Adjust the Railway volume mount path.`
+      );
+      return false;
+    }
+  }
   try {
     const testFile = path.join(dir, '.write-test');
     fs.writeFileSync(testFile, 'ok');
