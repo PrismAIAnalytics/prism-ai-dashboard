@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-008 | Spin up a staging Railway service from a `staging` branch | `task/staging-environment` | Claude Code | 2026-04-26 13:55 |
+| T-011a | Attach prod volume + harden `isVolumeReady()` against ephemeral writable dirs | `task/attach-prod-volume-and-harden-guard` | Claude Code | 2026-04-27 10:22 |
 
 ---
 
@@ -17,7 +17,7 @@
 
 | ID | Title | Why it matters | Owner candidate |
 |----|-------|----------------|-----------------|
-| _(empty — INCIDENT_FINDINGS.md punch list complete after T-008)_ | | | |
+| T-012 | Re-run T-009 restore against volume-backed dabe DB | Restores 256 rows wiped on 2026-04-26 18:04 UTC redeploy. Blocked on T-011a (volume must be attached + verified persistent first). | Claude Code |
 
 ---
 
@@ -34,6 +34,8 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-010 | Diagnose dabe storage state (read-only) | 2026-04-27 | **No merge SHA — pure investigation.** Confirmed wipe #3 root cause: T-001's fail-hard guard relies on `isVolumeReady()` which only does a write-test, but the Dockerfile's `RUN mkdir -p /app/data` (build log line "stage-1 16/16") creates a writable directory at build time running as root, so the guard passes silently against ephemeral storage. Production has **no volume attached** (`railway volume list` in env=production: empty). NODE_ENV=production ✓, DB_PATH unset, ADMIN_KEY+API_KEY set. Boot log on current container: `Volume /app/data is ready (attempt 1)` then `Opening database at: /app/data/prism.db` — that path is ephemeral. Container uptime ~20h, build image timestamp `2026-04-26T18:03:56Z` confirms wipe-causing redeploy was the T-007 GitHub Action merge. Backup file `Admin/DB-Backups/prism-dabe-post-restore-20260426-104937.db` (516 KB) verified intact: 256 rows total (industries 8, lead_sources 5, team_members 2, services 5, tools 133, business_assets 54, action_items 34, users 2, tickets 13). See INCIDENT_FINDINGS.md "Wipe #3" section. |
+| T-008 | Spin up a staging Railway service from a `staging` branch | 2026-04-26 | Merged via PR #6 as `3736338` (squash). Created `dabe-staging` Railway service with own volume `dabe-staging-volume` mounted at `/app/data` (5 GB), deploys from `staging` branch. Used to validate T-009 restore script before prod run. |
 | T-000 | Stand up the council, produce WORKFLOW + RUNBOOK + INCIDENT FINDINGS + TASKS | 2026-04-24 | Cowork session output. Files live at repo root. |
 | T-001 | Close silent fallback in `getDBPath()` — crash-loud on missing volume in production | 2026-04-24 | Merged via PR #1 as `110dc3c`. Squash commit on top of `e8ac718`. Prod `/health` returned 200 post-deploy; DB accessible. Also added `backups/` to `.gitignore`. |
 | T-009 | Restore selected tables from `prism-7058a-*.db` into dabe | 2026-04-26 | Merged via PR #2 as `d29f58e` (squash). 263 of 339 planned rows restored to dabe: industries (8), lead_sources (5), team_members (2), services (5), tools (133), business_assets (54), action_items (34), users (2), tickets (13). 76 rows intentionally NOT restored: projects/invoices/time_entries/payments — all FK-bound to clients (NOT NULL constraint), and policy is "no seed clients in prod / 0 real clients yet ⇒ 0 invoices/etc." Post-restore backup at `backups/prism-dabe-post-restore-20260426-104937.db` (516 KB). |
