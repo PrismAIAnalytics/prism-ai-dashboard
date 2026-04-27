@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-011a | Attach prod volume + harden `isVolumeReady()` against ephemeral writable dirs | `task/attach-prod-volume-and-harden-guard` | Claude Code | 2026-04-27 10:22 |
+| T-012 | Re-run T-009 restore against volume-backed dabe DB | `task/restore-dabe-from-snapshot` | Claude Code | 2026-04-27 11:19 |
 
 ---
 
@@ -17,7 +17,7 @@
 
 | ID | Title | Why it matters | Owner candidate |
 |----|-------|----------------|-----------------|
-| T-012 | Re-run T-009 restore against volume-backed dabe DB | Restores 256 rows wiped on 2026-04-26 18:04 UTC redeploy. Blocked on T-011a (volume must be attached + verified persistent first). | Claude Code |
+| _(empty — post-wipe-#3 recovery completes after T-012)_ | | | |
 
 ---
 
@@ -34,6 +34,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-011a | Attach prod volume + harden `isVolumeReady()` against ephemeral writable dirs | 2026-04-27 | Merged via PR #7 as `9638aa3` (squash). Closes wipe #3 root cause from T-010. **Volume attached:** `dashboard-api-volume` (5 GB) at `/app/data` on `dashboard-api` in production env. **Env vars set:** `DB_PATH=/app/data/prism.db`, `RAILWAY_VOLUME_MOUNT_PATH=/app/data` (Railway auto-injects), `RAILWAY_VOLUME_NAME=dashboard-api-volume`. **Code change:** `isVolumeReady()` now requires `RAILWAY_VOLUME_MOUNT_PATH` to be set AND match expected mount path on Railway; write-test stays as secondary check. **Post-merge verification:** `/health` 200 with new uptime; boot log shows `Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/.../vol_8krewdcg4uie08fi` (real mount, not ephemeral); GitHub Action `Pre-deploy backup` run id `25002998605` succeeded in 13s, uploaded artifact `pre-deploy-backup-9638aa3c09b4b027abbbdbd4399a7cc18e7ab3bd` (34,918 bytes, 90-day retention) — round-trip read+write against the volume-backed DB confirmed. INCIDENT_FINDINGS.md updated with "Wipe #3" section documenting the actual root cause (write-test heuristic could not distinguish ephemeral writable dir from mounted volume; the original "8/8 done" punch list was incorrect — should have been 7/8 with the volume mount step still open). |
 | T-010 | Diagnose dabe storage state (read-only) | 2026-04-27 | **No merge SHA — pure investigation.** Confirmed wipe #3 root cause: T-001's fail-hard guard relies on `isVolumeReady()` which only does a write-test, but the Dockerfile's `RUN mkdir -p /app/data` (build log line "stage-1 16/16") creates a writable directory at build time running as root, so the guard passes silently against ephemeral storage. Production has **no volume attached** (`railway volume list` in env=production: empty). NODE_ENV=production ✓, DB_PATH unset, ADMIN_KEY+API_KEY set. Boot log on current container: `Volume /app/data is ready (attempt 1)` then `Opening database at: /app/data/prism.db` — that path is ephemeral. Container uptime ~20h, build image timestamp `2026-04-26T18:03:56Z` confirms wipe-causing redeploy was the T-007 GitHub Action merge. Backup file `Admin/DB-Backups/prism-dabe-post-restore-20260426-104937.db` (516 KB) verified intact: 256 rows total (industries 8, lead_sources 5, team_members 2, services 5, tools 133, business_assets 54, action_items 34, users 2, tickets 13). See INCIDENT_FINDINGS.md "Wipe #3" section. |
 | T-008 | Spin up a staging Railway service from a `staging` branch | 2026-04-26 | Merged via PR #6 as `3736338` (squash). Created `dabe-staging` Railway service with own volume `dabe-staging-volume` mounted at `/app/data` (5 GB), deploys from `staging` branch. Used to validate T-009 restore script before prod run. |
 | T-000 | Stand up the council, produce WORKFLOW + RUNBOOK + INCIDENT FINDINGS + TASKS | 2026-04-24 | Cowork session output. Files live at repo root. |
