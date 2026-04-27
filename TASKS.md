@@ -17,7 +17,7 @@
 
 | ID | Title | Why it matters | Owner candidate |
 |----|-------|----------------|-----------------|
-| _(empty — post-wipe-#3 recovery completes after T-012)_ | | | |
+| T-013 | Rotate remaining 5 prod secrets (API_KEY, STRIPE_SECRET_KEY, QBO_CLIENT_ID, QBO_CLIENT_SECRET, ANTHROPIC_API_KEY) | Carryover from 2026-04-26 session. ADMIN_KEY rotated under T-012. Each of the 5 needs an external rotation in its own console (Stripe, Intuit Developer, Anthropic), then Railway env update. QBO pair also requires re-running OAuth flow. Worth deferring to a dedicated fresh session — not urgent, just hygiene. The previous "ticket 9ea1da15-..." reference does not point to a real ticket in any tracker (Notion 404, no match in dashboard tickets/action_items). | Claude Code |
 
 ---
 
