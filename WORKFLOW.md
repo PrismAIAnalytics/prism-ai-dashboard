@@ -142,8 +142,13 @@ The merge SHA only exists *after* merge, which makes a clean close-out edit to T
 1. Michele dispatches T-NEXT to an AI: *"Take T-NEXT. Branch `task/whatever`. You own In Progress."*
 2. AI runs `git fetch && git status` and announces (per Section 3).
 3. **First commit on the new branch** is housekeeping: `chore: close T-PREV (merged as <SHA>), claim T-NEXT`. Updates TASKS.md to (a) move T-PREV from In Progress to Done This Week with the merge SHA, and (b) move T-NEXT into the In Progress row.
-4. Subsequent commits on the same branch do the actual work for T-NEXT.
-5. PR ships everything together.
+4. **Run the mirror sync** so the dashboard + Notion reflect the new TASKS.md state:
+   ```bash
+   node scripts/sync-tasks.js
+   ```
+   See §4.6 below for what this does and when to skip it.
+5. Subsequent commits on the same branch do the actual work for T-NEXT.
+6. PR ships everything together.
 
 If Michele stops between tasks (no T-NEXT dispatched yet), the In Progress row will continue to show the just-merged task as still In Progress until the next dispatch picks it up. Treat that as "the lock is being held by the AI that just merged" — semantically still correct (no one else should start work). Any AI session that lands during that gap should ask Michele to confirm before claiming.
 
@@ -198,6 +203,29 @@ git push origin staging
 ```
 
 If staging breaks, it doesn't matter — re-seed. There's no real data to lose. See [STAGING_SETUP.md](STAGING_SETUP.md) for the one-time service setup.
+
+### 4.6 TASKS.md ↔ Dashboard ↔ Notion mirror (T-015)
+
+`TASKS.md` is canonical. Two read-only mirrors stay in sync via a single idempotent script:
+
+- **Dashboard `tickets` table**, `category=engineering`, tagged `task-md,T-###,src:manual`
+- **Notion "Prism AI Tickets" DB** (`b3b42787-e56b-4807-afccee172df50cb9`), matched by the `T-ID` text property
+
+**Run after any TASKS.md edit:**
+
+```bash
+node scripts/sync-tasks.js              # writes to prod dashboard + Notion
+node scripts/sync-tasks.js --dry-run    # parse + diff, no writes (safe to run anytime)
+node scripts/sync-tasks.js --local      # write to http://localhost:3000 instead of prod
+```
+
+The script is idempotent — re-running with no TASKS.md changes reports `0 created · 0 updated · 16 skipped`. Cross-links: dashboard `notion_page_id` ← Notion page UUID; Notion `Dashboard Ticket ID` ← dashboard `ticket_key` (e.g., `TKT-0042`).
+
+**Skip the sync only when:** the only TASKS.md edit was a comment in another file referencing a task ID — i.e., no row added, moved, or modified. When in doubt, run `--dry-run` first; if it reports `0 updated · 0 created`, you can skip the write.
+
+**Deletion is not handled.** Removing a row from TASKS.md leaves orphans in both stores. Manual cleanup. (Followups: T-016 pre-commit hook, T-017 GitHub Action.)
+
+Required env (loaded from [.env](.env)): `NOTION_API_KEY`, `NOTION_TICKETS_DB_ID`, `API_KEY`.
 
 ---
 
