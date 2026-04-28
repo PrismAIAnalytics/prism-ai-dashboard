@@ -15,6 +15,8 @@ This repo runs under a strict AI-coordination protocol because production has be
 
 If In Progress in TASKS.md is non-empty and the owner isn't you, **stop and ask Michele.**
 
+**After editing TASKS.md, run `node scripts/sync-tasks.js`** to mirror the change to the dashboard `tickets` table (category=engineering) and Notion "Prism AI Tickets" DB. See [WORKFLOW.md](WORKFLOW.md) §4.6 for details. The script is idempotent — safe to re-run.
+
 ## Environments
 
 - **Production:** https://dashboard-api-production-dabe.up.railway.app — deploys from `main` on every merge
