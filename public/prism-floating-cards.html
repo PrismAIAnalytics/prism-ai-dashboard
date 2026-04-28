@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — Service Offerings</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px;
+    height: 1350px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(170deg, #06101f 0%, #0a192f 50%, #112240 100%);
+    color: #e2e8f0;
+    position: relative;
+  }
+
+  /* Animated mesh gradient background */
+  .mesh-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+  }
+  .mesh-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.1;
+    mix-blend-mode: screen;
+  }
+  .mb-1 { width: 500px; height: 500px; background: #00d4aa; top: -5%; left: -5%;
+           animation: blobDrift 12s ease-in-out infinite; }
+  .mb-2 { width: 450px; height: 450px; background: #38bdf8; bottom: 10%; right: -5%;
+           animation: blobDrift 14s ease-in-out infinite reverse; }
+  .mb-3 { width: 400px; height: 400px; background: #a855f7; top: 40%; left: 30%;
+           animation: blobDrift 16s ease-in-out infinite; animation-delay: -4s; }
+  .mb-4 { width: 350px; height: 350px; background: #f472b6; top: 70%; left: 60%;
+           animation: blobDrift 10s ease-in-out infinite reverse; animation-delay: -2s; }
+
+  @keyframes blobDrift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(60px, -40px) scale(1.1); }
+    50% { transform: translate(-30px, 50px) scale(0.9); }
+    75% { transform: translate(40px, 30px) scale(1.05); }
+  }
+
+  #header {
+    text-align: center;
+    padding: 45px 40px 0;
+    position: relative;
+    z-index: 10;
+  }
+  #header h1 {
+    font-size: 44px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #00d4aa, #38bdf8, #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  #header p {
+    font-size: 16px;
+    color: #64748b;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Floating card layout */
+  .cards-container {
+    position: absolute;
+    top: 150px;
+    left: 0;
+    right: 0;
+    bottom: 80px;
+    z-index: 5;
+  }
+
+  .float-card {
+    position: absolute;
+    border-radius: 20px;
+    padding: 28px;
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.06);
+    animation: cardFloat var(--float-dur) ease-in-out infinite;
+    animation-delay: var(--float-delay);
+    transition: box-shadow 0.3s;
+    width: 300px;
+  }
+
+  @keyframes cardFloat {
+    0%, 100% { transform: translateY(0) rotate(var(--rot-start)); }
+    50% { transform: translateY(var(--float-y)) rotate(var(--rot-end)); }
+  }
+
+  .card-icon { font-size: 32px; margin-bottom: 10px; display: block; }
+  .card-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: 0.5;
+  }
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  .card-desc {
+    font-size: 12px;
+    opacity: 0.45;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  .card-price {
+    font-size: 15px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 10px;
+    display: inline-block;
+  }
+
+  /* Card themes */
+  .fc-cyan {
+    background: linear-gradient(145deg, rgba(0,212,170,0.1), rgba(0,212,170,0.03));
+    border-color: rgba(0,212,170,0.15);
+    box-shadow: 0 8px 40px rgba(0,212,170,0.06);
+  }
+  .fc-cyan .card-title { color: #00d4aa; }
+  .fc-cyan .card-price { background: rgba(0,212,170,0.1); color: #6ee7b7; }
+
+  .fc-blue {
+    background: linear-gradient(145deg, rgba(56,189,248,0.1), rgba(56,189,248,0.03));
+    border-color: rgba(56,189,248,0.15);
+    box-shadow: 0 8px 40px rgba(56,189,248,0.06);
+  }
+  .fc-blue .card-title { color: #38bdf8; }
+  .fc-blue .card-price { background: rgba(56,189,248,0.1); color: #7dd3fc; }
+
+  .fc-purple {
+    background: linear-gradient(145deg, rgba(168,85,247,0.1), rgba(168,85,247,0.03));
+    border-color: rgba(168,85,247,0.15);
+    box-shadow: 0 8px 40px rgba(168,85,247,0.06);
+  }
+  .fc-purple .card-title { color: #a855f7; }
+  .fc-purple .card-price { background: rgba(168,85,247,0.1); color: #d8b4fe; }
+
+  .fc-green {
+    background: linear-gradient(145deg, rgba(74,222,128,0.1), rgba(74,222,128,0.03));
+    border-color: rgba(74,222,128,0.15);
+    box-shadow: 0 8px 40px rgba(74,222,128,0.06);
+  }
+  .fc-green .card-title { color: #4ade80; }
+  .fc-green .card-price { background: rgba(74,222,128,0.1); color: #86efac; }
+
+  .fc-gold {
+    background: linear-gradient(145deg, rgba(251,191,36,0.1), rgba(251,191,36,0.03));
+    border-color: rgba(251,191,36,0.15);
+    box-shadow: 0 8px 40px rgba(251,191,36,0.06);
+  }
+  .fc-gold .card-title { color: #fbbf24; }
+  .fc-gold .card-price { background: rgba(251,191,36,0.1); color: #fde68a; }
+
+  .fc-pink {
+    background: linear-gradient(145deg, rgba(244,114,182,0.1), rgba(244,114,182,0.03));
+    border-color: rgba(244,114,182,0.15);
+    box-shadow: 0 8px 40px rgba(244,114,182,0.06);
+  }
+  .fc-pink .card-title { color: #f472b6; }
+  .fc-pink .card-price { background: rgba(244,114,182,0.1); color: #f9a8d4; }
+
+  /* Entrance stagger */
+  .float-card {
+    opacity: 0;
+    animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+               cardFloat var(--float-dur) ease-in-out infinite;
+    animation-delay: var(--entrance-delay), calc(var(--entrance-delay) + 0.8s);
+  }
+  @keyframes cardEntrance {
+    from { opacity: 0; transform: translateY(40px) scale(0.9) rotate(0deg); }
+    to { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+  }
+
+  #brand {
+    position: absolute;
+    bottom: 28px;
+    left: 0; right: 0;
+    text-align: center;
+    z-index: 10;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #334155;
+  }
+  #brand span { color: #00d4aa; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="mesh-bg">
+  <div class="mesh-blob mb-1"></div>
+  <div class="mesh-blob mb-2"></div>
+  <div class="mesh-blob mb-3"></div>
+  <div class="mesh-blob mb-4"></div>
+</div>
+
+<div id="header">
+  <h1>What We Offer</h1>
+  <p>Enterprise compliance &bull; AI consulting &bull; Automation</p>
+</div>
+
+<div class="cards-container">
+  <!-- Card 1: Gap Assessment -->
+  <div class="float-card fc-cyan" style="left:60px; top:30px;
+       --float-dur:6s; --float-delay:0s; --float-y:-12px; --rot-start:0deg; --rot-end:-0.5deg; --entrance-delay:0.3s;">
+    <span class="card-icon">&#x1F6E1;</span>
+    <div class="card-tag">Compliance</div>
+    <div class="card-title">Coverage Gap Assessment</div>
+    <div class="card-desc">Benchmark against 100+ CIS standards and 20,000+ STIG controls. Full coverage map delivered in 2-4 weeks.</div>
+    <span class="card-price">$5K - $15K</span>
+  </div>
+
+  <!-- Card 2: AI Readiness -->
+  <div class="float-card fc-blue" style="left:420px; top:10px;
+       --float-dur:7s; --float-delay:-2s; --float-y:-15px; --rot-start:0deg; --rot-end:0.5deg; --entrance-delay:0.5s;">
+    <span class="card-icon">&#x1F916;</span>
+    <div class="card-tag">AI Consulting</div>
+    <div class="card-title">AI Readiness Assessment</div>
+    <div class="card-desc">Evaluate your organization's AI maturity, identify quick wins, and build a roadmap for responsible adoption.</div>
+    <span class="card-price">$500 - $2,500</span>
+  </div>
+
+  <!-- Card 3: Remediation -->
+  <div class="float-card fc-purple" style="left:730px; top:60px;
+       --float-dur:5.5s; --float-delay:-1s; --float-y:-10px; --rot-start:0deg; --rot-end:-0.3deg; --entrance-delay:0.7s;">
+    <span class="card-icon">&#x1F6E0;</span>
+    <div class="card-tag">Automation</div>
+    <div class="card-title">Remediation Sprint</div>
+    <div class="card-desc">Ansible, Terraform, and PowerShell playbooks to close compliance gaps automatically.</div>
+    <span class="card-price">$10K - $30K</span>
+  </div>
+
+  <!-- Card 4: Compliance Data Hub -->
+  <div class="float-card fc-green" style="left:140px; top:310px;
+       --float-dur:6.5s; --float-delay:-3s; --float-y:-14px; --rot-start:0deg; --rot-end:0.4deg; --entrance-delay:0.9s;">
+    <span class="card-icon">&#x1F5C4;</span>
+    <div class="card-tag">Data Engineering</div>
+    <div class="card-title">Compliance Data Hub</div>
+    <div class="card-desc">Normalized data model unifying scanner output across all tools and frameworks into one source of truth.</div>
+    <span class="card-price">$15K - $40K + support</span>
+  </div>
+
+  <!-- Card 5: Fractional Advisor -->
+  <div class="float-card fc-gold" style="left:520px; top:350px;
+       --float-dur:7.5s; --float-delay:-1.5s; --float-y:-11px; --rot-start:0deg; --rot-end:-0.4deg; --entrance-delay:1.1s;">
+    <span class="card-icon">&#x1F4A1;</span>
+    <div class="card-tag">Retainer</div>
+    <div class="card-title">Fractional AI Advisor</div>
+    <div class="card-desc">Ongoing strategic guidance for AI initiatives, governance frameworks, and analytics modernization.</div>
+    <span class="card-price">$1,500 / month</span>
+  </div>
+
+  <!-- Card 6: Digital Products -->
+  <div class="float-card fc-pink" style="left:60px; top:610px;
+       --float-dur:5s; --float-delay:-2.5s; --float-y:-13px; --rot-start:0deg; --rot-end:0.3deg; --entrance-delay:1.3s;">
+    <span class="card-icon">&#x1F3A8;</span>
+    <div class="card-tag">Passive Income</div>
+    <div class="card-title">Digital Products</div>
+    <div class="card-desc">SVG cut file bundles, digital planners, and downloadable creative assets on Etsy.</div>
+    <span class="card-price">Passive revenue</span>
+  </div>
+
+  <!-- Card 7: Managed Compliance -->
+  <div class="float-card fc-cyan" style="left:420px; top:650px;
+       --float-dur:6s; --float-delay:-4s; --float-y:-10px; --rot-start:0deg; --rot-end:-0.5deg; --entrance-delay:1.5s;">
+    <span class="card-icon">&#x1F504;</span>
+    <div class="card-tag">Managed Service</div>
+    <div class="card-title">Compliance Engineering</div>
+    <div class="card-desc">Ongoing triage, exception handling, drift monitoring, and audit preparation as a monthly retainer.</div>
+    <span class="card-price">$3K - $8.5K / month</span>
+  </div>
+
+  <!-- Card 8: Workflow Automation -->
+  <div class="float-card fc-blue" style="left:730px; top:600px;
+       --float-dur:7s; --float-delay:-0.5s; --float-y:-15px; --rot-start:0deg; --rot-end:0.5deg; --entrance-delay:1.7s;">
+    <span class="card-icon">&#x26A1;</span>
+    <div class="card-tag">Consulting</div>
+    <div class="card-title">AI Workflow Automation</div>
+    <div class="card-desc">Identify and automate repetitive business processes with AI-powered workflows and integrations.</div>
+    <span class="card-price">$5K - $15K</span>
+  </div>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span> &mdash; Illuminating Data. Empowering Decisions.</div>
+</body>
+</html>

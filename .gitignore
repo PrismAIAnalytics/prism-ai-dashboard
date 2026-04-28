@@ -24,6 +24,15 @@ desktop.ini
 # IDE
 .vscode/
 .idea/
+.claude/
 
 # Build artifacts
 build/
+dist/
+.netlify/
+
+# Operational reports (local-only; not deliverables)
+reports/
+
+# Pre-edit snapshots
+*.bak

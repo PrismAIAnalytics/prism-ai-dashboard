@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Readiness Assessment — PRISM AI Analytics</title>
+<style>
+  :root { --navy:#1B2A6B; --royal:#2E4EAD; --gold:#C8A45A; --blue-lt:#D6E4F0; --blue-mid:#EBF0FB; --dark:#1A1A2E; --mid:#888; --green:#1A7A4A; --teal:#1B8A8A; --plum:#8B3A8B; --red:#CC3333; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f7; color: var(--dark); }
+
+  .header { background: linear-gradient(135deg, var(--navy) 0%, var(--royal) 100%); padding: 36px 40px 28px; text-align: center; }
+  .header h1 { color: #fff; font-size: 22px; font-weight: 700; }
+  .header p { color: #C0C8E8; font-size: 13px; margin-top: 6px; }
+  .gold-bar { height: 4px; background: var(--gold); }
+
+  .container { max-width: 760px; margin: 32px auto 48px; padding: 0 16px; }
+  .intro-box { background: var(--blue-mid); border-left: 4px solid var(--royal); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; font-size: 13.5px; color: var(--navy); line-height: 1.6; }
+
+  .progress-wrap { background: #fff; border-radius: 10px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(27,42,107,0.08); }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--mid); margin-bottom: 8px; }
+  .progress-bar { height: 8px; background: var(--blue-lt); border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--royal), var(--gold)); border-radius: 4px; transition: width 0.4s; }
+  .dim-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .dim-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: var(--blue-lt); color: var(--royal); border: 1.5px solid var(--blue-lt); }
+
+  .form-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 16px rgba(27,42,107,0.09); padding: 28px 32px; margin-bottom: 22px; }
+  .dim-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2px solid var(--blue-lt); }
+  .dim-number { width: 36px; height: 36px; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+  .dim-title { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .dim-subtitle { font-size: 12px; color: var(--mid); margin-top: 2px; }
+
+  .field { margin-bottom: 22px; }
+  label.qlabel { display: block; font-size: 13.5px; font-weight: 700; color: var(--dark); margin-bottom: 10px; line-height: 1.5; }
+  label.qlabel .qnum { color: var(--royal); margin-right: 4px; }
+
+  .scale-wrap { margin-bottom: 4px; }
+  .scale-row { display: flex; gap: 8px; }
+  .scale-btn { width: 48px; height: 48px; border: 2px solid #C8D5E8; border-radius: 8px; background: #FAFBFF; font-weight: 700; font-size: 16px; color: var(--mid); cursor: pointer; transition: all 0.15s; font-family: Arial; }
+  .scale-btn:hover { border-color: var(--royal); color: var(--royal); }
+  .scale-btn.selected-1 { background: #CC3333; border-color: #CC3333; color: #fff; }
+  .scale-btn.selected-2 { background: #E07020; border-color: #E07020; color: #fff; }
+  .scale-btn.selected-3 { background: var(--gold); border-color: var(--gold); color: #fff; }
+  .scale-btn.selected-4 { background: #2E8B57; border-color: #2E8B57; color: #fff; }
+  .scale-btn.selected-5 { background: var(--green); border-color: var(--green); color: #fff; }
+  .scale-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--mid); margin-top: 5px; padding: 0 2px; }
+  .scale-ends span { max-width: 140px; }
+  .scale-ends span:last-child { text-align: right; }
+
+  select, textarea { width: 100%; padding: 10px 14px; border: 1.5px solid #C8D5E8; border-radius: 6px; font-size: 13.5px; font-family: Arial; color: var(--dark); background: #FAFBFF; }
+  select:focus, textarea:focus { outline: none; border-color: var(--royal); box-shadow: 0 0 0 3px rgba(46,78,173,0.10); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .check-item { display: flex; align-items: center; gap: 7px; background: var(--blue-mid); border: 1.5px solid var(--blue-lt); border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 13px; }
+  .check-item:hover { border-color: var(--royal); }
+  .check-item input { accent-color: var(--royal); width: 14px; height: 14px; }
+
+  .submit-wrap { text-align: center; }
+  button[type=submit] { background: linear-gradient(135deg, var(--navy), var(--royal)); color: #fff; border: none; padding: 14px 52px; border-radius: 8px; font-size: 15px; font-weight: 700; font-family: Arial; cursor: pointer; box-shadow: 0 4px 14px rgba(27,42,107,0.25); }
+  button[type=submit]:hover { opacity: 0.92; }
+  button[type=submit]:disabled { opacity: 0.5; cursor: wait; }
+  .footer-note { text-align: center; font-size: 12px; color: var(--mid); margin-top: 10px; }
+
+  /* Results card */
+  #results { display: none; }
+  .results-card { background: #fff; border-radius: 10px; box-shadow: 0 2px 16px rgba(27,42,107,0.09); padding: 36px 40px; margin-bottom: 22px; text-align: center; }
+  .band-chip { display: inline-block; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 18px; }
+  .band-Emerging { background: #FBE4E4; color: var(--red); }
+  .band-Developing { background: #FDF6E7; color: var(--gold); }
+  .band-Ready { background: #E2F4EB; color: var(--green); }
+  .band-Advanced { background: #D6E4F0; color: var(--navy); }
+  .big-score { font-size: 64px; font-weight: 700; color: var(--navy); line-height: 1; margin: 8px 0 4px; }
+  .big-score .of { font-size: 22px; color: var(--mid); font-weight: 500; }
+  .band-summary { font-size: 13.5px; color: var(--dark); line-height: 1.6; max-width: 540px; margin: 16px auto 0; }
+  .dim-bars { margin-top: 28px; text-align: left; }
+  .dim-bar { margin-bottom: 14px; }
+  .dim-bar .row { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px; font-weight: 700; color: var(--dark); }
+  .dim-bar .track { height: 10px; background: var(--blue-lt); border-radius: 5px; overflow: hidden; }
+  .dim-bar .fill { height: 100%; border-radius: 5px; transition: width 0.6s; }
+  .dim-bar .fill.s-1 { background: #CC3333; }
+  .dim-bar .fill.s-2 { background: #E07020; }
+  .dim-bar .fill.s-3 { background: var(--gold); }
+  .dim-bar .fill.s-4 { background: #2E8B57; }
+  .dim-bar .fill.s-5 { background: var(--green); }
+  .next-steps { background: var(--blue-mid); border-left: 4px solid var(--royal); border-radius: 6px; padding: 18px 22px; margin-top: 28px; text-align: left; font-size: 13px; color: var(--navy); line-height: 1.6; }
+
+  .error-card { background: #FBE4E4; border-left: 4px solid var(--red); border-radius: 6px; padding: 14px 20px; margin-bottom: 18px; font-size: 13px; color: var(--red); display: none; }
+  .error-card a { color: var(--red); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PRISM AI ANALYTICS</h1>
+  <p>AI Readiness Assessment &nbsp;·&nbsp; 6-Dimension Framework</p>
+</div>
+<div class="gold-bar"></div>
+
+<div class="container">
+  <div class="intro-box">
+    <strong>Discover exactly where your business stands with AI.</strong><br>
+    This assessment scores your organization across <strong>6 dimensions</strong>: Data Infrastructure, Technology Stack, Process Maturity, Team Readiness, Governance &amp; Compliance, and Strategic Alignment. Takes approximately <strong>12–15 minutes</strong>. You'll receive an instant AI Readiness Score, band, and next-step guidance.
+  </div>
+
+  <div id="error-card" class="error-card"></div>
+
+  <div id="form-wrap">
+  <div class="progress-wrap">
+    <div class="progress-label"><span>Your Progress</span><span id="prog-pct">0% complete</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <div class="dim-badges">
+      <span class="dim-badge">1. Data Infrastructure</span>
+      <span class="dim-badge">2. Technology Stack</span>
+      <span class="dim-badge">3. Process Maturity</span>
+      <span class="dim-badge">4. Team Readiness</span>
+      <span class="dim-badge">5. Governance &amp; Compliance</span>
+      <span class="dim-badge">6. Strategic Alignment</span>
+    </div>
+  </div>
+
+  <form id="assessment-form">
+    <input type="hidden" id="client_id" value="">
+
+    <!-- DIM 1 -->
+    <div class="form-card">
+      <div class="dim-header">
+        <div class="dim-number" style="background:var(--navy)">1</div>
+        <div><div class="dim-title">Data Infrastructure</div><div class="dim-subtitle">Quality, accessibility, structure, and accuracy of your business data.</div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">1.1</span> How would you rate the overall quality and accuracy of your business data?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="1.1">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'1.1',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.1',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.1',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.1',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.1',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Messy and unreliable</span><span>5 — Clean and consistent</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">1.2</span> How accessible is your data when you need to make a decision?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="1.2">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'1.2',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.2',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.2',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.2',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.2',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Hunted down manually</span><span>5 — Instantly available</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">1.3</span> Where does most of your business data live?</label>
+        <select data-qid="1.3" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>Paper / manual records</option><option>People's heads / not documented</option><option>Excel / Google Sheets</option><option>Mix of tools</option><option>Central cloud database</option><option>Integrated warehouse</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">1.4</span> How often do you use data (not gut) to make decisions?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="1.4">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'1.4',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.4',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.4',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.4',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'1.4',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Rarely</span><span>5 — Always</span></div></div>
+      </div>
+    </div>
+
+    <!-- DIM 2 -->
+    <div class="form-card">
+      <div class="dim-header">
+        <div class="dim-number" style="background:var(--royal)">2</div>
+        <div><div class="dim-title">Technology Stack</div><div class="dim-subtitle">Modernness, integration, and AI-compatibility of your current tools.</div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">2.1</span> How modern and integrated are your current tools?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="2.1">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'2.1',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.1',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.1',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.1',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.1',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Outdated / manual</span><span>5 — Modern, cloud, integrated</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">2.2</span> Which of the following does your business use? (select all)</label>
+        <div class="checkbox-group" data-qid="2.2">
+          <label class="check-item"><input type="checkbox" value="Cloud storage" onchange="rateMulti('2.2')"> Cloud storage</label>
+          <label class="check-item"><input type="checkbox" value="BI/dashboard tool" onchange="rateMulti('2.2')"> BI / Dashboard tool</label>
+          <label class="check-item"><input type="checkbox" value="Automation tools" onchange="rateMulti('2.2')"> Automation tools</label>
+          <label class="check-item"><input type="checkbox" value="AI tools" onchange="rateMulti('2.2')"> AI tools</label>
+          <label class="check-item"><input type="checkbox" value="E-commerce w/ analytics" onchange="rateMulti('2.2')"> E-commerce w/ analytics</label>
+          <label class="check-item"><input type="checkbox" value="Integrated CRM+marketing" onchange="rateMulti('2.2')"> Integrated CRM + marketing</label>
+          <label class="check-item"><input type="checkbox" value="None of the above" onchange="rateMulti('2.2')"> None of the above</label>
+        </div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">2.3</span> How well do your tools share data?</label>
+        <select data-qid="2.3" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>Not at all</option><option>A little</option><option>Somewhat</option><option>Well</option><option>Fully integrated</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">2.4</span> How confident are you that your tech stack can support AI integration without major rework?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="2.4">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'2.4',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.4',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.4',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.4',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'2.4',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Not at all</span><span>5 — Fully ready</span></div></div>
+      </div>
+    </div>
+
+    <!-- DIM 3 -->
+    <div class="form-card">
+      <div class="dim-header">
+        <div class="dim-number" style="background:var(--gold)">3</div>
+        <div><div class="dim-title">Process Maturity</div><div class="dim-subtitle">Documentation, repeatability, and automation-readiness of your workflows.</div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">3.1</span> How well-documented are your key business processes?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="3.1">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'3.1',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.1',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.1',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.1',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.1',5)">5</button>
+        </div><div class="scale-ends"><span>1 — In people's heads</span><span>5 — Fully documented &amp; followed</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">3.2</span> Which describe your current processes? (select all)</label>
+        <div class="checkbox-group" data-qid="3.2">
+          <label class="check-item"><input type="checkbox" value="Written SOPs for most tasks" onchange="rateMulti('3.2')"> Written SOPs for most tasks</label>
+          <label class="check-item"><input type="checkbox" value="Some but outdated" onchange="rateMulti('3.2')"> Some but outdated</label>
+          <label class="check-item"><input type="checkbox" value="Rely on 1–2 people" onchange="rateMulti('3.2')"> Rely on 1–2 people</label>
+          <label class="check-item"><input type="checkbox" value="Manual weekly tasks" onchange="rateMulti('3.2')"> Manual weekly tasks</label>
+          <label class="check-item"><input type="checkbox" value="Identified automation candidates" onchange="rateMulti('3.2')"> Identified automation candidates</label>
+          <label class="check-item"><input type="checkbox" value="No documentation" onchange="rateMulti('3.2')"> No formal documentation</label>
+        </div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">3.3</span> What % of weekly tasks are repetitive &amp; manual?</label>
+        <select data-qid="3.3" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>&gt;75%</option><option>51–75%</option><option>26–50%</option><option>10–25%</option><option>&lt;10%</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">3.4</span> How consistently are processes followed across your team?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="3.4">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'3.4',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.4',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.4',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.4',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'3.4',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Varies by person</span><span>5 — Strictly followed</span></div></div>
+      </div>
+    </div>
+
+    <!-- DIM 4 -->
+    <div class="form-card">
+      <div class="dim-header">
+        <div class="dim-number" style="background:#2E8B57">4</div>
+        <div><div class="dim-title">Team Readiness</div><div class="dim-subtitle">Literacy, training, and cultural appetite for AI adoption.</div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">4.1</span> How comfortable is your team with AI and data tools?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="4.1">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'4.1',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.1',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.1',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.1',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.1',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Feels foreign</span><span>5 — Actively experiments</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">4.2</span> Has your team received AI/data training in the last 12 months?</label>
+        <select data-qid="4.2" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>None</option><option>Self-taught</option><option>1–2 workshops</option><option>Formal for some</option><option>Ongoing program</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">4.3</span> Biggest barrier to team AI adoption?</label>
+        <select data-qid="4.3" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>Don't know where to start</option><option>Fear of job loss</option><option>Lack of time</option><option>Too technical</option><option>Budget</option><option>No ROI case</option><option>Already adopting</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">4.4</span> How open is leadership + team to changing how work gets done?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="4.4">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'4.4',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.4',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.4',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.4',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'4.4',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Resistant</span><span>5 — Eager</span></div></div>
+      </div>
+    </div>
+
+    <!-- DIM 5 -->
+    <div class="form-card">
+      <div class="dim-header">
+        <div class="dim-number" style="background:var(--teal)">5</div>
+        <div><div class="dim-title">Governance &amp; Compliance</div><div class="dim-subtitle">Policies for data security, privacy, ethical AI use, and risk.</div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">5.1</span> Do you have a written policy governing who can use which AI tools?</label>
+        <select data-qid="5.1" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>No &amp; not considering</option><option>No but discussing</option><option>Informal only</option><option>Written policy</option><option>Written &amp; enforced</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">5.2</span> Which data protections do you have in place? (select all)</label>
+        <div class="checkbox-group" data-qid="5.2">
+          <label class="check-item"><input type="checkbox" value="Access controls/least privilege" onchange="rateMulti('5.2')"> Access controls / least privilege</label>
+          <label class="check-item"><input type="checkbox" value="Encryption at rest" onchange="rateMulti('5.2')"> Encryption at rest</label>
+          <label class="check-item"><input type="checkbox" value="Encryption in transit" onchange="rateMulti('5.2')"> Encryption in transit</label>
+          <label class="check-item"><input type="checkbox" value="Backup & recovery tested" onchange="rateMulti('5.2')"> Backup &amp; recovery tested</label>
+          <label class="check-item"><input type="checkbox" value="Data retention policy" onchange="rateMulti('5.2')"> Data retention policy</label>
+          <label class="check-item"><input type="checkbox" value="Vendor security reviews" onchange="rateMulti('5.2')"> Vendor security reviews</label>
+          <label class="check-item"><input type="checkbox" value="None of the above" onchange="rateMulti('5.2')"> None of the above</label>
+        </div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">5.3</span> How confident are you that sensitive data won't leak into public AI tools?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="5.3">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'5.3',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.3',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.3',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.3',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.3',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Not at all</span><span>5 — Fully confident</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">5.4</span> How confident are you that your AI &amp; data practices meet your regulatory obligations?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="5.4">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'5.4',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.4',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.4',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.4',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'5.4',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Not at all</span><span>5 — Fully aligned (or N/A)</span></div></div>
+        <label class="qlabel" style="margin-top:14px;font-weight:400;font-size:12.5px;color:var(--mid);">Which compliance regimes apply? (informational — not scored)</label>
+        <div class="checkbox-group" data-qid="5.4_regimes">
+          <label class="check-item"><input type="checkbox" value="None" onchange="rateMulti('5.4_regimes', false)"> None</label>
+          <label class="check-item"><input type="checkbox" value="GDPR" onchange="rateMulti('5.4_regimes', false)"> GDPR</label>
+          <label class="check-item"><input type="checkbox" value="HIPAA" onchange="rateMulti('5.4_regimes', false)"> HIPAA</label>
+          <label class="check-item"><input type="checkbox" value="PCI-DSS" onchange="rateMulti('5.4_regimes', false)"> PCI-DSS</label>
+          <label class="check-item"><input type="checkbox" value="SOC 2" onchange="rateMulti('5.4_regimes', false)"> SOC 2</label>
+          <label class="check-item"><input type="checkbox" value="ISO 27001" onchange="rateMulti('5.4_regimes', false)"> ISO 27001</label>
+          <label class="check-item"><input type="checkbox" value="Other" onchange="rateMulti('5.4_regimes', false)"> Other</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIM 6 -->
+    <div class="form-card">
+      <div class="dim-header">
+        <div class="dim-number" style="background:var(--plum)">6</div>
+        <div><div class="dim-title">Strategic Alignment</div><div class="dim-subtitle">Connection between AI adoption and business goals / leadership commitment.</div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">6.1</span> How clearly is AI connected to your overall business strategy?</label>
+        <div class="scale-wrap"><div class="scale-row" data-qid="6.1">
+          <button type="button" class="scale-btn" onclick="rateScale(this,'6.1',1)">1</button><button type="button" class="scale-btn" onclick="rateScale(this,'6.1',2)">2</button><button type="button" class="scale-btn" onclick="rateScale(this,'6.1',3)">3</button><button type="button" class="scale-btn" onclick="rateScale(this,'6.1',4)">4</button><button type="button" class="scale-btn" onclick="rateScale(this,'6.1',5)">5</button>
+        </div><div class="scale-ends"><span>1 — Not part of thinking</span><span>5 — Central to growth</span></div></div>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">6.2</span> Leadership's attitude toward AI?</label>
+        <select data-qid="6.2" onchange="rateSingle(this)">
+          <option value="">Select…</option><option>Skeptical</option><option>Cautious</option><option>Interested</option><option>Committed</option><option>Fully invested</option>
+        </select>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">6.3</span> What's the single most important business outcome you want AI to help achieve?</label>
+        <textarea data-qid="6.3" placeholder="e.g. Save 10 hours/week on reporting, increase sales by 20%…"></textarea>
+      </div>
+      <div class="field"><label class="qlabel"><span class="qnum">6.4</span> Is there a specific deadline or business event driving your AI timeline?</label>
+        <textarea data-qid="6.4" placeholder="e.g. Q3 product launch, fiscal year start, hiring plan…" style="min-height:60px;"></textarea>
+      </div>
+    </div>
+
+    <div class="submit-wrap">
+      <button type="submit" id="submit-btn">Submit My Assessment →</button>
+      <p class="footer-note">Your responses save to the Prism dashboard instantly. Michele will follow up with a personalized debrief within 2 business days.</p>
+    </div>
+  </form>
+  </div><!-- /form-wrap -->
+
+  <!-- Results card (hidden until submit succeeds) -->
+  <div id="results">
+    <div class="results-card">
+      <div id="band-chip" class="band-chip"></div>
+      <div class="big-score"><span id="final-score">—</span><span class="of"> / 5.0</span></div>
+      <div style="font-size:12px;color:var(--mid);letter-spacing:0.5px;">OVERALL AI READINESS SCORE</div>
+      <div class="band-summary" id="band-summary"></div>
+      <div class="dim-bars" id="dim-bars"></div>
+      <div class="next-steps" id="next-steps"></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:36px;padding-top:20px;border-top:1px solid #dde4f0;">
+    <p style="font-size:12px;color:#888;">PRISM AI Analytics &nbsp;·&nbsp; Charlotte, NC &nbsp;·&nbsp; michele@prismaianalytics.com</p>
+    <p style="font-size:11px;color:#aaa;margin-top:4px;">Illuminating Data. Empowering Decisions.</p>
+  </div>
+</div>
+
+<script>
+// Populate hidden client_id from URL (?client=<uuid>)
+const urlParams = new URLSearchParams(window.location.search);
+document.getElementById('client_id').value = urlParams.get('client') || '';
+
+const responses = {};
+
+const DIMS = {
+  data_infra:          ['1.1', '1.2', '1.3', '1.4'],
+  tech_stack:          ['2.1', '2.2', '2.3', '2.4'],
+  process_maturity:    ['3.1', '3.2', '3.3', '3.4'],
+  team_readiness:      ['4.1', '4.2', '4.3', '4.4'],
+  governance:          ['5.1', '5.2', '5.3', '5.4'],
+  strategic_alignment: ['6.1', '6.2']
+};
+const DIM_LABELS = {
+  data_infra: 'Data Infrastructure',
+  tech_stack: 'Technology Stack',
+  process_maturity: 'Process Maturity',
+  team_readiness: 'Team Readiness',
+  governance: 'Governance & Compliance',
+  strategic_alignment: 'Strategic Alignment'
+};
+const BAND_NARRATIVE = {
+  Emerging:   'Foundational data and process work needed before AI delivers ROI. Focus on getting data out of spreadsheets and heads, and documenting your top 3 workflows.',
+  Developing: 'Clear pockets of readiness, but integration + governance gaps will limit AI impact. Best fit: one targeted pilot in the strongest dimension.',
+  Ready:      'Your infrastructure and team can support a meaningful AI initiative. Prioritize governance guardrails and pick a high-leverage use case.',
+  Advanced:   'Your organization can scale AI across multiple functions. Focus on measurement, competitive differentiation, and ethical AI practices.'
+};
+
+function rateScale(btn, qid, val) {
+  responses[qid] = val;
+  const row = btn.parentElement;
+  row.querySelectorAll('.scale-btn').forEach(b => b.className = 'scale-btn');
+  const btns = row.querySelectorAll('.scale-btn');
+  btns.forEach((b, i) => { if (i < val) b.classList.add('selected-' + val); });
+  updateProgress();
+}
+function rateSingle(sel) {
+  responses[sel.dataset.qid] = sel.value || null;
+  updateProgress();
+}
+function rateMulti(qid, updateProg = true) {
+  const group = document.querySelector('.checkbox-group[data-qid="' + qid + '"]');
+  responses[qid] = [...group.querySelectorAll('input:checked')].map(i => i.value);
+  if (updateProg) updateProgress();
+}
+document.querySelectorAll('textarea[data-qid]').forEach(ta => {
+  ta.addEventListener('input', () => {
+    responses[ta.dataset.qid] = ta.value.trim() || null;
+    updateProgress();
+  });
+});
+
+function updateProgress() {
+  const allQids = [];
+  Object.values(DIMS).forEach(qids => qids.forEach(q => allQids.push(q)));
+  allQids.push('6.3', '6.4');
+  const answered = allQids.filter(q => {
+    const v = responses[q];
+    if (v === null || v === undefined) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    return true;
+  }).length;
+  const pct = Math.round((answered / allQids.length) * 100);
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '% complete';
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-card');
+  el.innerHTML = msg + ' If this persists, email <a href="mailto:michele@prismaianalytics.com">michele@prismaianalytics.com</a>.';
+  el.style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderResults({ dimensions, overall, band }) {
+  document.getElementById('form-wrap').style.transition = 'opacity 0.4s';
+  document.getElementById('form-wrap').style.opacity = '0';
+  setTimeout(() => {
+    document.getElementById('form-wrap').style.display = 'none';
+    document.getElementById('results').style.display = 'block';
+
+    const chip = document.getElementById('band-chip');
+    chip.textContent = band;
+    chip.className = 'band-chip band-' + band;
+
+    document.getElementById('final-score').textContent = overall !== null ? overall.toFixed(1) : '—';
+    document.getElementById('band-summary').textContent = BAND_NARRATIVE[band] || '';
+
+    // Build dimension bars
+    const barsWrap = document.getElementById('dim-bars');
+    barsWrap.innerHTML = '';
+    Object.entries(DIM_LABELS).forEach(([key, label]) => {
+      const val = dimensions[key];
+      const display = val !== null && val !== undefined ? val.toFixed(1) : '—';
+      const pctFill = val ? (val / 5) * 100 : 0;
+      const bucket = val ? Math.min(5, Math.max(1, Math.round(val))) : 3;
+      barsWrap.innerHTML +=
+        '<div class="dim-bar">' +
+          '<div class="row"><span>' + label + '</span><span>' + display + ' / 5</span></div>' +
+          '<div class="track"><div class="fill s-' + bucket + '" style="width:' + pctFill + '%"></div></div>' +
+        '</div>';
+    });
+
+    // Next steps
+    const primary = responses['6.3'] ? '<br><br><strong>Your stated outcome:</strong> ' + escapeHtml(responses['6.3']) : '';
+    const timeline = responses['6.4'] ? '<br><strong>Timeline driver:</strong> ' + escapeHtml(responses['6.4']) : '';
+    document.getElementById('next-steps').innerHTML =
+      '<strong>What happens next:</strong> Michele will review your responses, prepare a personalized debrief with a 90-day roadmap, and follow up within 2 business days.' + primary + timeline;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 400);
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+document.getElementById('assessment-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  const clientId = document.getElementById('client_id').value.trim();
+  if (!clientId) {
+    showError('Missing client ID. This form must be opened from a client link (with <code>?client=&lt;uuid&gt;</code>).');
+    btn.disabled = false;
+    btn.textContent = 'Submit My Assessment →';
+    return;
+  }
+  try {
+    const res = await fetch('/api/assessments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, responses })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showError('Submission failed: ' + (data.error || 'Unknown error.'));
+      btn.disabled = false;
+      btn.textContent = 'Submit My Assessment →';
+      return;
+    }
+    renderResults(data);
+  } catch (err) {
+    showError('Network error — could not reach the dashboard.');
+    btn.disabled = false;
+    btn.textContent = 'Submit My Assessment →';
+  }
+});
+</script>
+</body>
+</html>

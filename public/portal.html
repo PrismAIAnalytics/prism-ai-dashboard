@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Portal — PRISM AI Analytics</title>
+<style>
+  :root { --navy:#1B2A6B; --royal:#2E4EAD; --gold:#C8A45A; --blue-lt:#D6E4F0; --blue-mid:#EBF0FB; --dark:#1A1A2E; --mid:#888; --green:#1A7A4A; --teal:#1B8A8A; --plum:#8B3A8B; --red:#CC3333; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f7; color: var(--dark); }
+
+  .header { background: linear-gradient(135deg, var(--navy) 0%, var(--royal) 100%); padding: 28px 40px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .header .brand { color: #fff; }
+  .header .brand h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+  .header .brand p { color: #C0C8E8; font-size: 12px; margin-top: 4px; }
+  .header .user-block { color: #fff; text-align: right; font-size: 12px; }
+  .header .user-block strong { font-size: 13px; display: block; }
+  .header .user-block a { color: #C0C8E8; text-decoration: none; font-size: 11px; }
+  .header .user-block a:hover { color: var(--gold); }
+  .gold-bar { height: 4px; background: var(--gold); }
+
+  .container { max-width: 980px; margin: 32px auto 48px; padding: 0 20px; }
+
+  .welcome { background: #fff; border-radius: 10px; box-shadow: 0 2px 16px rgba(27,42,107,0.09); padding: 26px 32px; margin-bottom: 22px; }
+  .welcome h2 { color: var(--navy); font-size: 22px; font-weight: 700; }
+  .welcome p { color: var(--mid); margin-top: 6px; font-size: 13.5px; line-height: 1.6; }
+
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 16px rgba(27,42,107,0.09); padding: 26px 32px; margin-bottom: 22px; }
+  .card h3 { color: var(--navy); font-size: 15px; font-weight: 700; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
+  .card h3 .sub { font-size: 11px; color: var(--mid); text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+  /* Assessment hero — pre-submission CTA */
+  .assess-cta { text-align: center; padding: 30px 20px; }
+  .assess-cta p { color: var(--dark); font-size: 14px; line-height: 1.6; max-width: 540px; margin: 0 auto 22px; }
+  .btn-primary { background: linear-gradient(135deg, var(--navy), var(--royal)); color: #fff; border: none; padding: 14px 36px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(27,42,107,0.25); text-decoration: none; display: inline-block; }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-secondary { background: transparent; color: var(--royal); border: 1.5px solid var(--royal); padding: 8px 18px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn-secondary:hover { background: var(--blue-mid); }
+
+  /* Assessment results */
+  .score-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 28px; align-items: start; }
+  @media (max-width: 640px) { .score-row { grid-template-columns: 1fr; } }
+  .score-block { text-align: center; padding: 10px 0; }
+  .band-chip { display: inline-block; padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .band-Emerging { background: #FBE4E4; color: var(--red); }
+  .band-Developing { background: #FDF6E7; color: var(--gold); }
+  .band-Ready { background: #E2F4EB; color: var(--green); }
+  .band-Advanced { background: #D6E4F0; color: var(--navy); }
+  .band-Leading { background: #D6E4F0; color: var(--navy); }
+  .big-score { font-size: 54px; font-weight: 700; color: var(--navy); line-height: 1; }
+  .big-score .of { font-size: 18px; color: var(--mid); font-weight: 500; }
+  .score-meta { font-size: 12px; color: var(--mid); margin-top: 6px; }
+
+  .dim-bars { }
+  .dim-bar { margin-bottom: 12px; }
+  .dim-bar .row { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 5px; color: var(--dark); }
+  .dim-bar .row strong { font-variant-numeric: tabular-nums; color: var(--navy); }
+  .dim-bar .track { height: 8px; background: var(--blue-lt); border-radius: 4px; overflow: hidden; }
+  .dim-bar .fill { height: 100%; border-radius: 4px; transition: width 0.6s; background: linear-gradient(90deg, var(--royal), var(--gold)); }
+
+  /* Recommendations */
+  .recs-list { display: flex; flex-direction: column; gap: 12px; }
+  .rec-card { border: 1.5px solid var(--blue-lt); border-radius: 8px; padding: 16px 18px; transition: border 0.2s; }
+  .rec-card:hover { border-color: var(--royal); }
+  .rec-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
+  .rec-name { font-weight: 700; color: var(--navy); font-size: 14px; }
+  .rec-price { color: var(--royal); font-weight: 700; font-size: 13.5px; white-space: nowrap; }
+  .rec-rationale { color: var(--mid); font-size: 12.5px; line-height: 1.5; }
+  .rec-range { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--blue-lt); font-size: 13px; color: var(--dark); display: flex; justify-content: space-between; }
+  .rec-range .total { color: var(--royal); font-weight: 700; }
+
+  /* Catalog */
+  .cat-group { margin-bottom: 20px; }
+  .cat-group h4 { color: var(--navy); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding-bottom: 8px; border-bottom: 2px solid var(--blue-lt); margin-bottom: 14px; }
+  .svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .svc-card { background: var(--blue-mid); border: 1px solid var(--blue-lt); border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; }
+  .svc-card:hover { border-color: var(--royal); background: #fff; box-shadow: 0 2px 10px rgba(27,42,107,0.08); }
+  .svc-name { font-weight: 700; color: var(--navy); font-size: 13.5px; margin-bottom: 4px; }
+  .svc-price { color: var(--royal); font-size: 12px; font-weight: 700; }
+  .svc-desc { font-size: 12px; color: var(--dark); line-height: 1.5; margin-top: 8px; display: none; }
+  .svc-card.expanded .svc-desc { display: block; }
+  .svc-examples { margin-top: 8px; font-size: 11.5px; color: var(--mid); font-style: italic; display: none; }
+  .svc-card.expanded .svc-examples { display: block; }
+  .svc-empty-note { color: var(--mid); font-size: 12px; font-style: italic; padding: 10px 0; }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--mid); font-size: 14px; }
+  .error-card { background: #FBE4E4; border-left: 4px solid var(--red); border-radius: 6px; padding: 14px 20px; margin-bottom: 18px; font-size: 13px; color: var(--red); }
+  .error-card a { color: var(--red); font-weight: 700; }
+
+  .footer-note { text-align: center; font-size: 12px; color: var(--mid); margin-top: 30px; padding: 20px; }
+  .footer-note a { color: var(--royal); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    <h1>PRISM AI ANALYTICS</h1>
+    <p>Client Portal</p>
+  </div>
+  <div class="user-block" id="user-block"></div>
+</div>
+<div class="gold-bar"></div>
+
+<div class="container">
+  <div id="page-content">
+    <div class="loading">Loading your portal...</div>
+  </div>
+</div>
+
+<div class="footer-note">
+  Questions? Reply to Michele directly: <a href="mailto:michele@prismaianalytics.com">michele@prismaianalytics.com</a>
+</div>
+
+<script>
+'use strict';
+
+const BAND_BLURBS = {
+  'Emerging': "You're at the starting line. Focus on foundational data hygiene and one small, high-value pilot before bigger investments.",
+  'Developing': "You have real momentum on some dimensions and gaps on others. A focused 90-day plan will compound quickly.",
+  'Ready': "You have the pieces in place to scale. Now it's about prioritization, governance, and picking the right pilot to prove impact.",
+  'Advanced': "You're ahead of the SMB curve. Focus on hardening governance, scaling pilots, and turning AI into a differentiator.",
+  'Leading': "You're operating at enterprise-grade maturity. Focus on compounding advantage through compliance, drift monitoring, and automation at scale."
+};
+
+const DIM_LABELS = {
+  data_infra: 'Data Infrastructure',
+  tech_stack: 'Technology Stack',
+  process_maturity: 'Process Maturity',
+  team_readiness: 'Team Readiness',
+  governance: 'Governance & Compliance',
+  strategic_alignment: 'Strategic Alignment'
+};
+
+let SESSION_TOKEN = localStorage.getItem('prism_token') || '';
+
+function fmtMoney(n) {
+  if (n == null || isNaN(n)) return '—';
+  return '$' + Number(n).toLocaleString('en-US');
+}
+function fmtRange(low, high) {
+  if (low == null && high == null) return '—';
+  if (low === high) return fmtMoney(low);
+  return fmtMoney(low) + ' – ' + fmtMoney(high);
+}
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+async function api(path) {
+  const r = await fetch('/api/' + path, { headers: SESSION_TOKEN ? { 'Authorization': 'Bearer ' + SESSION_TOKEN } : {} });
+  if (r.status === 401) { window.location.href = '/login'; return null; }
+  if (r.status === 403) {
+    // Admin hit the portal — send them to the main dashboard.
+    const d = await r.json().catch(() => ({}));
+    if (d && d.error && /client-only/i.test(d.error)) window.location.href = '/';
+    return null;
+  }
+  return r.json();
+}
+
+function renderUserBlock(portal) {
+  const block = document.getElementById('user-block');
+  if (!portal || !portal.contact) { block.innerHTML = ''; return; }
+  block.innerHTML =
+    '<strong>' + escapeHtml(portal.contact.first_name + ' ' + portal.contact.last_name) + '</strong>' +
+    '<div>' + escapeHtml(portal.client.company_name) + '</div>' +
+    '<a href="#" onclick="logout(event)">Sign out</a>';
+}
+
+async function logout(e) {
+  if (e) e.preventDefault();
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + SESSION_TOKEN } });
+  } catch(e) {}
+  localStorage.removeItem('prism_token');
+  window.location.href = '/login';
+}
+
+function renderAssessmentCard(portal) {
+  const a = portal.assessment;
+  if (!a) {
+    return '<div class="card">' +
+      '<h3>Your AI Readiness Assessment <span class="sub">not yet submitted</span></h3>' +
+      '<div class="assess-cta">' +
+        '<p>The 6-dimension AI Readiness Assessment takes 12–15 minutes and gives us a shared starting point for every conversation. You\'ll get an instant score, band, and tailored service recommendations.</p>' +
+        '<a class="btn-primary" href="/prism-ai-readiness-assessment.html?client=' + encodeURIComponent(portal.client.id) + '">Take the Assessment →</a>' +
+      '</div>' +
+    '</div>';
+  }
+
+  const c = a.readiness_band;
+  const blurb = BAND_BLURBS[c] || '';
+  const dims = Object.entries(DIM_LABELS).map(([key, label]) => {
+    const score = a.dimensions[key] || 0;
+    const pct = Math.max(0, Math.min(100, (score / 5) * 100));
+    return '<div class="dim-bar">' +
+      '<div class="row"><span>' + label + '</span><strong>' + score.toFixed(1) + ' / 5.0</strong></div>' +
+      '<div class="track"><div class="fill" style="width:' + pct + '%"></div></div>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="card">' +
+    '<h3>Your AI Readiness Assessment <span class="sub">submitted ' + escapeHtml(a.assessment_date) + '</span></h3>' +
+    '<div class="score-row">' +
+      '<div class="score-block">' +
+        '<div class="band-chip band-' + escapeHtml(c) + '">' + escapeHtml(c) + '</div>' +
+        '<div class="big-score">' + (a.overall_score || 0).toFixed(1) + '<span class="of"> / 5.0</span></div>' +
+        '<div class="score-meta">Overall Readiness Score</div>' +
+        (a.primary_outcome ? '<div class="score-meta" style="margin-top:14px;font-style:italic">"' + escapeHtml(a.primary_outcome) + '"</div>' : '') +
+        '<div style="margin-top:18px"><a class="btn-secondary" href="/prism-ai-readiness-assessment.html?client=' + encodeURIComponent(portal.client.id) + '">Retake assessment</a></div>' +
+      '</div>' +
+      '<div class="dim-bars">' + dims + '</div>' +
+    '</div>' +
+    (blurb ? '<div style="margin-top:20px;padding:14px 18px;background:var(--blue-mid);border-left:4px solid var(--royal);border-radius:6px;font-size:13px;color:var(--navy);line-height:1.6">' + escapeHtml(blurb) + '</div>' : '') +
+  '</div>';
+}
+
+function renderRecsCard(portal) {
+  if (!portal.assessment || !portal.recommendations || !portal.recommendations.services || !portal.recommendations.services.length) {
+    return '';
+  }
+  const recs = portal.recommendations;
+  const list = recs.services.slice(0, 3).map((s, i) => {
+    const price = s.price_display || fmtRange(s.price_low, s.price_high);
+    return '<div class="rec-card">' +
+      '<div class="rec-head"><div class="rec-name">' + (i + 1) + '. ' + escapeHtml(s.name) + '</div><div class="rec-price">' + escapeHtml(price) + '</div></div>' +
+      (s.rationale ? '<div class="rec-rationale">' + escapeHtml(s.rationale) + '</div>' : '') +
+    '</div>';
+  }).join('');
+  const range = (recs.total_low != null) ? fmtRange(recs.total_low, recs.total_high) : '—';
+  return '<div class="card">' +
+    '<h3>Recommended for You <span class="sub">based on your assessment</span></h3>' +
+    '<div class="recs-list">' + list + '</div>' +
+    '<div class="rec-range"><span>Estimated total for this track</span><span class="total">' + range + '</span></div>' +
+    '<div style="margin-top:18px;text-align:center"><a class="btn-primary" href="mailto:michele@prismaianalytics.com?subject=Portal%20%E2%80%94%20Discuss%20recommendations&body=Hi%20Michele%2C%20I%27d%20like%20to%20talk%20through%20my%20recommended%20services.">Schedule a discovery call</a></div>' +
+  '</div>';
+}
+
+function renderCatalog(services) {
+  const grouped = { 'Data & Analytics': [], 'Compliance & Security': [] };
+  for (const s of services) {
+    if (!s.is_active) continue;
+    const cat = s.category || 'Data & Analytics';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(s);
+  }
+  const section = (cat, items) => {
+    if (!items.length) return '';
+    const cards = items.map(s => {
+      const price = s.price_unit === 'fixed' ? ('$' + Number(s.price_min).toLocaleString() + (s.price_max && s.price_max !== s.price_min ? ' – $' + Number(s.price_max).toLocaleString() : ''))
+                    : (s.price_unit === 'hourly' ? '$' + Number(s.price_min).toLocaleString() + '/hr' : fmtRange(s.price_min, s.price_max));
+      const desc = s.description ? '<div class="svc-desc">' + escapeHtml(s.description) + '</div>' : '<div class="svc-desc svc-empty-note">Description coming soon — reach out for details.</div>';
+      let examples = '';
+      if (s.examples_json) {
+        try {
+          const arr = JSON.parse(s.examples_json);
+          if (Array.isArray(arr) && arr.length) examples = '<div class="svc-examples"><strong>Example:</strong> ' + escapeHtml(arr[0]) + '</div>';
+        } catch(e) {}
+      }
+      return '<div class="svc-card" onclick="this.classList.toggle(\'expanded\')">' +
+        '<div class="svc-name">' + escapeHtml(s.name) + '</div>' +
+        '<div class="svc-price">' + escapeHtml(price) + '</div>' +
+        desc + examples +
+      '</div>';
+    }).join('');
+    return '<div class="cat-group"><h4>' + escapeHtml(cat) + '</h4><div class="svc-grid">' + cards + '</div></div>';
+  };
+  return '<div class="card">' +
+    '<h3>Full Service Catalog <span class="sub">click any service for details</span></h3>' +
+    section('Data & Analytics', grouped['Data & Analytics']) +
+    section('Compliance & Security', grouped['Compliance & Security']) +
+  '</div>';
+}
+
+async function boot() {
+  // Pick up URL-token (from magic-link redirect) and promote to localStorage
+  const urlKey = new URLSearchParams(window.location.search).get('key');
+  if (urlKey) {
+    SESSION_TOKEN = urlKey;
+    localStorage.setItem('prism_token', urlKey);
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+  if (!SESSION_TOKEN) { window.location.href = '/login'; return; }
+
+  const portal = await api('portal/me');
+  if (!portal || !portal.ok) {
+    document.getElementById('page-content').innerHTML =
+      '<div class="error-card">We couldn\'t load your portal. ' +
+      (portal && portal.error ? escapeHtml(portal.error) + ' — ' : '') +
+      'Reply to <a href="mailto:michele@prismaianalytics.com">michele@prismaianalytics.com</a> and we\'ll sort it out.</div>';
+    return;
+  }
+  const services = await api('services') || [];
+
+  renderUserBlock(portal);
+  const welcome = '<div class="welcome">' +
+    '<h2>Welcome, ' + escapeHtml(portal.client.company_name) + '</h2>' +
+    '<p>This is your private portal. Take your readiness assessment, review tailored service recommendations, and browse the full catalog — all in one place.</p>' +
+  '</div>';
+
+  document.getElementById('page-content').innerHTML =
+    welcome +
+    renderAssessmentCard(portal) +
+    renderRecsCard(portal) +
+    renderCatalog(services);
+}
+
+boot();
+</script>
+</body>
+</html>
