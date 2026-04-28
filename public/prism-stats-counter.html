@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — Animated Stats</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg, #06101f 0%, #0a192f 50%, #0d1f40 100%);
+    color: #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Animated gradient orb behind content */
+  .bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  .bg-orb-1 { width: 400px; height: 400px; background: #00d4aa; top: 10%; left: 15%; animation-delay: 0s; }
+  .bg-orb-2 { width: 350px; height: 350px; background: #38bdf8; bottom: 15%; right: 10%; animation-delay: -3s; }
+  .bg-orb-3 { width: 300px; height: 300px; background: #a855f7; top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -5s; }
+
+  @keyframes orbFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -20px) scale(1.05); }
+    50% { transform: translate(-20px, 15px) scale(0.95); }
+    75% { transform: translate(15px, 25px) scale(1.03); }
+  }
+
+  #header {
+    text-align: center;
+    margin-bottom: 50px;
+    position: relative;
+    z-index: 2;
+  }
+  #header h1 {
+    font-size: 42px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #00d4aa, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  #header p {
+    font-size: 18px;
+    color: #64748b;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 280px);
+    gap: 40px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .stat-card {
+    text-align: center;
+    padding: 30px 20px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    position: relative;
+  }
+
+  .ring-container {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 16px;
+    position: relative;
+  }
+
+  .ring-svg {
+    width: 140px;
+    height: 140px;
+    transform: rotate(-90deg);
+  }
+
+  .ring-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.05);
+    stroke-width: 8;
+  }
+
+  .ring-progress {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 408;
+    stroke-dashoffset: 408;
+    transition: stroke-dashoffset 2.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ring-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .ring-suffix {
+    font-size: 16px;
+    font-weight: 400;
+    opacity: 0.6;
+  }
+
+  .stat-label {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .stat-desc {
+    font-size: 11px;
+    opacity: 0.4;
+    line-height: 1.4;
+  }
+
+  /* Color themes */
+  .stat-cyan .ring-progress { stroke: url(#grad-cyan); }
+  .stat-cyan .ring-value { color: #00d4aa; }
+  .stat-cyan .stat-label { color: #6ee7b7; }
+
+  .stat-blue .ring-progress { stroke: url(#grad-blue); }
+  .stat-blue .ring-value { color: #38bdf8; }
+  .stat-blue .stat-label { color: #7dd3fc; }
+
+  .stat-purple .ring-progress { stroke: url(#grad-purple); }
+  .stat-purple .ring-value { color: #a855f7; }
+  .stat-purple .stat-label { color: #d8b4fe; }
+
+  .stat-green .ring-progress { stroke: url(#grad-green); }
+  .stat-green .ring-value { color: #4ade80; }
+  .stat-green .stat-label { color: #86efac; }
+
+  .stat-gold .ring-progress { stroke: url(#grad-gold); }
+  .stat-gold .ring-value { color: #fbbf24; }
+  .stat-gold .stat-label { color: #fde68a; }
+
+  .stat-pink .ring-progress { stroke: url(#grad-pink); }
+  .stat-pink .ring-value { color: #f472b6; }
+  .stat-pink .stat-label { color: #f9a8d4; }
+
+  /* Pulse animation on ring */
+  .ring-glow {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: round;
+    opacity: 0;
+    animation: ringPulse 3s ease-in-out infinite;
+  }
+  @keyframes ringPulse {
+    0%, 100% { opacity: 0; stroke-width: 12; }
+    50% { opacity: 0.15; stroke-width: 16; }
+  }
+
+  #brand {
+    position: absolute;
+    bottom: 30px;
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #334155;
+    z-index: 2;
+  }
+  #brand span { color: #00d4aa; font-weight: 700; }
+
+  /* Entrance animation */
+  .stat-card {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+    animation: cardIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .stat-card:nth-child(1) { animation-delay: 0.2s; }
+  .stat-card:nth-child(2) { animation-delay: 0.35s; }
+  .stat-card:nth-child(3) { animation-delay: 0.5s; }
+  .stat-card:nth-child(4) { animation-delay: 0.65s; }
+  .stat-card:nth-child(5) { animation-delay: 0.8s; }
+  .stat-card:nth-child(6) { animation-delay: 0.95s; }
+
+  @keyframes cardIn {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+</style>
+
+<!-- SVG gradient definitions -->
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <linearGradient id="grad-cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d4aa"/><stop offset="100%" stop-color="#00b89c"/>
+    </linearGradient>
+    <linearGradient id="grad-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="grad-purple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7"/><stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="grad-green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <linearGradient id="grad-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="grad-pink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f472b6"/><stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+</svg>
+</head>
+<body>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+
+<div id="header">
+  <h1>PRISM AI by the Numbers</h1>
+  <p>Compliance &bull; Consulting &bull; Automation</p>
+</div>
+
+<div class="stats-grid">
+  <!-- Card 1 -->
+  <div class="stat-card stat-cyan">
+    <div class="ring-container">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65"/>
+        <circle class="ring-glow" cx="70" cy="70" r="65" stroke="#00d4aa" stroke-dasharray="408" stroke-dashoffset="0"/>
+        <circle class="ring-progress" cx="70" cy="70" r="65" data-percent="100"/>
+      </svg>
+      <div class="ring-value" data-target="20000" data-suffix="+">0</div>
+    </div>
+    <div class="stat-label">Security Controls</div>
+    <div class="stat-desc">CIS, STIG, CMMC mapped & automated</div>
+  </div>
+
+  <!-- Card 2 -->
+  <div class="stat-card stat-blue">
+    <div class="ring-container">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65"/>
+        <circle class="ring-glow" cx="70" cy="70" r="65" stroke="#38bdf8" stroke-dasharray="408" stroke-dashoffset="0"/>
+        <circle class="ring-progress" cx="70" cy="70" r="65" data-percent="100"/>
+      </svg>
+      <div class="ring-value" data-target="100" data-suffix="+">0</div>
+    </div>
+    <div class="stat-label">Benchmarks Covered</div>
+    <div class="stat-desc">Industry frameworks & standards</div>
+  </div>
+
+  <!-- Card 3 -->
+  <div class="stat-card stat-purple">
+    <div class="ring-container">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65"/>
+        <circle class="ring-glow" cx="70" cy="70" r="65" stroke="#a855f7" stroke-dasharray="408" stroke-dashoffset="0"/>
+        <circle class="ring-progress" cx="70" cy="70" r="65" data-percent="85"/>
+      </svg>
+      <div class="ring-value" data-target="8" data-suffix="">0</div>
+    </div>
+    <div class="stat-label">Frameworks</div>
+    <div class="stat-desc">CIS, STIG, NIST, SOC 2, ISO, HIPAA, PCI, FedRAMP</div>
+  </div>
+
+  <!-- Card 4 -->
+  <div class="stat-card stat-green">
+    <div class="ring-container">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65"/>
+        <circle class="ring-glow" cx="70" cy="70" r="65" stroke="#4ade80" stroke-dasharray="408" stroke-dashoffset="0"/>
+        <circle class="ring-progress" cx="70" cy="70" r="65" data-percent="95"/>
+      </svg>
+      <div class="ring-value" data-target="95" data-suffix="%">0</div>
+    </div>
+    <div class="stat-label">Automation Rate</div>
+    <div class="stat-desc">Manual effort eliminated via playbooks</div>
+  </div>
+
+  <!-- Card 5 -->
+  <div class="stat-card stat-gold">
+    <div class="ring-container">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65"/>
+        <circle class="ring-glow" cx="70" cy="70" r="65" stroke="#fbbf24" stroke-dasharray="408" stroke-dashoffset="0"/>
+        <circle class="ring-progress" cx="70" cy="70" r="65" data-percent="70"/>
+      </svg>
+      <div class="ring-value" data-target="24" data-suffix="/7">0</div>
+    </div>
+    <div class="stat-label">Drift Monitoring</div>
+    <div class="stat-desc">Continuous compliance surveillance</div>
+  </div>
+
+  <!-- Card 6 -->
+  <div class="stat-card stat-pink">
+    <div class="ring-container">
+      <svg class="ring-svg" viewBox="0 0 140 140">
+        <circle class="ring-bg" cx="70" cy="70" r="65"/>
+        <circle class="ring-glow" cx="70" cy="70" r="65" stroke="#f472b6" stroke-dasharray="408" stroke-dashoffset="0"/>
+        <circle class="ring-progress" cx="70" cy="70" r="65" data-percent="60"/>
+      </svg>
+      <div class="ring-value" data-target="5" data-suffix="x">0</div>
+    </div>
+    <div class="stat-label">Faster Audits</div>
+    <div class="stat-desc">Evidence packages generated automatically</div>
+  </div>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span> &mdash; Illuminating Data. Empowering Decisions.</div>
+
+<script>
+// Animate ring progress
+const CIRCUMFERENCE = 2 * Math.PI * 65; // ~408
+
+function animateRings() {
+  document.querySelectorAll('.ring-progress').forEach(ring => {
+    const pct = parseInt(ring.dataset.percent) / 100;
+    const offset = CIRCUMFERENCE * (1 - pct);
+    // Trigger after card entrance animation
+    setTimeout(() => {
+      ring.style.strokeDashoffset = offset;
+    }, 1200);
+  });
+}
+
+// Animate counting numbers
+function animateCounters() {
+  document.querySelectorAll('.ring-value').forEach(el => {
+    const target = parseInt(el.dataset.target);
+    const suffix = el.dataset.suffix;
+    const duration = 2500;
+    const startTime = performance.now() + 1200; // delay to match ring
+
+    function tick(now) {
+      const elapsed = now - startTime;
+      if (elapsed < 0) { requestAnimationFrame(tick); return; }
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(target * eased);
+
+      if (target >= 1000) {
+        el.textContent = current.toLocaleString() + suffix;
+      } else {
+        el.textContent = current + suffix;
+      }
+
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// Looping: restart animations every 8 seconds
+function startLoop() {
+  animateRings();
+  animateCounters();
+
+  setInterval(() => {
+    // Reset rings
+    document.querySelectorAll('.ring-progress').forEach(ring => {
+      ring.style.transition = 'none';
+      ring.style.strokeDashoffset = CIRCUMFERENCE;
+      ring.offsetHeight; // force reflow
+      ring.style.transition = 'stroke-dashoffset 2.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    });
+    // Reset counters
+    document.querySelectorAll('.ring-value').forEach(el => {
+      el.textContent = '0';
+    });
+    // Re-animate
+    setTimeout(() => {
+      animateRings();
+      animateCounters();
+    }, 300);
+  }, 8000);
+}
+
+startLoop();
+</script>
+</body>
+</html>

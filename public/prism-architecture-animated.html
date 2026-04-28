@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>PRISM AI Analytics — Service Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1200px;
+    height: 1500px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(170deg, #06101f 0%, #0a192f 40%, #0f2140 70%, #132d54 100%);
+    color: #e2e8f0;
+    position: relative;
+  }
+
+  /* Subtle grid texture */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(100,180,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(100,180,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  #header {
+    text-align: center;
+    padding: 50px 40px 10px;
+    position: relative;
+    z-index: 2;
+  }
+
+  #header h1 {
+    font-size: 52px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #00d4aa 0%, #00b4d8 50%, #7dd3fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  #header h2 {
+    font-size: 28px;
+    font-weight: 300;
+    color: #94a3b8;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  #canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1200px;
+    height: 1500px;
+    z-index: 1;
+  }
+
+  svg#paths-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1200px;
+    height: 1500px;
+    z-index: 1;
+  }
+
+  canvas#particle-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1200px;
+    height: 1500px;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .node {
+    position: absolute;
+    z-index: 4;
+    border-radius: 16px;
+    padding: 18px 24px;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: box-shadow 0.3s;
+  }
+
+  .node-icon {
+    font-size: 28px;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .node-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+  }
+
+  .node-subtitle {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.6;
+  }
+
+  /* Node color themes */
+  .node-gold {
+    background: rgba(251, 191, 36, 0.08);
+    border-color: rgba(251, 191, 36, 0.25);
+    box-shadow: 0 0 30px rgba(251, 191, 36, 0.06);
+  }
+  .node-gold .node-title { color: #fbbf24; }
+
+  .node-cyan {
+    background: rgba(0, 212, 170, 0.08);
+    border-color: rgba(0, 212, 170, 0.25);
+    box-shadow: 0 0 30px rgba(0, 212, 170, 0.06);
+  }
+  .node-cyan .node-title { color: #00d4aa; }
+
+  .node-blue {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.06);
+  }
+  .node-blue .node-title { color: #38bdf8; }
+
+  .node-green {
+    background: rgba(74, 222, 128, 0.08);
+    border-color: rgba(74, 222, 128, 0.25);
+    box-shadow: 0 0 30px rgba(74, 222, 128, 0.06);
+  }
+  .node-green .node-title { color: #4ade80; }
+
+  .node-purple {
+    background: rgba(168, 85, 247, 0.08);
+    border-color: rgba(168, 85, 247, 0.25);
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.06);
+  }
+  .node-purple .node-title { color: #a855f7; }
+
+  .node-pink {
+    background: rgba(244, 114, 182, 0.08);
+    border-color: rgba(244, 114, 182, 0.25);
+    box-shadow: 0 0 30px rgba(244, 114, 182, 0.06);
+  }
+  .node-pink .node-title { color: #f472b6; }
+
+  .node-hub {
+    background: rgba(0, 212, 170, 0.12);
+    border-color: rgba(0, 212, 170, 0.35);
+    box-shadow: 0 0 50px rgba(0, 212, 170, 0.1), inset 0 0 30px rgba(0, 212, 170, 0.03);
+  }
+  .node-hub .node-title { color: #00d4aa; font-size: 20px; }
+
+  #tagline {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    z-index: 5;
+    font-size: 16px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #475569;
+    font-weight: 300;
+  }
+
+  #tagline span {
+    color: #00d4aa;
+    font-weight: 600;
+  }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    gap: 30px;
+    font-size: 12px;
+    color: #64748b;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>PRISM AI Analytics</h1>
+  <h2>Service Architecture</h2>
+</div>
+
+<!-- SVG paths for connections (drawn under nodes) -->
+<svg id="paths-layer" viewBox="0 0 1200 1500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow-gold">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-cyan">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Path: Clients → CRM -->
+  <path id="p-clients-crm" d="M 600 280 L 600 350" fill="none" stroke="rgba(251,191,36,0.12)" stroke-width="2"/>
+  <!-- Path: CRM → Compliance -->
+  <path id="p-crm-compliance" d="M 500 440 C 400 470, 280 490, 240 530" fill="none" stroke="rgba(0,212,170,0.12)" stroke-width="2"/>
+  <!-- Path: CRM → AI Consulting -->
+  <path id="p-crm-ai" d="M 600 440 L 600 530" fill="none" stroke="rgba(56,189,248,0.12)" stroke-width="2"/>
+  <!-- Path: CRM → Digital Products -->
+  <path id="p-crm-digital" d="M 700 440 C 800 470, 900 490, 950 530" fill="none" stroke="rgba(244,114,182,0.12)" stroke-width="2"/>
+
+  <!-- Path: Compliance → Dashboard -->
+  <path id="p-compliance-dash" d="M 240 640 C 280 700, 400 760, 520 800" fill="none" stroke="rgba(0,212,170,0.12)" stroke-width="2"/>
+  <!-- Path: AI → Dashboard -->
+  <path id="p-ai-dash" d="M 600 640 L 600 800" fill="none" stroke="rgba(56,189,248,0.12)" stroke-width="2"/>
+  <!-- Path: Digital → Dashboard -->
+  <path id="p-digital-dash" d="M 950 640 C 900 700, 780 760, 680 800" fill="none" stroke="rgba(244,114,182,0.12)" stroke-width="2"/>
+
+  <!-- Path: Dashboard → Stripe -->
+  <path id="p-dash-stripe" d="M 520 910 C 420 960, 300 1010, 230 1060" fill="none" stroke="rgba(74,222,128,0.12)" stroke-width="2"/>
+  <!-- Path: Dashboard → QuickBooks -->
+  <path id="p-dash-qb" d="M 600 910 L 600 1060" fill="none" stroke="rgba(56,189,248,0.12)" stroke-width="2"/>
+  <!-- Path: Dashboard → SQLite -->
+  <path id="p-dash-sqlite" d="M 680 910 C 780 960, 880 1010, 950 1060" fill="none" stroke="rgba(168,85,247,0.12)" stroke-width="2"/>
+
+  <!-- Path: Stripe → Revenue -->
+  <path id="p-stripe-revenue" d="M 230 1170 L 230 1250" fill="none" stroke="rgba(74,222,128,0.12)" stroke-width="2"/>
+  <!-- Path: QB → Revenue -->
+  <path id="p-qb-revenue" d="M 520 1170 C 480 1210, 420 1240, 380 1250" fill="none" stroke="rgba(56,189,248,0.12)" stroke-width="2"/>
+  <!-- Path: Dashboard → Railway -->
+  <path id="p-dash-railway" d="M 600 910 C 600 960, 600 980, 600 1250" fill="none" stroke="rgba(251,191,36,0.06)" stroke-width="1.5" stroke-dasharray="6 8"/>
+
+  <!-- Path: Compliance ← CIS Benchmarks (side feed) -->
+  <path id="p-cis-compliance" d="M 90 440 C 90 480, 140 510, 190 540" fill="none" stroke="rgba(0,212,170,0.12)" stroke-width="2"/>
+</svg>
+
+<!-- Architecture Nodes -->
+<!-- Row 1: Clients -->
+<div class="node node-gold" style="left:500px; top:200px; width:200px;">
+  <span class="node-icon">&#x1F465;</span>
+  <div class="node-title">Clients & Leads</div>
+  <div class="node-subtitle">Prospects & Customers</div>
+</div>
+
+<!-- Row 2: CRM -->
+<div class="node node-gold" style="left:450px; top:360px; width:300px;">
+  <span class="node-icon">&#x1F4CA;</span>
+  <div class="node-title">CRM Pipeline</div>
+  <div class="node-subtitle">12-Stage Sales Workflow</div>
+</div>
+
+<!-- Row 3: Three Service Lines -->
+<div class="node node-cyan" style="left:100px; top:540px; width:260px;">
+  <span class="node-icon">&#x1F6E1;</span>
+  <div class="node-title">Compliance Services</div>
+  <div class="node-subtitle">CIS / STIG / CMMC / FedRAMP</div>
+</div>
+
+<div class="node node-blue" style="left:470px; top:540px; width:260px;">
+  <span class="node-icon">&#x1F916;</span>
+  <div class="node-title">AI Consulting</div>
+  <div class="node-subtitle">Readiness / Automation / Advisory</div>
+</div>
+
+<div class="node node-pink" style="left:840px; top:540px; width:260px;">
+  <span class="node-icon">&#x1F3A8;</span>
+  <div class="node-title">Digital Products</div>
+  <div class="node-subtitle">SVG Bundles / Planners / Etsy</div>
+</div>
+
+<!-- CIS Benchmarks side node -->
+<div class="node node-cyan" style="left:30px; top:380px; width:160px;">
+  <span class="node-icon">&#x1F4DC;</span>
+  <div class="node-title" style="font-size:13px;">CIS Benchmarks</div>
+  <div class="node-subtitle">20,000+ Controls</div>
+</div>
+
+<!-- Row 4: Dashboard (central hub) -->
+<div class="node node-hub" style="left:420px; top:800px; width:360px;">
+  <span class="node-icon">&#x2B50;</span>
+  <div class="node-title">PRISM Dashboard</div>
+  <div class="node-subtitle">Unified Command Center &mdash; CRM &bull; Financials &bull; Compliance &bull; Training</div>
+</div>
+
+<!-- Row 5: Integrations -->
+<div class="node node-green" style="left:100px; top:1060px; width:240px;">
+  <span class="node-icon">&#x1F4B3;</span>
+  <div class="node-title">Stripe</div>
+  <div class="node-subtitle">Payments / Subscriptions / Products</div>
+</div>
+
+<div class="node node-blue" style="left:440px; top:1060px; width:240px;">
+  <span class="node-icon">&#x1F4D2;</span>
+  <div class="node-title">QuickBooks</div>
+  <div class="node-subtitle">P&L / Invoices / OAuth</div>
+</div>
+
+<div class="node node-purple" style="left:830px; top:1060px; width:240px;">
+  <span class="node-icon">&#x1F5C4;</span>
+  <div class="node-title">SQLite Database</div>
+  <div class="node-subtitle">Persistent Local Storage</div>
+</div>
+
+<!-- Row 6: Outputs -->
+<div class="node node-green" style="left:170px; top:1260px; width:240px;">
+  <span class="node-icon">&#x1F4B0;</span>
+  <div class="node-title">Revenue Intelligence</div>
+  <div class="node-subtitle">KPIs / Monthly Trends / Forecasts</div>
+</div>
+
+<div class="node node-gold" style="left:500px; top:1260px; width:240px;">
+  <span class="node-icon">&#x1F680;</span>
+  <div class="node-title">Railway Deploy</div>
+  <div class="node-subtitle">Production &bull; Staging &bull; Demo</div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#fbbf24;box-shadow:0 0 6px #fbbf24;"></div> Client Flow</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#00d4aa;box-shadow:0 0 6px #00d4aa;"></div> Compliance</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#38bdf8;box-shadow:0 0 6px #38bdf8;"></div> Data Flow</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4ade80;box-shadow:0 0 6px #4ade80;"></div> Revenue</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#a855f7;box-shadow:0 0 6px #a855f7;"></div> Storage</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f472b6;box-shadow:0 0 6px #f472b6;"></div> Products</div>
+</div>
+
+<div id="tagline"><span>Illuminating Data.</span> Empowering Decisions.</div>
+
+<!-- Particle animation canvas -->
+<canvas id="particle-canvas" width="1200" height="1500"></canvas>
+
+<script>
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+const svgNS = 'http://www.w3.org/2000/svg';
+
+// Color palette
+const COLORS = {
+  gold:   { r: 251, g: 191, b: 36 },
+  cyan:   { r: 0,   g: 212, b: 170 },
+  blue:   { r: 56,  g: 189, b: 248 },
+  green:  { r: 74,  g: 222, b: 128 },
+  purple: { r: 168, g: 85,  b: 247 },
+  pink:   { r: 244, g: 114, b: 182 },
+};
+
+// Flow path definitions
+const flowPaths = [
+  { id: 'p-clients-crm',       color: 'gold',   count: 4,  speed: 0.004 },
+  { id: 'p-crm-compliance',    color: 'cyan',   count: 5,  speed: 0.003 },
+  { id: 'p-crm-ai',            color: 'blue',   count: 4,  speed: 0.0035 },
+  { id: 'p-crm-digital',       color: 'pink',   count: 4,  speed: 0.003 },
+  { id: 'p-compliance-dash',   color: 'cyan',   count: 6,  speed: 0.0025 },
+  { id: 'p-ai-dash',           color: 'blue',   count: 5,  speed: 0.003 },
+  { id: 'p-digital-dash',      color: 'pink',   count: 5,  speed: 0.0025 },
+  { id: 'p-dash-stripe',       color: 'green',  count: 6,  speed: 0.0025 },
+  { id: 'p-dash-qb',           color: 'blue',   count: 5,  speed: 0.003 },
+  { id: 'p-dash-sqlite',       color: 'purple', count: 5,  speed: 0.0025 },
+  { id: 'p-stripe-revenue',    color: 'green',  count: 3,  speed: 0.004 },
+  { id: 'p-qb-revenue',        color: 'blue',   count: 4,  speed: 0.003 },
+  { id: 'p-cis-compliance',    color: 'cyan',   count: 4,  speed: 0.003 },
+];
+
+class Particle {
+  constructor(pathEl, color, speed, offset) {
+    this.pathEl = pathEl;
+    this.totalLength = pathEl.getTotalLength();
+    this.color = color;
+    this.speed = speed + (Math.random() * 0.001 - 0.0005);
+    this.progress = offset;
+    this.radius = 2.5 + Math.random() * 1.5;
+    this.glowRadius = 8 + Math.random() * 6;
+    this.alpha = 0.7 + Math.random() * 0.3;
+    this.pulsePhase = Math.random() * Math.PI * 2;
+    this.pulseSpeed = 0.02 + Math.random() * 0.02;
+  }
+
+  update() {
+    this.progress += this.speed;
+    if (this.progress > 1) this.progress -= 1;
+    this.pulsePhase += this.pulseSpeed;
+  }
+
+  draw(ctx) {
+    const dist = this.progress * this.totalLength;
+    const pt = this.pathEl.getPointAtLength(dist);
+    const pulse = 0.6 + 0.4 * Math.sin(this.pulsePhase);
+    const c = this.color;
+
+    // Outer glow
+    const grad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, this.glowRadius * pulse);
+    grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${0.4 * this.alpha * pulse})`);
+    grad.addColorStop(0.4, `rgba(${c.r},${c.g},${c.b},${0.15 * this.alpha * pulse})`);
+    grad.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, this.glowRadius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core dot
+    ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${this.alpha})`;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, this.radius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bright center
+    ctx.fillStyle = `rgba(255,255,255,${0.6 * this.alpha * pulse})`;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, this.radius * 0.4 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Initialize particles
+const particles = [];
+
+flowPaths.forEach(fp => {
+  const pathEl = document.getElementById(fp.id);
+  if (!pathEl) return;
+  const c = COLORS[fp.color];
+  for (let i = 0; i < fp.count; i++) {
+    const offset = i / fp.count + (Math.random() * 0.05);
+    particles.push(new Particle(pathEl, c, fp.speed, offset));
+  }
+});
+
+// Ambient floating particles (background atmosphere)
+class AmbientParticle {
+  constructor() {
+    this.x = Math.random() * 1200;
+    this.y = Math.random() * 1500;
+    this.vx = (Math.random() - 0.5) * 0.15;
+    this.vy = (Math.random() - 0.5) * 0.1;
+    this.radius = 0.5 + Math.random() * 1;
+    this.alpha = 0.1 + Math.random() * 0.15;
+    this.pulsePhase = Math.random() * Math.PI * 2;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.pulsePhase += 0.008;
+    if (this.x < 0) this.x = 1200;
+    if (this.x > 1200) this.x = 0;
+    if (this.y < 0) this.y = 1500;
+    if (this.y > 1500) this.y = 0;
+  }
+
+  draw(ctx) {
+    const pulse = 0.5 + 0.5 * Math.sin(this.pulsePhase);
+    ctx.fillStyle = `rgba(100,180,255,${this.alpha * pulse})`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const ambientParticles = [];
+for (let i = 0; i < 80; i++) {
+  ambientParticles.push(new AmbientParticle());
+}
+
+// Animation loop
+function animate() {
+  ctx.clearRect(0, 0, 1200, 1500);
+
+  // Draw ambient particles
+  ambientParticles.forEach(p => { p.update(); p.draw(ctx); });
+
+  // Draw flow particles
+  particles.forEach(p => { p.update(); p.draw(ctx); });
+
+  requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>

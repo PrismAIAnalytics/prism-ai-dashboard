@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — Self-Drawing Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1080px;
+    height: 1350px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #06101f;
+    color: #e2e8f0;
+    position: relative;
+  }
+
+  #header {
+    text-align: center;
+    padding: 40px 30px 0;
+    position: relative;
+    z-index: 10;
+    opacity: 0;
+    animation: fadeSlideIn 1s 0.3s forwards;
+  }
+  #header h1 {
+    font-size: 38px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #00d4aa, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #header p {
+    font-size: 16px;
+    color: #64748b;
+    margin-top: 6px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  svg#diagram {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1080px;
+    height: 1350px;
+    z-index: 2;
+  }
+
+  /* Self-drawing line animation */
+  .draw-line {
+    stroke-dasharray: var(--len);
+    stroke-dashoffset: var(--len);
+    animation: drawIn var(--dur) var(--delay) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  @keyframes drawIn {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* Node boxes that fade in */
+  .node-box {
+    position: absolute;
+    z-index: 5;
+    border-radius: 14px;
+    padding: 16px 20px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.06);
+    opacity: 0;
+    transform: scale(0.8);
+    animation: nodeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  @keyframes nodeIn {
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .node-icon { font-size: 24px; margin-bottom: 4px; display: block; }
+  .node-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .node-sub { font-size: 10px; opacity: 0.4; }
+
+  .nc-cyan { background: rgba(0,212,170,0.06); border-color: rgba(0,212,170,0.2); }
+  .nc-cyan .node-title { color: #00d4aa; }
+  .nc-blue { background: rgba(56,189,248,0.06); border-color: rgba(56,189,248,0.2); }
+  .nc-blue .node-title { color: #38bdf8; }
+  .nc-purple { background: rgba(168,85,247,0.06); border-color: rgba(168,85,247,0.2); }
+  .nc-purple .node-title { color: #a855f7; }
+  .nc-green { background: rgba(74,222,128,0.06); border-color: rgba(74,222,128,0.2); }
+  .nc-green .node-title { color: #4ade80; }
+  .nc-gold { background: rgba(251,191,36,0.06); border-color: rgba(251,191,36,0.2); }
+  .nc-gold .node-title { color: #fbbf24; }
+  .nc-pink { background: rgba(244,114,182,0.06); border-color: rgba(244,114,182,0.2); }
+  .nc-pink .node-title { color: #f472b6; }
+
+  /* Typewriter labels */
+  .type-label {
+    position: absolute;
+    z-index: 6;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid;
+    width: 0;
+    animation: typeIn var(--dur) var(--delay) steps(var(--steps)) forwards,
+               blinkCaret 0.6s step-end infinite;
+  }
+  @keyframes typeIn {
+    to { width: var(--width); }
+  }
+  @keyframes blinkCaret {
+    50% { border-color: transparent; }
+  }
+
+  /* Pulsing connection dots */
+  .pulse-dot {
+    fill: none;
+    stroke-width: 2;
+    opacity: 0;
+    animation: pulseDot 2s var(--delay) ease-out infinite;
+  }
+  @keyframes pulseDot {
+    0% { opacity: 0.6; r: 3; }
+    100% { opacity: 0; r: 15; }
+  }
+
+  #brand {
+    position: absolute;
+    bottom: 25px;
+    left: 0; right: 0;
+    text-align: center;
+    z-index: 10;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #334155;
+    opacity: 0;
+    animation: fadeSlideIn 1s 6s forwards;
+  }
+  #brand span { color: #00d4aa; font-weight: 700; }
+
+  /* Looping: restart all animations */
+  body.restart * {
+    animation: none !important;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>How PRISM Works</h1>
+  <p>End-to-end compliance automation</p>
+</div>
+
+<svg id="diagram" viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+  <!-- Step 1 → 2 -->
+  <path class="draw-line" d="M 540 260 L 540 340" stroke="#fbbf24" stroke-width="2" fill="none"
+        style="--len:80; --dur:0.8s; --delay:1.5s;"/>
+  <!-- Step 2 → 3a -->
+  <path class="draw-line" d="M 400 440 C 300 480, 220 510, 200 540" stroke="#00d4aa" stroke-width="2" fill="none"
+        style="--len:250; --dur:1s; --delay:2.8s;"/>
+  <!-- Step 2 → 3b -->
+  <path class="draw-line" d="M 540 440 L 540 540" stroke="#38bdf8" stroke-width="2" fill="none"
+        style="--len:100; --dur:0.8s; --delay:2.8s;"/>
+  <!-- Step 2 → 3c -->
+  <path class="draw-line" d="M 680 440 C 780 480, 860 510, 880 540" stroke="#a855f7" stroke-width="2" fill="none"
+        style="--len:250; --dur:1s; --delay:2.8s;"/>
+  <!-- 3a → 4 -->
+  <path class="draw-line" d="M 200 650 C 280 700, 400 730, 460 760" stroke="#00d4aa" stroke-width="2" fill="none"
+        style="--len:300; --dur:1s; --delay:4.5s;"/>
+  <!-- 3b → 4 -->
+  <path class="draw-line" d="M 540 650 L 540 760" stroke="#38bdf8" stroke-width="2" fill="none"
+        style="--len:110; --dur:0.8s; --delay:4.5s;"/>
+  <!-- 3c → 4 -->
+  <path class="draw-line" d="M 880 650 C 800 700, 680 730, 620 760" stroke="#a855f7" stroke-width="2" fill="none"
+        style="--len:300; --dur:1s; --delay:4.5s;"/>
+  <!-- 4 → 5a -->
+  <path class="draw-line" d="M 440 880 C 350 920, 260 950, 220 980" stroke="#4ade80" stroke-width="2" fill="none"
+        style="--len:280; --dur:1s; --delay:6s;"/>
+  <!-- 4 → 5b -->
+  <path class="draw-line" d="M 540 880 L 540 980" stroke="#4ade80" stroke-width="2" fill="none"
+        style="--len:100; --dur:0.8s; --delay:6s;"/>
+  <!-- 4 → 5c -->
+  <path class="draw-line" d="M 640 880 C 730 920, 800 950, 860 980" stroke="#4ade80" stroke-width="2" fill="none"
+        style="--len:280; --dur:1s; --delay:6s;"/>
+
+  <!-- Pulse dots at junctions -->
+  <circle class="pulse-dot" cx="540" cy="340" stroke="#fbbf24" style="--delay:2.3s;"/>
+  <circle class="pulse-dot" cx="200" cy="540" stroke="#00d4aa" style="--delay:3.8s;"/>
+  <circle class="pulse-dot" cx="540" cy="540" stroke="#38bdf8" style="--delay:3.6s;"/>
+  <circle class="pulse-dot" cx="880" cy="540" stroke="#a855f7" style="--delay:3.8s;"/>
+  <circle class="pulse-dot" cx="540" cy="760" stroke="#38bdf8" style="--delay:5.5s;"/>
+  <circle class="pulse-dot" cx="220" cy="980" stroke="#4ade80" style="--delay:7s;"/>
+  <circle class="pulse-dot" cx="540" cy="980" stroke="#4ade80" style="--delay:7s;"/>
+  <circle class="pulse-dot" cx="860" cy="980" stroke="#4ade80" style="--delay:7s;"/>
+</svg>
+
+<!-- Step 1: Input -->
+<div class="node-box nc-gold" style="left:430px; top:175px; width:220px; animation-delay:1s;">
+  <span class="node-icon">&#x1F4E5;</span>
+  <div class="node-title">Data Ingestion</div>
+  <div class="node-sub">Benchmarks, scanner data, cloud configs</div>
+</div>
+
+<!-- Step 2: Processing -->
+<div class="node-box nc-gold" style="left:390px; top:345px; width:300px; animation-delay:2.2s;">
+  <span class="node-icon">&#x2699;</span>
+  <div class="node-title">Rule Extraction Engine</div>
+  <div class="node-sub">Parse, normalize, map 20,000+ controls</div>
+</div>
+
+<!-- Step 3: Analysis (3 nodes) -->
+<div class="node-box nc-cyan" style="left:80px; top:545px; width:220px; animation-delay:3.5s;">
+  <span class="node-icon">&#x1F50E;</span>
+  <div class="node-title">Gap Analysis</div>
+  <div class="node-sub">Current vs. target coverage</div>
+</div>
+<div class="node-box nc-blue" style="left:420px; top:545px; width:240px; animation-delay:3.5s;">
+  <span class="node-icon">&#x1F4CA;</span>
+  <div class="node-title">Risk Scoring</div>
+  <div class="node-sub">Severity weighting & prioritization</div>
+</div>
+<div class="node-box nc-purple" style="left:770px; top:545px; width:220px; animation-delay:3.5s;">
+  <span class="node-icon">&#x1F517;</span>
+  <div class="node-title">Cross-Mapping</div>
+  <div class="node-sub">Multi-framework overlap</div>
+</div>
+
+<!-- Step 4: Assessment -->
+<div class="node-box nc-blue" style="left:350px; top:765px; width:380px; animation-delay:5.5s;
+      background: rgba(56,189,248,0.08); border-color: rgba(56,189,248,0.25);
+      box-shadow: 0 0 40px rgba(56,189,248,0.06);">
+  <span class="node-icon">&#x1F9EA;</span>
+  <div class="node-title" style="font-size:16px;">Compliance Assessment</div>
+  <div class="node-sub">Automated pass/fail with remediation priority</div>
+</div>
+
+<!-- Step 5: Outputs (3 nodes) -->
+<div class="node-box nc-green" style="left:80px; top:985px; width:240px; animation-delay:7s;">
+  <span class="node-icon">&#x1F4CB;</span>
+  <div class="node-title">Evidence Packages</div>
+  <div class="node-sub">Audit-ready documentation</div>
+</div>
+<div class="node-box nc-green" style="left:420px; top:985px; width:240px; animation-delay:7.2s;">
+  <span class="node-icon">&#x1F6E0;</span>
+  <div class="node-title">Remediation Playbooks</div>
+  <div class="node-sub">Ansible, Terraform, PowerShell</div>
+</div>
+<div class="node-box nc-green" style="left:760px; top:985px; width:240px; animation-delay:7.4s;">
+  <span class="node-icon">&#x1F534;</span>
+  <div class="node-title">Drift Alerts</div>
+  <div class="node-sub">Continuous monitoring triggers</div>
+</div>
+
+<!-- Typewriter phase labels -->
+<div class="type-label" style="left:40px; top:200px; color:rgba(251,191,36,0.4); border-color:rgba(251,191,36,0.4);
+     --dur:0.8s; --delay:1.2s; --steps:6; --width:72px;">INGEST</div>
+<div class="type-label" style="left:40px; top:370px; color:rgba(251,191,36,0.4); border-color:rgba(251,191,36,0.4);
+     --dur:1.2s; --delay:2.4s; --steps:7; --width:84px;">PROCESS</div>
+<div class="type-label" style="left:40px; top:470px; color:rgba(0,212,170,0.4); border-color:rgba(0,212,170,0.4);
+     --dur:1.2s; --delay:3.8s; --steps:7; --width:84px;">ANALYZE</div>
+<div class="type-label" style="left:40px; top:690px; color:rgba(56,189,248,0.4); border-color:rgba(56,189,248,0.4);
+     --dur:1s; --delay:5.8s; --steps:6; --width:72px;">ASSESS</div>
+<div class="type-label" style="left:40px; top:920px; color:rgba(74,222,128,0.4); border-color:rgba(74,222,128,0.4);
+     --dur:1s; --delay:7.2s; --steps:6; --width:72px;">OUTPUT</div>
+
+<!-- Stats footer -->
+<div style="position:absolute; bottom:70px; left:100px; right:100px; z-index:10; display:flex; justify-content:space-around; text-align:center;
+     opacity:0; animation: fadeSlideIn 0.8s 8s forwards;">
+  <div>
+    <div style="font-size:28px; font-weight:800; color:#fbbf24;">100+</div>
+    <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Benchmarks</div>
+  </div>
+  <div>
+    <div style="font-size:28px; font-weight:800; color:#00d4aa;">20K+</div>
+    <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Controls</div>
+  </div>
+  <div>
+    <div style="font-size:28px; font-weight:800; color:#38bdf8;">8</div>
+    <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Frameworks</div>
+  </div>
+  <div>
+    <div style="font-size:28px; font-weight:800; color:#4ade80;">5x</div>
+    <div style="font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Faster Audits</div>
+  </div>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span></div>
+
+<script>
+// Loop the entire animation every 12 seconds
+setInterval(() => {
+  document.body.classList.add('restart');
+  // Force reflow
+  void document.body.offsetHeight;
+  requestAnimationFrame(() => {
+    document.body.classList.remove('restart');
+  });
+}, 12000);
+</script>
+</body>
+</html>

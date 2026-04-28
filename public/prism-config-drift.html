@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — Configuration Drift</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1080px;height:1350px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;
+    background:#06101f;color:#e2e8f0;position:relative}
+
+  #header{text-align:center;padding:40px 40px 10px;position:relative;z-index:10}
+  #header h1{font-size:40px;font-weight:800;color:#ef4444;margin-bottom:4px}
+  #header h2{font-size:22px;font-weight:300;color:#94a3b8;letter-spacing:3px;text-transform:uppercase}
+  #header p{font-size:14px;color:#64748b;margin-top:10px;max-width:650px;margin-inline:auto}
+
+  canvas{position:absolute;top:0;left:0;width:1080px;height:1350px;z-index:1;pointer-events:none}
+
+  .content{position:relative;z-index:5;padding:20px 60px}
+
+  /* Danger zone visual */
+  .danger-zone{margin:20px 0;padding:24px 30px;border-radius:16px;
+    background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15)}
+  .danger-zone h3{font-size:16px;color:#ef4444;font-weight:700;margin-bottom:12px;letter-spacing:1px;text-transform:uppercase}
+  .consequence{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+  .consequence-icon{font-size:22px;flex-shrink:0}
+  .consequence-text{font-size:13px;line-height:1.4}
+  .consequence-text strong{color:#fca5a5}
+
+  /* Prevention steps */
+  .steps{margin:24px 0}
+  .steps h3{font-size:18px;color:#4ade80;font-weight:700;margin-bottom:16px;text-align:center}
+  .step{display:flex;gap:18px;margin-bottom:20px;opacity:0;transform:translateY(20px);
+    animation:stepIn .7s cubic-bezier(.16,1,.3,1) forwards}
+  .step:nth-child(2){animation-delay:.3s}
+  .step:nth-child(3){animation-delay:.6s}
+  .step:nth-child(4){animation-delay:.9s}
+  .step:nth-child(5){animation-delay:1.2s}
+  .step:nth-child(6){animation-delay:1.5s}
+  @keyframes stepIn{to{opacity:1;transform:translateY(0)}}
+
+  .step-num{flex-shrink:0;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-size:18px;font-weight:800;color:#fff}
+  .step-body h4{font-size:15px;font-weight:700;margin-bottom:2px}
+  .step-body p{font-size:11px;opacity:.45;line-height:1.4}
+
+  .sn1 .step-num{background:linear-gradient(135deg,#00d4aa,#00b89c)}
+  .sn1 h4{color:#6ee7b7}
+  .sn2 .step-num{background:linear-gradient(135deg,#38bdf8,#0ea5e9)}
+  .sn2 h4{color:#7dd3fc}
+  .sn3 .step-num{background:linear-gradient(135deg,#a855f7,#8b5cf6)}
+  .sn3 h4{color:#d8b4fe}
+  .sn4 .step-num{background:linear-gradient(135deg,#fbbf24,#f59e0b)}
+  .sn4 h4{color:#fde68a}
+  .sn5 .step-num{background:linear-gradient(135deg,#f472b6,#ec4899)}
+  .sn5 h4{color:#f9a8d4}
+
+  /* Quick check */
+  .checklist{margin:20px 0;padding:24px 30px;border-radius:16px;
+    background:rgba(56,189,248,.04);border:1px solid rgba(56,189,248,.12)}
+  .checklist h3{font-size:15px;color:#38bdf8;font-weight:700;margin-bottom:14px}
+  .check-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:13px}
+  .check-box{width:20px;height:20px;border-radius:5px;border:2px solid rgba(56,189,248,.3);
+    flex-shrink:0;position:relative;animation:checkFill .4s forwards;opacity:0}
+  .check-row:nth-child(2) .check-box{animation-delay:2s}
+  .check-row:nth-child(3) .check-box{animation-delay:2.3s}
+  .check-row:nth-child(4) .check-box{animation-delay:2.6s}
+  .check-row:nth-child(5) .check-box{animation-delay:2.9s}
+  .check-row:nth-child(6) .check-box{animation-delay:3.2s}
+  @keyframes checkFill{to{opacity:1;background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.5)}}
+
+  #brand{position:absolute;bottom:28px;left:0;right:0;text-align:center;z-index:10;
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#334155}
+  #brand span{color:#ef4444;font-weight:700}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Configuration Drift</h1>
+  <h2>The Silent Security Risk</h2>
+  <p>Death by a thousand small changes. Gradual deviations from your intended security configuration that most businesses don't notice until it's too late.</p>
+</div>
+
+<div class="content">
+  <div class="danger-zone">
+    <h3>What's at stake</h3>
+    <div class="consequence">
+      <span class="consequence-icon">&#x1F6A8;</span>
+      <div class="consequence-text"><strong>Data Exposure</strong> — Open ports, misconfigured access controls, unpatched services</div>
+    </div>
+    <div class="consequence">
+      <span class="consequence-icon">&#x26A0;</span>
+      <div class="consequence-text"><strong>Compliance Failures</strong> — Audits fail when configs no longer match baselines</div>
+    </div>
+    <div class="consequence">
+      <span class="consequence-icon">&#x1F510;</span>
+      <div class="consequence-text"><strong>Unauthorized Access</strong> — Stale user accounts and privilege creep</div>
+    </div>
+    <div class="consequence">
+      <span class="consequence-icon">&#x1F4A3;</span>
+      <div class="consequence-text"><strong>Ransomware Entry Points</strong> — Small misconfigs become attack vectors</div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <h3>5 Steps to Prevent Drift</h3>
+    <div class="step sn1">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Establish a Configuration Baseline</h4>
+        <p>Document your intended state across all systems and infrastructure</p>
+      </div>
+    </div>
+    <div class="step sn2">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Automate Configuration Monitoring</h4>
+        <p>Real-time visibility into changes as they happen, not months later</p>
+      </div>
+    </div>
+    <div class="step sn3">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Use Infrastructure as Code</h4>
+        <p>Track changes with version control for full reversibility</p>
+      </div>
+    </div>
+    <div class="step sn4">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Implement Change Management</h4>
+        <p>Ticketing, peer review, and documentation for every config change</p>
+      </div>
+    </div>
+    <div class="step sn5">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>Schedule Regular Audits</h4>
+        <p>Quarterly reviews to catch what automation misses</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="checklist">
+    <h3>Quick Drift Detection Checklist</h3>
+    <div class="check-row"><div class="check-box"></div>Do you know every firewall rule currently active?</div>
+    <div class="check-row"><div class="check-box"></div>Is any cloud storage publicly accessible right now?</div>
+    <div class="check-row"><div class="check-box"></div>Are all former employee accounts fully deprovisioned?</div>
+    <div class="check-row"><div class="check-box"></div>Are all systems running current security patches?</div>
+    <div class="check-row"><div class="check-box"></div>Are third-party app permissions regularly reviewed?</div>
+  </div>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span> &mdash; Stop drift before it stops you.</div>
+
+<canvas id="c" width="1080" height="1350"></canvas>
+<script>
+// Radar sweep + warning particles
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+let sweepAngle=0;
+
+class WarningDot{
+  constructor(){this.x=Math.random()*1080;this.y=Math.random()*1350;this.r=1+Math.random()*1.5;
+    this.phase=Math.random()*Math.PI*2;this.speed=.01+Math.random()*.015;this.maxA=.08+Math.random()*.1}
+  update(){this.phase+=this.speed}
+  draw(ctx){const a=this.maxA*Math.max(0,Math.sin(this.phase));if(a<.01)return;
+    ctx.fillStyle=`rgba(239,68,68,${a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill()}
+}
+const dots=[];for(let i=0;i<60;i++)dots.push(new WarningDot());
+
+// Scanning line
+function animate(){
+  ctx.clearRect(0,0,1080,1350);
+
+  // Horizontal scan line
+  sweepAngle+=.003;
+  const scanY=(Math.sin(sweepAngle)*0.5+0.5)*1350;
+  const sg=ctx.createLinearGradient(0,scanY-20,0,scanY+20);
+  sg.addColorStop(0,'rgba(239,68,68,0)');
+  sg.addColorStop(.5,'rgba(239,68,68,.04)');
+  sg.addColorStop(1,'rgba(239,68,68,0)');
+  ctx.fillStyle=sg;
+  ctx.fillRect(0,scanY-20,1080,40);
+
+  dots.forEach(d=>{d.update();d.draw(ctx)});
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

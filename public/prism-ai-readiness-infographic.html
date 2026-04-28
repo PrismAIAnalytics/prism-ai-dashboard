@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — AI Readiness Assessment</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1080px;height:1350px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;
+    background:linear-gradient(170deg,#06101f,#0a192f 50%,#112240);color:#e2e8f0;position:relative}
+
+  #header{text-align:center;padding:40px 40px 10px;position:relative;z-index:10}
+  #header h1{font-size:38px;font-weight:800;background:linear-gradient(135deg,#38bdf8,#a855f7);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  #header p{font-size:15px;color:#64748b;margin-top:8px}
+
+  canvas{position:absolute;top:0;left:0;width:1080px;height:1350px;z-index:1;pointer-events:none}
+  svg#timeline{position:absolute;top:0;left:0;width:1080px;height:1350px;z-index:2}
+
+  /* Timeline spine */
+  .spine{stroke:rgba(56,189,248,.1);stroke-width:3;fill:none;
+    stroke-dasharray:900;stroke-dashoffset:900;animation:drawSpine 3s .5s ease forwards}
+  @keyframes drawSpine{to{stroke-dashoffset:0}}
+
+  /* Milestone nodes */
+  .milestone{position:absolute;z-index:5;width:380px;opacity:0;transform:translateX(var(--dir));
+    animation:msIn .7s cubic-bezier(.16,1,.3,1) forwards}
+  @keyframes msIn{to{opacity:1;transform:translateX(0)}}
+
+  .ms-card{border-radius:16px;padding:22px 26px;backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.06)}
+  .ms-phase{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
+  .ms-title{font-size:18px;font-weight:700;margin-bottom:6px}
+  .ms-desc{font-size:12px;opacity:.45;line-height:1.5}
+  .ms-duration{font-size:11px;font-weight:600;margin-top:8px;padding:4px 12px;border-radius:8px;display:inline-block}
+
+  .mc1{background:rgba(0,212,170,.06);border-color:rgba(0,212,170,.15)}
+  .mc1 .ms-phase{color:rgba(0,212,170,.6)} .mc1 .ms-title{color:#6ee7b7}
+  .mc1 .ms-duration{background:rgba(0,212,170,.1);color:#6ee7b7}
+
+  .mc2{background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.15)}
+  .mc2 .ms-phase{color:rgba(56,189,248,.6)} .mc2 .ms-title{color:#7dd3fc}
+  .mc2 .ms-duration{background:rgba(56,189,248,.1);color:#7dd3fc}
+
+  .mc3{background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.15)}
+  .mc3 .ms-phase{color:rgba(168,85,247,.6)} .mc3 .ms-title{color:#d8b4fe}
+  .mc3 .ms-duration{background:rgba(168,85,247,.1);color:#d8b4fe}
+
+  .mc4{background:rgba(244,114,182,.06);border-color:rgba(244,114,182,.15)}
+  .mc4 .ms-phase{color:rgba(244,114,182,.6)} .mc4 .ms-title{color:#f9a8d4}
+  .mc4 .ms-duration{background:rgba(244,114,182,.1);color:#f9a8d4}
+
+  .mc5{background:rgba(74,222,128,.06);border-color:rgba(74,222,128,.15)}
+  .mc5 .ms-phase{color:rgba(74,222,128,.6)} .mc5 .ms-title{color:#86efac}
+  .mc5 .ms-duration{background:rgba(74,222,128,.1);color:#86efac}
+
+  /* Timeline dots */
+  .t-dot{fill:none;stroke-width:2;opacity:0;animation:dotPulse 2.5s ease-out infinite}
+  @keyframes dotPulse{0%{opacity:.5;r:5}100%{opacity:0;r:18}}
+
+  /* What it covers section */
+  .covers{position:absolute;bottom:100px;left:60px;right:60px;z-index:5;display:flex;gap:16px;
+    opacity:0;animation:msIn .8s 4.5s forwards;--dir:0px}
+  .cover-pill{flex:1;text-align:center;padding:14px 10px;border-radius:14px;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
+  .cover-pill .cp-icon{font-size:20px;margin-bottom:4px;display:block}
+  .cover-pill .cp-label{font-size:11px;font-weight:600;line-height:1.3}
+
+  .cp1 .cp-label{color:#6ee7b7} .cp2 .cp-label{color:#7dd3fc}
+  .cp3 .cp-label{color:#d8b4fe} .cp4 .cp-label{color:#f9a8d4}
+  .cp5 .cp-label{color:#fde68a}
+
+  #brand{position:absolute;bottom:30px;left:0;right:0;text-align:center;z-index:10;
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#334155}
+  #brand span{color:#38bdf8;font-weight:700}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>What Is an AI Readiness<br>Assessment?</h1>
+  <p>A health check before your AI investment — not gatekeeping, but protecting your ROI</p>
+</div>
+
+<svg id="timeline" viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+  <path class="spine" d="M 540 180 L 540 1050"/>
+  <circle class="t-dot" cx="540" cy="280" stroke="#00d4aa" style="animation-delay:1s"/>
+  <circle class="t-dot" cx="540" cy="440" stroke="#38bdf8" style="animation-delay:1.8s"/>
+  <circle class="t-dot" cx="540" cy="600" stroke="#a855f7" style="animation-delay:2.6s"/>
+  <circle class="t-dot" cx="540" cy="760" stroke="#f472b6" style="animation-delay:3.4s"/>
+  <circle class="t-dot" cx="540" cy="920" stroke="#4ade80" style="animation-delay:4.2s"/>
+  <!-- Static dots on spine -->
+  <circle cx="540" cy="280" r="5" fill="#00d4aa" opacity=".6"/>
+  <circle cx="540" cy="440" r="5" fill="#38bdf8" opacity=".6"/>
+  <circle cx="540" cy="600" r="5" fill="#a855f7" opacity=".6"/>
+  <circle cx="540" cy="760" r="5" fill="#f472b6" opacity=".6"/>
+  <circle cx="540" cy="920" r="5" fill="#4ade80" opacity=".6"/>
+</svg>
+
+<!-- Milestones alternating left/right -->
+<div class="milestone" style="left:570px;top:240px;animation-delay:1s;--dir:30px">
+  <div class="ms-card mc1">
+    <div class="ms-phase">Step 1</div>
+    <div class="ms-title">Discovery Interview</div>
+    <div class="ms-desc">We learn your goals, pain points, and how you define success. No jargon — just an honest conversation about where you are.</div>
+    <div class="ms-duration">Day 1</div>
+  </div>
+</div>
+
+<div class="milestone" style="right:570px;top:400px;animation-delay:1.8s;--dir:-30px">
+  <div class="ms-card mc2">
+    <div class="ms-phase">Step 2</div>
+    <div class="ms-title">Data Audit</div>
+    <div class="ms-desc">We evaluate your data quality, completeness, and accessibility. This reveals whether AI has the fuel it needs to run.</div>
+    <div class="ms-duration">Days 2-4</div>
+  </div>
+</div>
+
+<div class="milestone" style="left:570px;top:560px;animation-delay:2.6s;--dir:30px">
+  <div class="ms-card mc3">
+    <div class="ms-phase">Step 3</div>
+    <div class="ms-title">Technology Review</div>
+    <div class="ms-desc">Map your current tech stack to identify integration points, gaps, and what's already AI-capable.</div>
+    <div class="ms-duration">Days 3-5</div>
+  </div>
+</div>
+
+<div class="milestone" style="right:570px;top:720px;animation-delay:3.4s;--dir:-30px">
+  <div class="ms-card mc4">
+    <div class="ms-phase">Step 4</div>
+    <div class="ms-title">Team Assessment</div>
+    <div class="ms-desc">Evaluate data literacy across your organization. AI succeeds when people understand and trust data-driven decisions.</div>
+    <div class="ms-duration">Days 5-7</div>
+  </div>
+</div>
+
+<div class="milestone" style="left:570px;top:880px;animation-delay:4.2s;--dir:30px">
+  <div class="ms-card mc5">
+    <div class="ms-phase">Step 5</div>
+    <div class="ms-title">Roadmap Delivery</div>
+    <div class="ms-desc">A prioritized action plan with quick wins, medium-term goals, and a clear path from where you are to where AI can take you.</div>
+    <div class="ms-duration">1-2 Weeks Total</div>
+  </div>
+</div>
+
+<!-- What it covers -->
+<div class="covers">
+  <div class="cover-pill cp1"><span class="cp-icon">&#x1F4CA;</span><div class="cp-label">Data<br>Maturity</div></div>
+  <div class="cover-pill cp2"><span class="cp-icon">&#x2699;</span><div class="cp-label">Tech<br>Infrastructure</div></div>
+  <div class="cover-pill cp3"><span class="cp-icon">&#x1F465;</span><div class="cp-label">Team<br>Skills</div></div>
+  <div class="cover-pill cp4"><span class="cp-icon">&#x1F504;</span><div class="cp-label">Process<br>Readiness</div></div>
+  <div class="cover-pill cp5"><span class="cp-icon">&#x1F3AF;</span><div class="cp-label">Strategic<br>Alignment</div></div>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span> &mdash; Start with clarity, not guesswork.</div>
+
+<canvas id="c" width="1080" height="1350"></canvas>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+class P{constructor(){this.x=Math.random()*1080;this.y=Math.random()*1350;this.r=.3+Math.random()*.5;
+  this.phase=Math.random()*Math.PI*2;this.speed=.006+Math.random()*.008;this.maxA=.04+Math.random()*.06}
+  update(){this.phase+=this.speed}
+  draw(ctx){const a=this.maxA*Math.max(0,Math.sin(this.phase));if(a<.01)return;
+    ctx.fillStyle=`rgba(56,189,248,${a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill()}}
+const ps=[];for(let i=0;i<70;i++)ps.push(new P());
+function animate(){ctx.clearRect(0,0,1080,1350);ps.forEach(p=>{p.update();p.draw(ctx)});requestAnimationFrame(animate)}
+animate();
+</script>
+</body>
+</html>

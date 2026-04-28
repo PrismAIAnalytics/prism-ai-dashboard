@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>PRISM AI — Revenue Streams</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1200px;
+    height: 1500px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(170deg, #020c1b 0%, #0a192f 35%, #112240 65%, #0a192f 100%);
+    color: #e2e8f0;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 500px 500px at 50% 50%, rgba(74,222,128,0.04), transparent),
+      radial-gradient(ellipse 400px 400px at 25% 35%, rgba(251,191,36,0.03), transparent),
+      radial-gradient(ellipse 400px 400px at 75% 35%, rgba(56,189,248,0.03), transparent);
+    pointer-events: none;
+  }
+
+  #header {
+    text-align: center;
+    padding: 50px 40px 10px;
+    position: relative;
+    z-index: 5;
+  }
+  #header h1 {
+    font-size: 50px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #4ade80, #fbbf24, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #header h2 {
+    font-size: 24px;
+    font-weight: 300;
+    color: #94a3b8;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  canvas { position: absolute; top: 0; left: 0; width: 1200px; height: 1500px; z-index: 2; pointer-events: none; }
+  svg { position: absolute; top: 0; left: 0; width: 1200px; height: 1500px; z-index: 1; }
+
+  .stream-node {
+    position: absolute;
+    z-index: 4;
+    border-radius: 16px;
+    padding: 22px 28px;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+    width: 280px;
+  }
+  .stream-icon { font-size: 32px; margin-bottom: 8px; display: block; }
+  .stream-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .stream-desc { font-size: 12px; opacity: 0.55; line-height: 1.5; }
+  .stream-price { font-size: 14px; font-weight: 600; margin-top: 8px; }
+
+  .hub-node {
+    position: absolute;
+    z-index: 4;
+    border-radius: 50%;
+    width: 200px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    backdrop-filter: blur(16px);
+    background: rgba(74,222,128,0.08);
+    border: 2px solid rgba(74,222,128,0.3);
+    box-shadow: 0 0 60px rgba(74,222,128,0.08), 0 0 120px rgba(74,222,128,0.04);
+  }
+  .hub-node .stream-icon { font-size: 36px; margin-bottom: 4px; }
+  .hub-node .stream-title { font-size: 20px; color: #4ade80; }
+  .hub-node .stream-desc { font-size: 11px; }
+
+  /* Stream colors */
+  .s-compliance { background: rgba(0,212,170,0.07); border-color: rgba(0,212,170,0.2); }
+  .s-compliance .stream-title { color: #00d4aa; }
+  .s-compliance .stream-price { color: #6ee7b7; }
+
+  .s-ai { background: rgba(56,189,248,0.07); border-color: rgba(56,189,248,0.2); }
+  .s-ai .stream-title { color: #38bdf8; }
+  .s-ai .stream-price { color: #7dd3fc; }
+
+  .s-digital { background: rgba(244,114,182,0.07); border-color: rgba(244,114,182,0.2); }
+  .s-digital .stream-title { color: #f472b6; }
+  .s-digital .stream-price { color: #f9a8d4; }
+
+  .s-retainer { background: rgba(168,85,247,0.07); border-color: rgba(168,85,247,0.2); }
+  .s-retainer .stream-title { color: #a855f7; }
+  .s-retainer .stream-price { color: #d8b4fe; }
+
+  .s-creative { background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.2); }
+  .s-creative .stream-title { color: #fbbf24; }
+  .s-creative .stream-price { color: #fde68a; }
+
+  #tagline {
+    position: absolute;
+    bottom: 40px;
+    left: 0; right: 0;
+    text-align: center;
+    z-index: 5;
+    font-size: 15px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  #tagline span { color: #4ade80; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Revenue Streams</h1>
+  <h2>Multi-Channel Growth Engine</h2>
+</div>
+
+<svg id="paths" viewBox="0 0 1200 1500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Stream 1: Compliance → Hub -->
+  <path id="p1" d="M 200 390 C 200 500, 400 600, 520 690" fill="none" stroke="rgba(0,212,170,0.1)" stroke-width="2.5"/>
+  <!-- Stream 2: AI Consulting → Hub -->
+  <path id="p2" d="M 1000 390 C 1000 500, 800 600, 680 690" fill="none" stroke="rgba(56,189,248,0.1)" stroke-width="2.5"/>
+  <!-- Stream 3: Digital Products → Hub -->
+  <path id="p3" d="M 200 680 C 300 720, 420 740, 520 750" fill="none" stroke="rgba(244,114,182,0.1)" stroke-width="2.5"/>
+  <!-- Stream 4: Retainers → Hub -->
+  <path id="p4" d="M 1000 680 C 900 720, 780 740, 680 750" fill="none" stroke="rgba(168,85,247,0.1)" stroke-width="2.5"/>
+  <!-- Stream 5: Creative → Hub -->
+  <path id="p5" d="M 600 440 L 600 690" fill="none" stroke="rgba(251,191,36,0.1)" stroke-width="2.5"/>
+
+  <!-- Hub → Stripe -->
+  <path id="p6" d="M 520 840 C 400 920, 300 960, 240 1010" fill="none" stroke="rgba(74,222,128,0.1)" stroke-width="2"/>
+  <!-- Hub → QuickBooks -->
+  <path id="p7" d="M 600 850 L 600 1010" fill="none" stroke="rgba(74,222,128,0.1)" stroke-width="2"/>
+  <!-- Hub → Analytics -->
+  <path id="p8" d="M 680 840 C 800 920, 880 960, 940 1010" fill="none" stroke="rgba(74,222,128,0.1)" stroke-width="2"/>
+
+  <!-- Stripe → Total -->
+  <path id="p9" d="M 240 1140 C 300 1200, 420 1240, 520 1260" fill="none" stroke="rgba(74,222,128,0.08)" stroke-width="2"/>
+  <!-- QB → Total -->
+  <path id="p10" d="M 600 1140 L 600 1250" fill="none" stroke="rgba(74,222,128,0.08)" stroke-width="2"/>
+  <!-- Analytics → Total -->
+  <path id="p11" d="M 940 1140 C 860 1200, 740 1240, 680 1260" fill="none" stroke="rgba(74,222,128,0.08)" stroke-width="2"/>
+</svg>
+
+<!-- Stream Nodes — top row -->
+<div class="stream-node s-compliance" style="left:60px; top:240px;">
+  <span class="stream-icon">&#x1F6E1;</span>
+  <div class="stream-title">Compliance Services</div>
+  <div class="stream-desc">CIS/STIG gap assessments, drift detection, remediation sprints, audit automation</div>
+  <div class="stream-price">$5K - $40K per project</div>
+</div>
+
+<div class="stream-node s-creative" style="left:460px; top:200px;">
+  <span class="stream-icon">&#x1F3A8;</span>
+  <div class="stream-title">Adobe Creative</div>
+  <div class="stream-desc">Design services, brand identity, visual content for enterprise clients</div>
+  <div class="stream-price">Project-based</div>
+</div>
+
+<div class="stream-node s-ai" style="left:860px; top:240px;">
+  <span class="stream-icon">&#x1F916;</span>
+  <div class="stream-title">AI Consulting</div>
+  <div class="stream-desc">Readiness assessments, workflow automation, analytics modernization</div>
+  <div class="stream-price">$500 - $15K per project</div>
+</div>
+
+<!-- Stream Nodes — middle row -->
+<div class="stream-node s-digital" style="left:60px; top:560px;">
+  <span class="stream-icon">&#x1F4E6;</span>
+  <div class="stream-title">Digital Products</div>
+  <div class="stream-desc">SVG cut files, digital planners, downloadable assets on Etsy</div>
+  <div class="stream-price">Passive income stream</div>
+</div>
+
+<div class="stream-node s-retainer" style="left:860px; top:560px;">
+  <span class="stream-icon">&#x1F504;</span>
+  <div class="stream-title">Managed Retainers</div>
+  <div class="stream-desc">Fractional AI advisor, analytics support, compliance engineering</div>
+  <div class="stream-price">$800 - $8.5K / month</div>
+</div>
+
+<!-- Central Hub -->
+<div class="hub-node" style="left:500px; top:690px;">
+  <span class="stream-icon">&#x1F4B0;</span>
+  <div class="stream-title">Revenue Hub</div>
+  <div class="stream-desc">Consolidated</div>
+</div>
+
+<!-- Bottom row: Financial integrations -->
+<div class="stream-node" style="left:100px; top:1010px; width:240px; background:rgba(74,222,128,0.06); border-color:rgba(74,222,128,0.2);">
+  <span class="stream-icon">&#x1F4B3;</span>
+  <div class="stream-title" style="color:#4ade80;">Stripe</div>
+  <div class="stream-desc">Real-time payment processing & subscription billing</div>
+</div>
+
+<div class="stream-node" style="left:480px; top:1010px; width:240px; background:rgba(74,222,128,0.06); border-color:rgba(74,222,128,0.2);">
+  <span class="stream-icon">&#x1F4D2;</span>
+  <div class="stream-title" style="color:#4ade80;">QuickBooks</div>
+  <div class="stream-desc">P&L reporting, invoicing, expense tracking</div>
+</div>
+
+<div class="stream-node" style="left:860px; top:1010px; width:240px; background:rgba(74,222,128,0.06); border-color:rgba(74,222,128,0.2);">
+  <span class="stream-icon">&#x1F4CA;</span>
+  <div class="stream-title" style="color:#4ade80;">Analytics</div>
+  <div class="stream-desc">Revenue trends, KPIs, forecasting dashboards</div>
+</div>
+
+<!-- Total Revenue -->
+<div class="hub-node" style="left:500px; top:1240px; width:220px; height:140px; border-radius:20px; background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.35);">
+  <span class="stream-icon" style="font-size:28px;">&#x2B50;</span>
+  <div class="stream-title" style="font-size:18px;">Revenue Intelligence</div>
+  <div class="stream-desc">Complete financial picture</div>
+</div>
+
+<div id="tagline"><span>PRISM AI Analytics</span> &mdash; Multiple streams, one vision.</div>
+
+<canvas id="particle-canvas" width="1200" height="1500"></canvas>
+
+<script>
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+
+const COLORS = {
+  cyan:   { r: 0,   g: 212, b: 170 },
+  blue:   { r: 56,  g: 189, b: 248 },
+  pink:   { r: 244, g: 114, b: 182 },
+  purple: { r: 168, g: 85,  b: 247 },
+  gold:   { r: 251, g: 191, b: 36 },
+  green:  { r: 74,  g: 222, b: 128 },
+};
+
+const flowDefs = [
+  { id: 'p1', color: 'cyan',   count: 7, speed: 0.003 },
+  { id: 'p2', color: 'blue',   count: 7, speed: 0.003 },
+  { id: 'p3', color: 'pink',   count: 5, speed: 0.004 },
+  { id: 'p4', color: 'purple', count: 5, speed: 0.004 },
+  { id: 'p5', color: 'gold',   count: 6, speed: 0.0035 },
+  { id: 'p6', color: 'green',  count: 5, speed: 0.003 },
+  { id: 'p7', color: 'green',  count: 5, speed: 0.003 },
+  { id: 'p8', color: 'green',  count: 5, speed: 0.003 },
+  { id: 'p9', color: 'green',  count: 4, speed: 0.003 },
+  { id: 'p10', color: 'green', count: 3, speed: 0.004 },
+  { id: 'p11', color: 'green', count: 4, speed: 0.003 },
+];
+
+class Particle {
+  constructor(pathEl, color, speed, offset) {
+    this.pathEl = pathEl;
+    this.totalLength = pathEl.getTotalLength();
+    this.color = color;
+    this.speed = speed + (Math.random() * 0.001 - 0.0005);
+    this.progress = offset;
+    this.radius = 2.5 + Math.random() * 2;
+    this.glowRadius = 10 + Math.random() * 8;
+    this.alpha = 0.75 + Math.random() * 0.25;
+    this.pulsePhase = Math.random() * Math.PI * 2;
+    this.trail = [];
+    this.trailLen = 6 + Math.floor(Math.random() * 4);
+  }
+
+  update() {
+    this.progress += this.speed;
+    if (this.progress > 1) this.progress -= 1;
+    this.pulsePhase += 0.025;
+    const dist = this.progress * this.totalLength;
+    const pt = this.pathEl.getPointAtLength(dist);
+    this.trail.unshift({ x: pt.x, y: pt.y });
+    if (this.trail.length > this.trailLen) this.trail.pop();
+  }
+
+  draw(ctx) {
+    if (this.trail.length < 1) return;
+    const c = this.color;
+    const pulse = 0.65 + 0.35 * Math.sin(this.pulsePhase);
+    const head = this.trail[0];
+
+    // Trail
+    for (let i = 1; i < this.trail.length; i++) {
+      const t = 1 - (i / this.trail.length);
+      ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${t * 0.25 * this.alpha})`;
+      ctx.beginPath();
+      ctx.arc(this.trail[i].x, this.trail[i].y, this.radius * t * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Glow
+    const grad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, this.glowRadius * pulse);
+    grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${0.35 * this.alpha * pulse})`);
+    grad.addColorStop(0.5, `rgba(${c.r},${c.g},${c.b},${0.1 * this.alpha})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, this.glowRadius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${this.alpha})`;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, this.radius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // White hot center
+    ctx.fillStyle = `rgba(255,255,255,${0.6 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, this.radius * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const particles = [];
+flowDefs.forEach(fd => {
+  const el = document.getElementById(fd.id);
+  if (!el) return;
+  const c = COLORS[fd.color];
+  for (let i = 0; i < fd.count; i++) {
+    particles.push(new Particle(el, c, fd.speed, i / fd.count));
+  }
+});
+
+// Background dust
+class Dust {
+  constructor() {
+    this.x = Math.random() * 1200;
+    this.y = Math.random() * 1500;
+    this.vx = (Math.random() - 0.5) * 0.08;
+    this.vy = -0.02 - Math.random() * 0.05;
+    this.r = 0.3 + Math.random() * 0.7;
+    this.a = 0.05 + Math.random() * 0.1;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.phase += 0.005;
+    if (this.y < -10) { this.y = 1510; this.x = Math.random() * 1200; }
+    if (this.x < 0) this.x = 1200;
+    if (this.x > 1200) this.x = 0;
+  }
+  draw(ctx) {
+    const a = this.a * (0.5 + 0.5 * Math.sin(this.phase));
+    ctx.fillStyle = `rgba(74,222,128,${a})`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const dust = [];
+for (let i = 0; i < 90; i++) dust.push(new Dust());
+
+function animate() {
+  ctx.clearRect(0, 0, 1200, 1500);
+  dust.forEach(d => { d.update(); d.draw(ctx); });
+  particles.forEach(p => { p.update(); p.draw(ctx); });
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

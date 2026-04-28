@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1200">
+<title>PRISM AI — Client Journey</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1200px;
+    height: 1500px;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg, #0c0118 0%, #1a0533 30%, #0d1b3e 60%, #06101f 100%);
+    color: #e2e8f0;
+    position: relative;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 800px 400px at 50% 30%, rgba(168,85,247,0.06), transparent),
+      radial-gradient(ellipse 600px 300px at 20% 70%, rgba(0,212,170,0.04), transparent),
+      radial-gradient(ellipse 600px 300px at 80% 80%, rgba(56,189,248,0.04), transparent);
+    pointer-events: none;
+  }
+
+  #header {
+    text-align: center;
+    padding: 50px 40px 20px;
+    position: relative;
+    z-index: 2;
+  }
+  #header h1 {
+    font-size: 48px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #a855f7, #ec4899, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  #header h2 {
+    font-size: 24px;
+    font-weight: 300;
+    color: #94a3b8;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+  }
+  #header p {
+    font-size: 16px;
+    color: #64748b;
+    margin-top: 10px;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  canvas { position: absolute; top: 0; left: 0; width: 1200px; height: 1500px; z-index: 1; pointer-events: none; }
+  svg { position: absolute; top: 0; left: 0; width: 1200px; height: 1500px; z-index: 0; }
+
+  .stage {
+    position: absolute;
+    z-index: 3;
+    border-radius: 14px;
+    padding: 14px 20px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.06);
+    width: 200px;
+  }
+  .stage-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .stage-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .stage-sub {
+    font-size: 11px;
+    opacity: 0.5;
+  }
+
+  /* Phase colors */
+  .phase-discover { background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.2); }
+  .phase-discover .stage-num { color: #fbbf24; }
+  .phase-discover .stage-title { color: #fde68a; }
+
+  .phase-engage { background: rgba(168,85,247,0.07); border-color: rgba(168,85,247,0.2); }
+  .phase-engage .stage-num { color: #a855f7; }
+  .phase-engage .stage-title { color: #d8b4fe; }
+
+  .phase-deliver { background: rgba(0,212,170,0.07); border-color: rgba(0,212,170,0.2); }
+  .phase-deliver .stage-num { color: #00d4aa; }
+  .phase-deliver .stage-title { color: #6ee7b7; }
+
+  .phase-grow { background: rgba(56,189,248,0.07); border-color: rgba(56,189,248,0.2); }
+  .phase-grow .stage-num { color: #38bdf8; }
+  .phase-grow .stage-title { color: #7dd3fc; }
+
+  .phase-label {
+    position: absolute;
+    z-index: 4;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  #tagline {
+    position: absolute;
+    bottom: 40px;
+    left: 0; right: 0;
+    text-align: center;
+    z-index: 5;
+    font-size: 15px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #475569;
+  }
+  #tagline span { color: #a855f7; font-weight: 600; }
+
+  .phase-bracket {
+    position: absolute;
+    z-index: 2;
+    border-radius: 20px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>The Client Journey</h1>
+  <h2>From Lead to Long-Term Partner</h2>
+  <p>12 stages of the PRISM AI engagement lifecycle</p>
+</div>
+
+<svg id="paths" viewBox="0 0 1200 1500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Serpentine path connecting all stages -->
+  <path id="journey-path" d="
+    M 300 230
+    L 300 300
+    C 300 340, 300 340, 500 340
+    L 700 340
+    C 900 340, 900 340, 900 380
+    L 900 440
+    C 900 480, 900 480, 700 480
+    L 500 480
+    C 300 480, 300 480, 300 520
+    L 300 580
+    C 300 620, 300 620, 500 620
+    L 700 620
+    C 900 620, 900 620, 900 660
+    L 900 720
+    C 900 760, 900 760, 700 760
+    L 500 760
+    C 300 760, 300 760, 300 800
+    L 300 860
+    C 300 900, 300 900, 500 900
+    L 700 900
+    C 900 900, 900 900, 900 940
+    L 900 1000
+    C 900 1040, 900 1040, 700 1040
+    L 500 1040
+    C 300 1040, 300 1040, 300 1080
+    L 300 1140
+    C 300 1180, 300 1180, 500 1180
+    L 600 1180
+  " fill="none" stroke="rgba(168,85,247,0.08)" stroke-width="3" stroke-linecap="round"/>
+</svg>
+
+<!-- Phase Labels (left side) -->
+<div class="phase-label" style="left:45px; top:280px; color:rgba(251,191,36,0.3);">DISCOVER</div>
+<div class="phase-label" style="left:45px; top:540px; color:rgba(168,85,247,0.3);">ENGAGE</div>
+<div class="phase-label" style="left:45px; top:800px; color:rgba(0,212,170,0.3);">DELIVER</div>
+<div class="phase-label" style="left:45px; top:1050px; color:rgba(56,189,248,0.3);">GROW</div>
+
+<!-- Stages — zigzag layout -->
+<!-- Row 1: Discover -->
+<div class="stage phase-discover" style="left:200px; top:260px;">
+  <div class="stage-num">Stage 01</div>
+  <div class="stage-title">New Lead</div>
+  <div class="stage-sub">Inbound or referral</div>
+</div>
+<div class="stage phase-discover" style="left:500px; top:300px;">
+  <div class="stage-num">Stage 02</div>
+  <div class="stage-title">Discovery</div>
+  <div class="stage-sub">Needs assessment call</div>
+</div>
+<div class="stage phase-discover" style="left:800px; top:340px;">
+  <div class="stage-num">Stage 03</div>
+  <div class="stage-title">Assessment</div>
+  <div class="stage-sub">Gap analysis & scoping</div>
+</div>
+
+<!-- Row 2: Engage -->
+<div class="stage phase-engage" style="left:800px; top:480px;">
+  <div class="stage-num">Stage 04</div>
+  <div class="stage-title">Proposal</div>
+  <div class="stage-sub">SOW & pricing</div>
+</div>
+<div class="stage phase-engage" style="left:500px; top:520px;">
+  <div class="stage-num">Stage 05</div>
+  <div class="stage-title">Active Client</div>
+  <div class="stage-sub">Contract signed</div>
+</div>
+<div class="stage phase-engage" style="left:200px; top:560px;">
+  <div class="stage-num">Stage 06</div>
+  <div class="stage-title">Project Kickoff</div>
+  <div class="stage-sub">Onboarding & planning</div>
+</div>
+
+<!-- Row 3: Deliver -->
+<div class="stage phase-deliver" style="left:200px; top:720px;">
+  <div class="stage-num">Stage 07</div>
+  <div class="stage-title">In Progress</div>
+  <div class="stage-sub">Active delivery</div>
+</div>
+<div class="stage phase-deliver" style="left:500px; top:760px;">
+  <div class="stage-num">Stage 08</div>
+  <div class="stage-title">Delivered</div>
+  <div class="stage-sub">Handoff & documentation</div>
+</div>
+<div class="stage phase-deliver" style="left:800px; top:800px;">
+  <div class="stage-num">Stage 09</div>
+  <div class="stage-title">Follow-Up</div>
+  <div class="stage-sub">Feedback & satisfaction</div>
+</div>
+
+<!-- Row 4: Grow -->
+<div class="stage phase-grow" style="left:800px; top:960px;">
+  <div class="stage-num">Stage 10</div>
+  <div class="stage-title">Retainer / Upsell</div>
+  <div class="stage-sub">Ongoing engagement</div>
+</div>
+<div class="stage phase-grow" style="left:500px; top:1000px;">
+  <div class="stage-num">Stage 11</div>
+  <div class="stage-title">Closed Won</div>
+  <div class="stage-sub">Revenue recognized</div>
+</div>
+<div class="stage phase-grow" style="left:200px; top:1100px;">
+  <div class="stage-num">Stage 12</div>
+  <div class="stage-title">Long-Term Partner</div>
+  <div class="stage-sub">Referral & expansion</div>
+</div>
+
+<!-- Stats bar -->
+<div style="position:absolute; bottom:100px; left:100px; right:100px; z-index:5; display:flex; justify-content:space-around; text-align:center;">
+  <div>
+    <div style="font-size:36px; font-weight:800; color:#fbbf24;">12</div>
+    <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Stages</div>
+  </div>
+  <div>
+    <div style="font-size:36px; font-weight:800; color:#a855f7;">4</div>
+    <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Phases</div>
+  </div>
+  <div>
+    <div style="font-size:36px; font-weight:800; color:#00d4aa;">100%</div>
+    <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Tracked</div>
+  </div>
+  <div>
+    <div style="font-size:36px; font-weight:800; color:#38bdf8;">&#8734;</div>
+    <div style="font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:2px;">Growth Loop</div>
+  </div>
+</div>
+
+<div id="tagline"><span>PRISM AI Analytics</span> &mdash; Every touchpoint, tracked.</div>
+
+<canvas id="particle-canvas" width="1200" height="1500"></canvas>
+
+<script>
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+const pathEl = document.getElementById('journey-path');
+const totalLength = pathEl.getTotalLength();
+
+const phaseColors = [
+  { r: 251, g: 191, b: 36 },   // gold - discover
+  { r: 168, g: 85,  b: 247 },  // purple - engage
+  { r: 0,   g: 212, b: 170 },  // cyan - deliver
+  { r: 56,  g: 189, b: 248 },  // blue - grow
+];
+
+class JourneyParticle {
+  constructor(offset) {
+    this.progress = offset;
+    this.speed = 0.0008 + Math.random() * 0.0004;
+    this.radius = 3 + Math.random() * 2;
+    this.glowRadius = 12 + Math.random() * 8;
+    this.alpha = 0.8 + Math.random() * 0.2;
+    this.pulsePhase = Math.random() * Math.PI * 2;
+    this.trail = [];
+    this.trailLength = 8 + Math.floor(Math.random() * 6);
+  }
+
+  getColor() {
+    // Color changes based on progress through the journey
+    const idx = Math.min(3, Math.floor(this.progress * 4));
+    const next = Math.min(3, idx + 1);
+    const t = (this.progress * 4) - idx;
+    const c1 = phaseColors[idx];
+    const c2 = phaseColors[next];
+    return {
+      r: Math.round(c1.r + (c2.r - c1.r) * t),
+      g: Math.round(c1.g + (c2.g - c1.g) * t),
+      b: Math.round(c1.b + (c2.b - c1.b) * t),
+    };
+  }
+
+  update() {
+    this.progress += this.speed;
+    if (this.progress > 1) this.progress -= 1;
+    this.pulsePhase += 0.03;
+
+    const dist = this.progress * totalLength;
+    const pt = pathEl.getPointAtLength(dist);
+    this.trail.unshift({ x: pt.x, y: pt.y });
+    if (this.trail.length > this.trailLength) this.trail.pop();
+  }
+
+  draw(ctx) {
+    if (this.trail.length < 2) return;
+    const c = this.getColor();
+    const pulse = 0.7 + 0.3 * Math.sin(this.pulsePhase);
+    const head = this.trail[0];
+
+    // Trail
+    for (let i = 1; i < this.trail.length; i++) {
+      const t = 1 - (i / this.trail.length);
+      const p = this.trail[i];
+      ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${t * 0.3 * this.alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, this.radius * t * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Glow
+    const grad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, this.glowRadius * pulse);
+    grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},${0.35 * this.alpha * pulse})`);
+    grad.addColorStop(0.5, `rgba(${c.r},${c.g},${c.b},${0.1 * this.alpha * pulse})`);
+    grad.addColorStop(1, `rgba(${c.r},${c.g},${c.b},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, this.glowRadius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},${this.alpha})`;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, this.radius * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // White center
+    ctx.fillStyle = `rgba(255,255,255,${0.7 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, this.radius * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const particles = [];
+for (let i = 0; i < 18; i++) {
+  particles.push(new JourneyParticle(i / 18));
+}
+
+// Ambient sparkles
+class Sparkle {
+  constructor() {
+    this.x = Math.random() * 1200;
+    this.y = Math.random() * 1500;
+    this.radius = 0.4 + Math.random() * 0.8;
+    this.alpha = 0;
+    this.maxAlpha = 0.15 + Math.random() * 0.2;
+    this.phase = Math.random() * Math.PI * 2;
+    this.speed = 0.01 + Math.random() * 0.02;
+  }
+  update() {
+    this.phase += this.speed;
+    this.alpha = this.maxAlpha * Math.max(0, Math.sin(this.phase));
+  }
+  draw(ctx) {
+    if (this.alpha < 0.01) return;
+    ctx.fillStyle = `rgba(200,180,255,${this.alpha})`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+const sparkles = [];
+for (let i = 0; i < 100; i++) sparkles.push(new Sparkle());
+
+function animate() {
+  ctx.clearRect(0, 0, 1200, 1500);
+  sparkles.forEach(s => { s.update(); s.draw(ctx); });
+  particles.forEach(p => { p.update(); p.draw(ctx); });
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

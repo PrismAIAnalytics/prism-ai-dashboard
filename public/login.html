@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — PRISM AI Analytics</title>
+<style>
+  :root { --navy:#1B2A6B; --royal:#2E4EAD; --gold:#C8A45A; --blue-lt:#D6E4F0; --blue-mid:#EBF0FB; --dark:#1A1A2E; --mid:#888; --red:#CC3333; --green:#1A7A4A; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: linear-gradient(135deg, var(--navy) 0%, var(--royal) 100%); color: var(--dark); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+
+  .wrap { width: 100%; max-width: 420px; }
+  .brand { text-align: center; color: #fff; margin-bottom: 24px; }
+  .brand h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  .brand p { color: #C0C8E8; font-size: 12px; margin-top: 4px; letter-spacing: 0.5px; }
+  .gold-bar { height: 3px; background: var(--gold); width: 60px; margin: 14px auto; border-radius: 2px; }
+
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 8px 40px rgba(0,0,0,0.25); padding: 32px 32px 28px; }
+  .card h2 { color: var(--navy); font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .card .subtitle { color: var(--mid); font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 22px; border-bottom: 2px solid var(--blue-lt); }
+  .tab { flex: 1; padding: 10px 16px; background: none; border: none; font-size: 13px; font-weight: 700; color: var(--mid); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; font-family: Arial; }
+  .tab.active { color: var(--navy); border-bottom-color: var(--gold); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  label { display: block; font-size: 12px; font-weight: 700; color: var(--dark); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type=email], input[type=password] { width: 100%; padding: 12px 14px; border: 1.5px solid var(--blue-lt); border-radius: 6px; font-size: 14px; font-family: Arial; color: var(--dark); background: #FAFBFF; margin-bottom: 16px; }
+  input:focus { outline: none; border-color: var(--royal); box-shadow: 0 0 0 3px rgba(46,78,173,0.10); }
+
+  button.btn-primary { width: 100%; background: linear-gradient(135deg, var(--navy), var(--royal)); color: #fff; border: none; padding: 13px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: Arial; }
+  button.btn-primary:hover { opacity: 0.92; }
+  button.btn-primary:disabled { opacity: 0.5; cursor: wait; }
+
+  .msg { padding: 10px 14px; border-radius: 6px; font-size: 12.5px; line-height: 1.5; margin-bottom: 16px; display: none; }
+  .msg.error { background: #FBE4E4; color: var(--red); border-left: 3px solid var(--red); }
+  .msg.success { background: #E2F4EB; color: var(--green); border-left: 3px solid var(--green); }
+  .msg.active { display: block; }
+
+  .help-text { text-align: center; font-size: 12px; color: var(--mid); margin-top: 18px; }
+  .help-text a { color: var(--royal); text-decoration: none; font-weight: 600; }
+
+  .footer { text-align: center; color: #C0C8E8; font-size: 11px; margin-top: 20px; }
+  .footer a { color: var(--gold); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <h1>PRISM AI ANALYTICS</h1>
+    <div class="gold-bar"></div>
+    <p>Client Portal</p>
+  </div>
+
+  <div class="card">
+    <h2>Welcome back</h2>
+    <p class="subtitle">Sign in to view your AI readiness assessment and tailored service recommendations.</p>
+
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="magic" onclick="switchTab(this)">Magic link</button>
+      <button type="button" class="tab" data-tab="password" onclick="switchTab(this)">Password</button>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <!-- Magic link panel -->
+    <div class="tab-panel active" id="panel-magic">
+      <form id="magic-form" onsubmit="handleMagicRequest(event)">
+        <label for="magic-email">Email</label>
+        <input type="email" id="magic-email" name="email" required autocomplete="email" placeholder="you@example.com">
+        <button type="submit" class="btn-primary" id="magic-btn">Send me a sign-in link</button>
+      </form>
+      <div class="help-text">We'll email you a one-click link. No password needed.</div>
+    </div>
+
+    <!-- Password panel -->
+    <div class="tab-panel" id="panel-password">
+      <form id="pw-form" onsubmit="handlePasswordLogin(event)">
+        <label for="pw-email">Email</label>
+        <input type="email" id="pw-email" name="email" required autocomplete="username" placeholder="you@example.com">
+        <label for="pw-password">Password</label>
+        <input type="password" id="pw-password" name="password" required autocomplete="current-password">
+        <button type="submit" class="btn-primary" id="pw-btn">Sign in</button>
+      </form>
+      <div class="help-text">Forgot your password? <a href="#" onclick="switchToMagic(event)">Sign in with a magic link</a> instead.</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    New here? Visit <a href="https://prismaianalytics.com">prismaianalytics.com</a> to get started.
+  </div>
+</div>
+
+<script>
+'use strict';
+
+function showMsg(text, kind) {
+  const el = document.getElementById('msg');
+  el.className = 'msg active ' + (kind || 'error');
+  el.textContent = text;
+}
+function clearMsg() {
+  const el = document.getElementById('msg');
+  el.className = 'msg';
+  el.textContent = '';
+}
+
+function switchTab(btn) {
+  clearMsg();
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const name = btn.getAttribute('data-tab');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function switchToMagic(e) {
+  if (e) e.preventDefault();
+  const btn = document.querySelector('.tab[data-tab="magic"]');
+  if (btn) switchTab(btn);
+  const pwEmail = document.getElementById('pw-email').value;
+  if (pwEmail) document.getElementById('magic-email').value = pwEmail;
+  document.getElementById('magic-email').focus();
+}
+
+async function handleMagicRequest(e) {
+  e.preventDefault();
+  clearMsg();
+  const email = document.getElementById('magic-email').value.trim();
+  const btn = document.getElementById('magic-btn');
+  if (!email) return;
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const r = await fetch('/api/auth/magic-link-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) {
+      showMsg(d.message || 'Check your email for a sign-in link.', 'success');
+    } else {
+      showMsg(d.error || 'Something went wrong — try again or use password.', 'error');
+    }
+  } catch (err) {
+    showMsg('Network error — try again.', 'error');
+  }
+  btn.disabled = false; btn.textContent = 'Send me a sign-in link';
+}
+
+async function handlePasswordLogin(e) {
+  e.preventDefault();
+  clearMsg();
+  const email = document.getElementById('pw-email').value.trim();
+  const password = document.getElementById('pw-password').value;
+  const btn = document.getElementById('pw-btn');
+  if (!email || !password) return;
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: email, password })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok && d.token) {
+      localStorage.setItem('prism_token', d.token);
+      const target = (d.user && d.user.role === 'client') ? '/portal' : '/';
+      window.location.href = target;
+    } else {
+      showMsg(d.error || 'Invalid email or password.', 'error');
+      btn.disabled = false; btn.textContent = 'Sign in';
+    }
+  } catch (err) {
+    showMsg('Network error — try again.', 'error');
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+
+// If already signed in, skip login
+(async () => {
+  const existing = localStorage.getItem('prism_token');
+  if (!existing) return;
+  try {
+    const r = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + existing } });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok) {
+      window.location.href = (d.user && d.user.role === 'client') ? '/portal' : '/';
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

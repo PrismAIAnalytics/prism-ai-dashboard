@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — 3-Layer Delivery Model</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1080px;height:1350px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;
+    background:linear-gradient(170deg,#020d1a,#0a192f 50%,#0f1f3a);color:#e2e8f0;position:relative}
+
+  #header{text-align:center;padding:45px 40px 20px;position:relative;z-index:10}
+  #header h1{font-size:42px;font-weight:800;background:linear-gradient(135deg,#00d4aa,#38bdf8,#a855f7);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  #header p{font-size:15px;color:#64748b;margin-top:8px;letter-spacing:2px;text-transform:uppercase}
+
+  canvas{position:absolute;top:0;left:0;width:1080px;height:1350px;z-index:1;pointer-events:none}
+
+  .layers{position:relative;z-index:5;padding:0 60px;margin-top:10px}
+
+  .layer{border-radius:24px;padding:36px 40px;margin-bottom:24px;position:relative;overflow:hidden;
+    opacity:0;transform:translateY(30px) scale(.97);animation:layerIn .8s cubic-bezier(.16,1,.3,1) forwards}
+  .layer:nth-child(1){animation-delay:.5s}
+  .layer:nth-child(2){animation-delay:1.3s}
+  .layer:nth-child(3){animation-delay:2.1s}
+  @keyframes layerIn{to{opacity:1;transform:translateY(0) scale(1)}}
+
+  .layer-num{font-size:72px;font-weight:900;position:absolute;right:30px;top:20px;opacity:.06}
+  .layer-badge{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px;
+    padding:4px 14px;border-radius:20px;display:inline-block}
+  .layer-title{font-size:24px;font-weight:800;margin-bottom:8px}
+  .layer-desc{font-size:14px;opacity:.5;line-height:1.6;margin-bottom:16px;max-width:700px}
+
+  .layer-items{display:flex;gap:14px;flex-wrap:wrap}
+  .layer-item{padding:10px 18px;border-radius:12px;font-size:12px;font-weight:600;
+    display:flex;align-items:center;gap:8px}
+  .layer-item .li-icon{font-size:16px}
+
+  /* Layer 1: Discover */
+  .l1{background:linear-gradient(145deg,rgba(0,212,170,.08),rgba(0,212,170,.02));
+    border:1px solid rgba(0,212,170,.15);box-shadow:0 8px 40px rgba(0,212,170,.04)}
+  .l1 .layer-badge{background:rgba(0,212,170,.15);color:#00d4aa}
+  .l1 .layer-title{color:#6ee7b7}
+  .l1 .layer-item{background:rgba(0,212,170,.08);color:#6ee7b7}
+  .l1 .layer-num{color:#00d4aa}
+
+  /* Layer 2: Automate */
+  .l2{background:linear-gradient(145deg,rgba(56,189,248,.08),rgba(56,189,248,.02));
+    border:1px solid rgba(56,189,248,.15);box-shadow:0 8px 40px rgba(56,189,248,.04)}
+  .l2 .layer-badge{background:rgba(56,189,248,.15);color:#38bdf8}
+  .l2 .layer-title{color:#7dd3fc}
+  .l2 .layer-item{background:rgba(56,189,248,.08);color:#7dd3fc}
+  .l2 .layer-num{color:#38bdf8}
+
+  /* Layer 3: Govern */
+  .l3{background:linear-gradient(145deg,rgba(168,85,247,.08),rgba(168,85,247,.02));
+    border:1px solid rgba(168,85,247,.15);box-shadow:0 8px 40px rgba(168,85,247,.04)}
+  .l3 .layer-badge{background:rgba(168,85,247,.15);color:#a855f7}
+  .l3 .layer-title{color:#d8b4fe}
+  .l3 .layer-item{background:rgba(168,85,247,.08);color:#d8b4fe}
+  .l3 .layer-num{color:#a855f7}
+
+  /* Connector arrows between layers */
+  .connector{text-align:center;margin:-8px 0;position:relative;z-index:6;
+    opacity:0;animation:connIn .4s forwards}
+  .connector:nth-of-type(1){animation-delay:1.1s}
+  .connector:nth-of-type(2){animation-delay:1.9s}
+  @keyframes connIn{to{opacity:.3}}
+  .connector svg{width:40px;height:30px}
+
+  /* Bottom tagline bar */
+  .bottom-bar{position:absolute;bottom:70px;left:60px;right:60px;z-index:5;display:flex;
+    justify-content:space-around;text-align:center;opacity:0;animation:layerIn .8s 3s forwards}
+  .bb-item .bb-num{font-size:32px;font-weight:800}
+  .bb-item .bb-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-top:4px}
+
+  #brand{position:absolute;bottom:28px;left:0;right:0;text-align:center;z-index:10;
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#334155}
+  #brand span{color:#00d4aa;font-weight:700}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>The 3-Layer Delivery Model</h1>
+  <p>How we engineer continuous compliance</p>
+</div>
+
+<div class="layers">
+  <div class="layer l1">
+    <div class="layer-num">01</div>
+    <div class="layer-badge">Layer 1</div>
+    <div class="layer-title">Discover & Map</div>
+    <div class="layer-desc">Asset-to-benchmark mapping using your CMDB, cloud inventory, and endpoint data. We identify benchmark applicability, current coverage, and automation feasibility per control.</div>
+    <div class="layer-items">
+      <div class="layer-item"><span class="li-icon">&#x1F5FA;</span> Asset Mapping</div>
+      <div class="layer-item"><span class="li-icon">&#x1F50D;</span> Coverage Analysis</div>
+      <div class="layer-item"><span class="li-icon">&#x1F4CB;</span> Benchmark Selection</div>
+      <div class="layer-item"><span class="li-icon">&#x2699;</span> Automation Feasibility</div>
+    </div>
+  </div>
+
+  <div class="connector"><svg viewBox="0 0 40 30"><path d="M20 0 L20 20 M12 14 L20 22 L28 14" stroke="rgba(56,189,248,.5)" stroke-width="2" fill="none"/></svg></div>
+
+  <div class="layer l2">
+    <div class="layer-num">02</div>
+    <div class="layer-badge">Layer 2</div>
+    <div class="layer-title">Automate & Enforce</div>
+    <div class="layer-desc">Implement the right mix of scanners, agents, and configuration management. Close the detect-to-correct gap with automated remediation playbooks.</div>
+    <div class="layer-items">
+      <div class="layer-item"><span class="li-icon">&#x1F6E0;</span> Ansible Playbooks</div>
+      <div class="layer-item"><span class="li-icon">&#x1F4E6;</span> Terraform Modules</div>
+      <div class="layer-item"><span class="li-icon">&#x1F50C;</span> Scanner Integration</div>
+      <div class="layer-item"><span class="li-icon">&#x26A1;</span> Auto-Remediation</div>
+    </div>
+  </div>
+
+  <div class="connector"><svg viewBox="0 0 40 30"><path d="M20 0 L20 20 M12 14 L20 22 L28 14" stroke="rgba(168,85,247,.5)" stroke-width="2" fill="none"/></svg></div>
+
+  <div class="layer l3">
+    <div class="layer-num">03</div>
+    <div class="layer-badge">Layer 3</div>
+    <div class="layer-title">Govern & Report</div>
+    <div class="layer-desc">Dashboards, exception workflows, SLA tracking, and quarterly benchmark update reviews. This is where compliance becomes a continuous operating capability.</div>
+    <div class="layer-items">
+      <div class="layer-item"><span class="li-icon">&#x1F4CA;</span> Live Dashboards</div>
+      <div class="layer-item"><span class="li-icon">&#x1F4DD;</span> Audit Evidence</div>
+      <div class="layer-item"><span class="li-icon">&#x1F514;</span> Drift Alerts</div>
+      <div class="layer-item"><span class="li-icon">&#x1F4C8;</span> Executive Reporting</div>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <div class="bb-item"><div class="bb-num" style="color:#00d4aa">100+</div><div class="bb-label">Benchmarks</div></div>
+  <div class="bb-item"><div class="bb-num" style="color:#38bdf8">20K+</div><div class="bb-label">Controls</div></div>
+  <div class="bb-item"><div class="bb-num" style="color:#a855f7">14+</div><div class="bb-label">Frameworks</div></div>
+  <div class="bb-item"><div class="bb-num" style="color:#4ade80">24/7</div><div class="bb-label">Monitoring</div></div>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span> &mdash; Benchmark to operations.</div>
+
+<canvas id="c" width="1080" height="1350"></canvas>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+// Rising particles (data flowing upward through layers)
+class Rise{constructor(){this.x=100+Math.random()*880;this.y=1350+Math.random()*200;
+  this.speed=.3+Math.random()*.5;this.r=.5+Math.random()*.8;
+  this.maxA=.06+Math.random()*.08;this.hue=Math.random()>.5?'0,212,170':'56,189,248'}
+  update(){this.y-=this.speed;if(this.y<-10){this.y=1360;this.x=100+Math.random()*880}}
+  draw(ctx){const a=this.maxA;ctx.fillStyle=`rgba(${this.hue},${a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill()}}
+const ps=[];for(let i=0;i<80;i++)ps.push(new Rise());
+function animate(){ctx.clearRect(0,0,1080,1350);ps.forEach(p=>{p.update();p.draw(ctx)});requestAnimationFrame(animate)}
+animate();
+</script>
+</body>
+</html>

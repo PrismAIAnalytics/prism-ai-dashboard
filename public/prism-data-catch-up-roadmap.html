@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>PRISM AI — Data Catch-Up Roadmap</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{width:1080px;height:1350px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;
+    background:linear-gradient(170deg,#06101f,#0a192f 50%,#0d1f40);color:#e2e8f0;position:relative}
+
+  #header{text-align:center;padding:40px 40px 20px;position:relative;z-index:10}
+  #header h1{font-size:34px;font-weight:800;line-height:1.2}
+  #header h1 .highlight{background:linear-gradient(135deg,#fbbf24,#f59e0b);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  #header p{font-size:14px;color:#64748b;margin-top:8px;max-width:600px;margin-inline:auto}
+
+  canvas{position:absolute;top:0;left:0;width:1080px;height:1350px;z-index:1;pointer-events:none}
+
+  /* Road/path */
+  svg#road{position:absolute;top:0;left:0;width:1080px;height:1350px;z-index:2}
+  .road-path{stroke:rgba(251,191,36,.08);stroke-width:60;fill:none;stroke-linecap:round;
+    stroke-dasharray:2400;stroke-dashoffset:2400;animation:drawRoad 4s 0.3s ease forwards}
+  .road-center{stroke:rgba(251,191,36,.2);stroke-width:2;fill:none;stroke-dasharray:12 8;
+    stroke-dashoffset:2400;animation:drawRoad 4s 0.3s ease forwards}
+  @keyframes drawRoad{to{stroke-dashoffset:0}}
+
+  /* Milestone markers */
+  .milestone{position:absolute;z-index:5;opacity:0;transform:scale(.8);
+    animation:msIn .7s cubic-bezier(.16,1,.3,1) forwards}
+  @keyframes msIn{to{opacity:1;transform:scale(1)}}
+
+  .ms-marker{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:24px;font-weight:800;color:#fff;position:relative;box-shadow:0 0 30px rgba(0,0,0,.3)}
+  .ms-marker::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:2px solid;opacity:.3;
+    animation:ringPulse 3s ease-in-out infinite}
+  @keyframes ringPulse{0%,100%{transform:scale(1);opacity:.2}50%{transform:scale(1.2);opacity:.5}}
+
+  .ms-card{position:absolute;width:320px;border-radius:14px;padding:18px 22px;
+    backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.06)}
+  .ms-card h3{font-size:16px;font-weight:700;margin-bottom:4px}
+  .ms-card p{font-size:12px;opacity:.45;line-height:1.5}
+  .ms-card .ms-tag{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    margin-bottom:6px;display:block}
+
+  /* Step colors */
+  .st1 .ms-marker{background:linear-gradient(135deg,#ef4444,#dc2626)}
+  .st1 .ms-marker::after{border-color:#ef4444}
+  .st1 .ms-card{background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.15)}
+  .st1 h3{color:#fca5a5} .st1 .ms-tag{color:rgba(239,68,68,.6)}
+
+  .st2 .ms-marker{background:linear-gradient(135deg,#fbbf24,#f59e0b)}
+  .st2 .ms-marker::after{border-color:#fbbf24}
+  .st2 .ms-card{background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.15)}
+  .st2 h3{color:#fde68a} .st2 .ms-tag{color:rgba(251,191,36,.6)}
+
+  .st3 .ms-marker{background:linear-gradient(135deg,#38bdf8,#0ea5e9)}
+  .st3 .ms-marker::after{border-color:#38bdf8}
+  .st3 .ms-card{background:rgba(56,189,248,.06);border-color:rgba(56,189,248,.15)}
+  .st3 h3{color:#7dd3fc} .st3 .ms-tag{color:rgba(56,189,248,.6)}
+
+  .st4 .ms-marker{background:linear-gradient(135deg,#a855f7,#8b5cf6)}
+  .st4 .ms-marker::after{border-color:#a855f7}
+  .st4 .ms-card{background:rgba(168,85,247,.06);border-color:rgba(168,85,247,.15)}
+  .st4 h3{color:#d8b4fe} .st4 .ms-tag{color:rgba(168,85,247,.6)}
+
+  .st5 .ms-marker{background:linear-gradient(135deg,#4ade80,#22c55e)}
+  .st5 .ms-marker::after{border-color:#4ade80}
+  .st5 .ms-card{background:rgba(74,222,128,.06);border-color:rgba(74,222,128,.15)}
+  .st5 h3{color:#86efac} .st5 .ms-tag{color:rgba(74,222,128,.6)}
+
+  /* Bottom CTA */
+  .cta{position:absolute;bottom:80px;left:60px;right:60px;z-index:5;text-align:center;
+    padding:24px 30px;border-radius:18px;background:rgba(251,191,36,.06);
+    border:1px solid rgba(251,191,36,.15);opacity:0;animation:msIn .8s 4.5s forwards}
+  .cta h3{font-size:18px;color:#fbbf24;font-weight:700;margin-bottom:4px}
+  .cta p{font-size:12px;opacity:.45}
+
+  #brand{position:absolute;bottom:28px;left:0;right:0;text-align:center;z-index:10;
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#334155}
+  #brand span{color:#fbbf24;font-weight:700}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>Why Most Small Businesses<br>Are <span class="highlight">Behind on Data</span></h1>
+  <p>You don't need a data science team. You need a practical roadmap.</p>
+</div>
+
+<svg id="road" viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+  <path class="road-path" d="M 200 230 C 200 330, 880 330, 880 450 C 880 570, 200 570, 200 690 C 200 810, 880 810, 880 930 C 880 1000, 540 1050, 540 1100"/>
+  <path class="road-center" d="M 200 230 C 200 330, 880 330, 880 450 C 880 570, 200 570, 200 690 C 200 810, 880 810, 880 930 C 880 1000, 540 1050, 540 1100"/>
+</svg>
+
+<!-- Step 1 -->
+<div class="milestone st1" style="left:170px;top:200px;animation-delay:.8s">
+  <div class="ms-marker">1</div>
+  <div class="ms-card" style="left:80px;top:-10px">
+    <span class="ms-tag">Start Here</span>
+    <h3>Audit What You Already Have</h3>
+    <p>Map every system storing business data: CRM, accounting, email, POS, spreadsheets. You have more than you think.</p>
+  </div>
+</div>
+
+<!-- Step 2 -->
+<div class="milestone st2" style="left:850px;top:410px;animation-delay:1.6s">
+  <div class="ms-marker">2</div>
+  <div class="ms-card" style="right:80px;top:-10px">
+    <span class="ms-tag">Focus</span>
+    <h3>Pick One Question to Answer</h3>
+    <p>Don't boil the ocean. Choose one business question and work backward to find the data you need.</p>
+  </div>
+</div>
+
+<!-- Step 3 -->
+<div class="milestone st3" style="left:170px;top:650px;animation-delay:2.4s">
+  <div class="ms-marker">3</div>
+  <div class="ms-card" style="left:80px;top:-10px">
+    <span class="ms-tag">Connect</span>
+    <h3>Connect Your Systems</h3>
+    <p>Use integrations so data flows automatically between your tools. Eliminate copy-paste errors forever.</p>
+  </div>
+</div>
+
+<!-- Step 4 -->
+<div class="milestone st4" style="left:850px;top:890px;animation-delay:3.2s">
+  <div class="ms-marker">4</div>
+  <div class="ms-card" style="right:80px;top:-10px">
+    <span class="ms-tag">Visualize</span>
+    <h3>Build a Simple Dashboard</h3>
+    <p>Start with one dashboard showing your most important metrics. Make data accessible to decision-makers.</p>
+  </div>
+</div>
+
+<!-- Step 5 -->
+<div class="milestone st5" style="left:510px;top:1060px;animation-delay:4s">
+  <div class="ms-marker">5</div>
+  <div class="ms-card" style="left:80px;top:-15px">
+    <span class="ms-tag">Culture</span>
+    <h3>Make Data Part of the Routine</h3>
+    <p>Review metrics weekly. Ask for data before decisions. Celebrate data-driven wins. Culture compounds.</p>
+  </div>
+</div>
+
+<div class="cta">
+  <h3>The bar is lower than you think</h3>
+  <p>Most competitors aren't using data either. Being slightly more data-informed gives you a lasting edge.</p>
+</div>
+
+<div id="brand"><span>PRISM AI Analytics</span> &mdash; Illuminating Data. Empowering Decisions.</div>
+
+<canvas id="c" width="1080" height="1350"></canvas>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+
+// Traveling dots along the road path
+const roadPath=document.querySelector('.road-center');
+const totalLen=roadPath.getTotalLength();
+
+class Traveler{
+  constructor(){this.progress=Math.random();this.speed=.0004+Math.random()*.0003;
+    this.r=1.5+Math.random()*1.5;this.maxA=.4+Math.random()*.4;
+    this.hue=Math.random()>.5?'251,191,36':'74,222,128'}
+  update(){this.progress+=this.speed;if(this.progress>1)this.progress=0}
+  draw(ctx){
+    const pt=roadPath.getPointAtLength(this.progress*totalLen);
+    ctx.fillStyle=`rgba(${this.hue},${this.maxA})`;
+    ctx.shadowColor=`rgba(${this.hue},0.3)`;ctx.shadowBlur=6;
+    ctx.beginPath();ctx.arc(pt.x,pt.y,this.r,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0}
+}
+
+// Ambient particles
+class Ambient{
+  constructor(){this.x=Math.random()*1080;this.y=Math.random()*1350;this.r=.3+Math.random()*.4;
+    this.phase=Math.random()*Math.PI*2;this.speed=.005+Math.random()*.008;this.maxA=.03+Math.random()*.04}
+  update(){this.phase+=this.speed}
+  draw(ctx){const a=this.maxA*Math.max(0,Math.sin(this.phase));if(a<.01)return;
+    ctx.fillStyle=`rgba(251,191,36,${a})`;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill()}
+}
+
+const travelers=[];for(let i=0;i<25;i++)travelers.push(new Traveler());
+const ambients=[];for(let i=0;i<50;i++)ambients.push(new Ambient());
+
+function animate(){
+  ctx.clearRect(0,0,1080,1350);
+  ambients.forEach(a=>{a.update();a.draw(ctx)});
+  travelers.forEach(t=>{t.update();t.draw(ctx)});
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>
