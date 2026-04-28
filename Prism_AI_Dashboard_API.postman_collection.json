@@ -1,0 +1,735 @@
+{
+  "info": {
+    "name": "Prism AI Dashboard API",
+    "description": "Complete API collection for the Prism AI Analytics Admin Dashboard & CRM.\n\nAuthentication: Set the `api_key` collection variable. In production, all /api/* routes require a Bearer token. In local dev (no API_KEY env var), auth is skipped.\n\nBase URL: Set the `base_url` variable to your server (default: http://localhost:3000).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "00a5edfd0d9223683ab8c84968bb58822f21213a18434c98621333a4726e140a",
+      "type": "string"
+    },
+    {
+      "key": "customer_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "project_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invoice_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expense_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestone_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "program_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "member_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "note_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health & System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "auth": { "type": "noauth" },
+            "description": "Returns server health, uptime, and timestamp. No auth required — useful for uptime monitors and Railway health checks."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard KPIs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard"]
+            },
+            "description": "Returns key performance indicators: revenue totals, active projects count, outstanding invoices, pipeline value, and monthly breakdowns."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "List All Clients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "clients"]
+            },
+            "description": "Returns all clients with company name, contact info, and status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "CRM / Pipeline",
+      "item": [
+        {
+          "name": "List All CRM Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/crm",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm"]
+            },
+            "description": "Returns all CRM customers with pipeline status, service, budget, and activity count."
+          }
+        },
+        {
+          "name": "Get Urgent Triggers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/crm/triggers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "triggers"]
+            },
+            "description": "Returns customers with overdue SLAs or stale pipeline stages that need attention."
+          }
+        },
+        {
+          "name": "Get Pipeline (Legacy)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/pipeline",
+              "host": ["{{base_url}}"],
+              "path": ["api", "pipeline"]
+            },
+            "description": "Legacy pipeline endpoint. Returns leads/opportunities. Use /api/crm for the full CRM view."
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company\": \"Acme Corp\",\n  \"contactName\": \"Jane Doe\",\n  \"contactEmail\": \"jane@acmecorp.com\",\n  \"contactPhone\": \"704-555-1234\",\n  \"status\": \"New Lead\",\n  \"service\": \"AI Readiness Assessment\",\n  \"projectName\": \"Acme — AI Assessment\",\n  \"budget\": 5000,\n  \"leadSource\": \"LinkedIn\",\n  \"industry\": \"Technology\",\n  \"notes\": \"Met at conference, interested in data modernization\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/crm/customers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "customers"]
+            },
+            "description": "Create a new CRM customer. Required: company. Optional: contactName, contactEmail, contactPhone, status, service, projectName, budget, leadSource, industry, notes."
+          }
+        },
+        {
+          "name": "Update Customer Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Discovery Scheduled\",\n  \"notes\": \"Booked intro call for next Tuesday\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/crm/customers/{{customer_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "customers", "{{customer_id}}", "status"]
+            },
+            "description": "Advance a customer through the 12-stage pipeline. Valid statuses: New Lead, Contacted, Discovery Scheduled, Discovery Complete, Proposal Sent, Negotiation, Contract Sent, Won — Onboarding, Active Client, Paused, Churned, Lost."
+          }
+        },
+        {
+          "name": "Update Customer Fields",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"crm_budget\": 7500,\n  \"crm_service\": \"Analytics & Reporting Modernization\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/crm/customers/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "customers", "{{customer_id}}"]
+            },
+            "description": "Update editable fields on a CRM customer: crm_budget, crm_service, crm_project_name, crm_lead_source, crm_notes, contact_name, contact_email, contact_phone, industry."
+          }
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/crm/customers/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "customers", "{{customer_id}}"]
+            },
+            "description": "Soft-delete a CRM customer (marks as inactive)."
+          }
+        },
+        {
+          "name": "Get Customer Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/crm/activity/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "activity", "{{customer_id}}"]
+            },
+            "description": "Returns the activity log for a specific CRM customer (calls, emails, meetings, status changes)."
+          }
+        },
+        {
+          "name": "Log Customer Activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"call\",\n  \"summary\": \"Follow-up call — discussed project timeline and next steps\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/crm/activity/{{customer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "crm", "activity", "{{customer_id}}"]
+            },
+            "description": "Log an activity for a CRM customer. Actions: call, email, meeting, note, follow_up."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "List All Projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/projects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects"]
+            },
+            "description": "Returns all projects with client name, service, status, budget, milestones, and dates."
+          }
+        },
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"name\": \"New Analytics Dashboard\",\n  \"service_id\": 1,\n  \"budget\": 15000,\n  \"start_date\": \"2026-04-01\",\n  \"target_end_date\": \"2026-06-30\",\n  \"description\": \"Build custom analytics dashboard with KPIs\",\n  \"status\": \"scoping\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects"]
+            },
+            "description": "Create a new project. Required: client_id, name. Optional: service_id, budget, start_date, target_end_date, description, status (scoping|active|completed|cancelled|on_hold)."
+          }
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\",\n  \"budget\": 18000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects/{{project_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", "{{project_id}}"]
+            },
+            "description": "Update project fields: status, name, budget, description, target_end_date, actual_end_date."
+          }
+        },
+        {
+          "name": "Get Project Milestones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/projects/{{project_id}}/milestones",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", "{{project_id}}", "milestones"]
+            },
+            "description": "Returns all milestones for a specific project."
+          }
+        },
+        {
+          "name": "Add Milestone",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Phase 1 — Discovery Complete\",\n  \"due_date\": \"2026-04-15\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/projects/{{project_id}}/milestones",
+              "host": ["{{base_url}}"],
+              "path": ["api", "projects", "{{project_id}}", "milestones"]
+            },
+            "description": "Add a milestone to a project. Required: name. Optional: due_date, sort_order."
+          }
+        },
+        {
+          "name": "Update Milestone",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/milestones/{{milestone_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "milestones", "{{milestone_id}}"]
+            },
+            "description": "Update milestone: status (pending|in_progress|completed), name, due_date. Auto-sets completed_date when marked completed."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices & Payments",
+      "item": [
+        {
+          "name": "List All Invoices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "invoices"]
+            },
+            "description": "Returns all invoices with client name, status, amounts, and payment totals."
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"subtotal\": 5000,\n  \"tax_rate\": 7,\n  \"issue_date\": \"2026-03-28\",\n  \"due_date\": \"2026-04-28\",\n  \"project_id\": \"{{project_id}}\",\n  \"notes\": \"Analytics dashboard — Phase 1 milestone\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "invoices"]
+            },
+            "description": "Create a new invoice. Auto-generates invoice number (INV-YYYYMM-XXX). Required: client_id, subtotal, issue_date, due_date. Optional: tax_rate, project_id, notes."
+          }
+        },
+        {
+          "name": "Update Invoice",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"sent\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/invoices/{{invoice_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "invoices", "{{invoice_id}}"]
+            },
+            "description": "Update invoice status or notes. Valid statuses: draft, sent, paid, overdue, cancelled."
+          }
+        },
+        {
+          "name": "Record Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_id\": \"{{invoice_id}}\",\n  \"amount\": 5000,\n  \"payment_date\": \"2026-03-28\",\n  \"payment_method\": \"ACH Transfer\",\n  \"reference_number\": \"TXN-20260328-001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments"]
+            },
+            "description": "Record a payment against an invoice. Auto-marks invoice as 'paid' when total payments meet or exceed invoice total. Required: invoice_id, amount, payment_date. Optional: payment_method, reference_number."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Time Tracking",
+      "item": [
+        {
+          "name": "List Time Entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/time",
+              "host": ["{{base_url}}"],
+              "path": ["api", "time"]
+            },
+            "description": "Returns all time entries with team member, client, project, hours, and billable status."
+          }
+        },
+        {
+          "name": "Log Time Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"project_id\": \"{{project_id}}\",\n  \"entry_date\": \"2026-03-28\",\n  \"hours\": 3.5,\n  \"description\": \"Dashboard wireframes and data modeling\",\n  \"is_billable\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/time",
+              "host": ["{{base_url}}"],
+              "path": ["api", "time"]
+            },
+            "description": "Log a time entry. Required: client_id, entry_date, hours (0.1–24). Optional: project_id, description, is_billable (default true)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "List All Expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expenses"]
+            },
+            "description": "Returns all expenses with category, vendor, amount, and recurrence info."
+          }
+        },
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"Software\",\n  \"description\": \"Claude Pro subscription\",\n  \"amount\": 20,\n  \"expense_date\": \"2026-03-28\",\n  \"vendor\": \"Anthropic\",\n  \"is_recurring\": true,\n  \"recurrence_freq\": \"monthly\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expenses"]
+            },
+            "description": "Log a new expense. Required: category, description, amount, expense_date. Optional: vendor, is_recurring, recurrence_freq (monthly|quarterly|yearly), project_id."
+          }
+        },
+        {
+          "name": "Update Expense",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 25,\n  \"description\": \"Claude Pro subscription (updated)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/expenses/{{expense_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expenses", "{{expense_id}}"]
+            },
+            "description": "Update expense fields: category, description, amount, vendor, expense_date, is_recurring, recurrence_freq."
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/expenses/{{expense_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "expenses", "{{expense_id}}"]
+            },
+            "description": "Permanently delete an expense."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Activity Log",
+      "item": [
+        {
+          "name": "Get Activity Log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/activity",
+              "host": ["{{base_url}}"],
+              "path": ["api", "activity"]
+            },
+            "description": "Returns the global activity log — recent actions across all entities (CRM, projects, training)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services & Certifications",
+      "item": [
+        {
+          "name": "List Services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/services",
+              "host": ["{{base_url}}"],
+              "path": ["api", "services"]
+            },
+            "description": "Returns all Prism AI service offerings (used in project/CRM dropdowns)."
+          }
+        },
+        {
+          "name": "List Certifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/certifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "certifications"]
+            },
+            "description": "Returns team certifications with member name, cert name, and status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Training",
+      "item": [
+        {
+          "name": "List Training Programs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/training/programs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "programs"]
+            },
+            "description": "Returns all training programs."
+          }
+        },
+        {
+          "name": "Get Program Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/training/programs/{{program_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "programs", "{{program_id}}"]
+            },
+            "description": "Returns full program detail with domains, topics, and team member progress."
+          }
+        },
+        {
+          "name": "Get Member Progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/training/progress/{{program_id}}/{{member_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "progress", "{{program_id}}", "{{member_id}}"]
+            },
+            "description": "Returns completed topics for a specific team member on a specific program."
+          }
+        },
+        {
+          "name": "Toggle Topic Completion",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_member_id\": \"{{member_id}}\",\n  \"topic_id\": \"1\",\n  \"completed\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/training/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "progress"]
+            },
+            "description": "Mark a training topic as completed (1) or uncompleted (0) for a team member. Auto-logs activity."
+          }
+        },
+        {
+          "name": "Get Member Notes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/training/notes/{{program_id}}/{{member_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "notes", "{{program_id}}", "{{member_id}}"]
+            },
+            "description": "Returns all training notes for a specific member on a specific program."
+          }
+        },
+        {
+          "name": "Add Training Note",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_member_id\": \"{{member_id}}\",\n  \"program_id\": \"{{program_id}}\",\n  \"domain_tag\": \"analytics\",\n  \"note\": \"Completed the Tableau fundamentals course. Ready for advanced topics.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/training/notes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "notes"]
+            },
+            "description": "Add a training note. Required: team_member_id, program_id, domain_tag (max 50 chars), note (max 2000 chars)."
+          }
+        },
+        {
+          "name": "Delete Training Note",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/training/notes/{{note_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "notes", "{{note_id}}"]
+            },
+            "description": "Delete a training note by ID."
+          }
+        },
+        {
+          "name": "Compare Team Progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/training/compare/{{program_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "training", "compare", "{{program_id}}"]
+            },
+            "description": "Compare all active team members' progress on a training program. Returns per-domain breakdown, overall percentage, note count, and content ideas."
+          }
+        }
+      ]
+    }
+  ]
+}
