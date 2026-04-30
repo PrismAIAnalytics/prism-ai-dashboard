@@ -14,6 +14,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const stripeService = require('./services/stripeService');
 const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
+const notionSync = require('./services/notionSync');
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
 const emailSender = require('./lib/email-sender');
@@ -1195,7 +1196,8 @@ function initDB() {
 const TICKET_SOURCE_PREFIX = {
   'action-item': 'ACT', 'dev-insight': 'INS', 'manual': 'TKT',
   'project': 'PROJ', 'client': 'CLI', 'training': 'TRN',
-  'swot': 'SWT', 'maturity': 'MAT', 'seed': 'SEED'
+  'swot': 'SWT', 'maturity': 'MAT', 'seed': 'SEED',
+  'notion': 'NTN'
 };
 function nextTicketKey(source) {
   const prefix = TICKET_SOURCE_PREFIX[source] || 'TKT';
@@ -4433,6 +4435,37 @@ app.post('/api/tickets/:id/comments', requireAuth, [
   }
 });
 
+// ─── Notion → Dashboard Ticket Sync (T-019) ─────────────────────────────────
+// POST /api/sync/notion — manual trigger. The interval scheduler at the bottom
+// of this file runs the same syncNotionTickets() every 5 min. Both paths share
+// the same idempotent code; running both at once is safe but pointless.
+
+app.post('/api/sync/notion', requireAuth, async (req, res) => {
+  try {
+    if (process.env.NOTION_SYNC_DISABLED === '1') {
+      return res.status(503).json({ ok: false, error: 'NOTION_SYNC_DISABLED is set' });
+    }
+    const apiKey = process.env.NOTION_API_KEY;
+    const dbId = process.env.NOTION_TICKETS_DB_ID;
+    if (!apiKey || !dbId) {
+      return res.status(500).json({ ok: false, error: 'NOTION_API_KEY or NOTION_TICKETS_DB_ID not configured' });
+    }
+    const lines = [];
+    const stats = await notionSync.syncNotionTickets({
+      db,
+      nextTicketKey,
+      apiKey,
+      dbId,
+      since: process.env.NOTION_SYNC_SINCE || undefined,
+      log: (m) => { lines.push(m); console.log(m); },
+    });
+    res.json({ ok: true, stats, log: lines });
+  } catch (e) {
+    console.error('[notion-sync] manual trigger failed:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ─── Benchmark Products API ─────────────────────────────────────────────────
 
 // List all products with optional filters
@@ -5897,4 +5930,39 @@ app.listen(PORT, () => {
   console.log(`  http://localhost:${PORT}`);
   console.log(`  Environment: ${APP_ENV}`);
   console.log(`  Auth: ${API_KEY ? 'API key + user login' : 'User login (set API_KEY for external access)'}\n`);
+
+  // Notion → dashboard ticket sync (T-019). Runs every 5 min unless disabled.
+  // Kill switches:
+  //   NOTION_SYNC_DISABLED=1            — fully disable
+  //   NOTION_API_KEY / NOTION_TICKETS_DB_ID missing — silent skip
+  // Cutoff filter:
+  //   NOTION_SYNC_SINCE=2026-04-30      — only sync pages with Notion created_time
+  //                                       on/after this date. Used pre-T-021 cleanup
+  //                                       to keep 194 legacy pages out of the dashboard.
+  if (process.env.NOTION_SYNC_DISABLED === '1') {
+    console.log('  [notion-sync] disabled via NOTION_SYNC_DISABLED');
+  } else if (!process.env.NOTION_API_KEY || !process.env.NOTION_TICKETS_DB_ID) {
+    console.log('  [notion-sync] disabled — NOTION_API_KEY or NOTION_TICKETS_DB_ID not configured');
+  } else {
+    const FIVE_MIN_MS = 5 * 60 * 1000;
+    const since = process.env.NOTION_SYNC_SINCE || undefined;
+    const runOnce = async () => {
+      try {
+        await notionSync.syncNotionTickets({
+          db,
+          nextTicketKey,
+          apiKey: process.env.NOTION_API_KEY,
+          dbId: process.env.NOTION_TICKETS_DB_ID,
+          since,
+          log: (m) => console.log(m),
+        });
+      } catch (e) {
+        console.error('[notion-sync] run failed:', e.message);
+      }
+    };
+    setInterval(runOnce, FIVE_MIN_MS).unref();
+    console.log(
+      `  [notion-sync] scheduled every 5 min${since ? ` (since ${since})` : ''} (manual trigger: POST /api/sync/notion)`
+    );
+  }
 });

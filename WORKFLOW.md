@@ -204,14 +204,19 @@ git push origin staging
 
 If staging breaks, it doesn't matter — re-seed. There's no real data to lose. See [STAGING_SETUP.md](STAGING_SETUP.md) for the one-time service setup.
 
-### 4.6 TASKS.md ↔ Dashboard ↔ Notion mirror (T-015)
+### 4.6 Sync architecture: TASKS.md ↔ Dashboard ↔ Notion (T-015 + T-019)
 
-`TASKS.md` is canonical. Two read-only mirrors stay in sync via a single idempotent script:
+There are **two one-way pipes** pointing at the dashboard `tickets` table. The dashboard itself is read-only for any ticket that has an upstream source — edits happen at the source.
 
-- **Dashboard `tickets` table**, `category=engineering`, tagged `task-md,T-###,src:manual`
-- **Notion "Prism AI Tickets" DB** (`b3b42787-e56b-4807-afccee172df50cb9`), matched by the `T-ID` text property
+| Edit here | Where it propagates | Cadence | Owner |
+|---|---|---|---|
+| `TASKS.md` (engineering, `T-###`) | Dashboard tickets + Notion pages | Manual: `node scripts/sync-tasks.js` after edit (T-016 pre-commit hook is the followup) | T-015 |
+| Notion "Prism AI Tickets" DB (non-engineering, `PRISM-###`) | Dashboard tickets only | Auto: every 5 min via `setInterval` while server is up; manual via `POST /api/sync/notion` | T-019 |
+| Dashboard CRM Tickets page | Nothing — view-only | n/a | — |
 
-**Run after any TASKS.md edit:**
+The dashboard surfaces this in the UI: any ticket with `notion_page_id` set or `tags` matching `src:notion`/`src:task-md`/`task-md` shows a 🔒 view-only badge, the detail modal renders read-only with an "Open in Notion ↗" / "Open TASKS.md ↗" CTA, and kanban drag-to-status is disabled. Native dashboard tickets (no upstream link) keep their full edit UX.
+
+#### TASKS.md → mirrors (T-015)
 
 ```bash
 node scripts/sync-tasks.js              # writes to prod dashboard + Notion
@@ -219,13 +224,37 @@ node scripts/sync-tasks.js --dry-run    # parse + diff, no writes (safe to run a
 node scripts/sync-tasks.js --local      # write to http://localhost:3000 instead of prod
 ```
 
-The script is idempotent — re-running with no TASKS.md changes reports `0 created · 0 updated · 16 skipped`. Cross-links: dashboard `notion_page_id` ← Notion page UUID; Notion `Dashboard Ticket ID` ← dashboard `ticket_key` (e.g., `TKT-0042`).
+Idempotent: re-running with no TASKS.md changes reports `0 created · 0 updated · N skipped`. Cross-links: dashboard `notion_page_id` ← Notion page UUID; Notion `Dashboard Ticket ID` ← dashboard `ticket_key`. Match key = the `T-ID` text property on Notion pages.
 
-**Skip the sync only when:** the only TASKS.md edit was a comment in another file referencing a task ID — i.e., no row added, moved, or modified. When in doubt, run `--dry-run` first; if it reports `0 updated · 0 created`, you can skip the write.
+**Skip the sync only when:** the only TASKS.md edit was a comment in another file referencing a task ID. When in doubt, `--dry-run` first.
 
 **Deletion is not handled.** Removing a row from TASKS.md leaves orphans in both stores. Manual cleanup. (Followups: T-016 pre-commit hook, T-017 GitHub Action.)
 
-Required env (loaded from [.env](.env)): `NOTION_API_KEY`, `NOTION_TICKETS_DB_ID`, `API_KEY`.
+#### Notion → dashboard (T-019)
+
+Runs in-process via `services/notionSync.js`. Match key = `tickets.notion_page_id`. Skips Notion pages that have `T-ID` set — those are T-015's territory, never two writers for one row.
+
+**Env:**
+- `NOTION_API_KEY`, `NOTION_TICKETS_DB_ID` — required, same vars as T-015.
+- `NOTION_SYNC_DISABLED=1` — kill switch, fully disables both the scheduler and the manual endpoint.
+- `NOTION_SYNC_SINCE=YYYY-MM-DD` — cutoff filter. Only sync Notion pages whose `created_time` is on/after the date. **Currently set to `2026-04-30` until T-021 (legacy Notion DB cleanup) is complete; remove the env var afterward.**
+
+**Manual trigger:**
+
+```bash
+curl -X POST -H "Authorization: Bearer $API_KEY" \
+  https://dashboard-api-production-dabe.up.railway.app/api/sync/notion
+```
+
+**Local smoke test (read-only against prod data):**
+
+```bash
+node scripts/smoke-notion-sync.js   # in-memory replica of prod tickets, dryRun=true, honors NOTION_SYNC_SINCE
+```
+
+**On create:** the sync writes back the new `ticket_key` (e.g. `NTN-0001`) to the Notion page's `Dashboard Ticket ID` property so the cross-link is visible from both sides.
+
+Shared env (loaded from [.env](.env)): `NOTION_API_KEY`, `NOTION_TICKETS_DB_ID`, `API_KEY`.
 
 ---
 
