@@ -15,6 +15,7 @@ const stripeService = require('./services/stripeService');
 const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
 const notionSync = require('./services/notionSync');
+const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
 const emailSender = require('./lib/email-sender');
@@ -4464,6 +4465,70 @@ app.post('/api/sync/notion', requireAuth, async (req, res) => {
     console.error('[notion-sync] manual trigger failed:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
+});
+
+// ─── Prism Studio API (PS-053, stub) ────────────────────────────────────────
+// Three routes powering the Prism Studio "single pane of glass" page:
+//   GET /api/prism-studio/today        — counts rolled up from the tickets table
+//   GET /api/prism-studio/activity-log — proxied tail of the Notion Activity Log page (PS-050)
+//   GET /api/prism-studio/routine      — static 5-minute morning-ritual checklist
+//
+// Stubs return shaped placeholder data; Michele extends. See PS-053 plan
+// and WORKFLOW.md §4.6 for the page-content read pattern.
+
+// Daily Routine — static for now. Michele moves to a SQLite table or YAML when she
+// wants to edit without a code change. Keep the array shape stable so the renderer doesn't break.
+const PRISM_STUDIO_ROUTINE = [
+  { id: 'check-today',     label: 'Skim Today (overdue / due / decision gates)', minutes: 1 },
+  { id: 'check-activity',  label: 'Read Live Activity tail for any blockers',    minutes: 1 },
+  { id: 'pick-one',        label: 'Pick the one critical-path move for today',   minutes: 1 },
+  { id: 'queue-pods',      label: 'Dispatch pod work; flag approvals needed',    minutes: 1 },
+  { id: 'log-intent',      label: 'Append today\'s intent to the Activity Log',  minutes: 1 },
+];
+
+app.get('/api/prism-studio/today', requireAuth, (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = db.prepare(`
+      SELECT
+        SUM(CASE WHEN status != 'done' AND due_date IS NOT NULL AND due_date < ? THEN 1 ELSE 0 END) as overdue,
+        SUM(CASE WHEN status != 'done' AND due_date = ? THEN 1 ELSE 0 END) as due_today,
+        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+        SUM(CASE WHEN status != 'done' AND priority = 'urgent' THEN 1 ELSE 0 END) as decision_gates
+      FROM tickets
+      WHERE category = 'prism_studio'
+    `).get(today, today);
+    res.json({
+      ok: true,
+      counts: {
+        overdue: rows.overdue || 0,
+        due_today: rows.due_today || 0,
+        in_progress: rows.in_progress || 0,
+        decision_gates: rows.decision_gates || 0,
+      },
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[prism-studio/today] failed:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/prism-studio/activity-log', requireAuth, async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit, 10) || 25, 100);
+  const result = await prismStudioActivityLog.fetchActivityLogTail({
+    apiKey: process.env.NOTION_API_KEY,
+    limit,
+  });
+  res.json({ ok: true, ...result });
+});
+
+app.get('/api/prism-studio/routine', requireAuth, (req, res) => {
+  res.json({
+    ok: true,
+    routine: PRISM_STUDIO_ROUTINE,
+    total_minutes: PRISM_STUDIO_ROUTINE.reduce((sum, step) => sum + (step.minutes || 0), 0),
+  });
 });
 
 // ─── Benchmark Products API ─────────────────────────────────────────────────

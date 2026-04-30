@@ -256,6 +256,12 @@ node scripts/smoke-notion-sync.js   # in-memory replica of prod tickets, dryRun=
 
 Shared env (loaded from [.env](.env)): `NOTION_API_KEY`, `NOTION_TICKETS_DB_ID`, `API_KEY`.
 
+#### Notion page-content reads (PS-053)
+
+T-019 syncs **database rows**. PS-053 introduced a sibling pattern for reading **page content** — the prose body of a Notion page, not its database properties. Implemented in `services/prismStudioActivityLog.js` and exposed at `GET /api/prism-studio/activity-log`. The service calls Notion `GET /v1/pages/{id}` (for `last_edited_time`) and `GET /v1/blocks/{id}/children` (for the block array), then returns `{ blocks, updated_at, page_url, has_more }`. Frontend renders blocks via the minimal `renderNotionBlock()` helper in `public/index.html` (paragraph / heading / list / to_do / divider; unsupported types fall through to a labeled placeholder).
+
+**Default page id:** `350236b6-b03a-816f-8d5c-e9f9d423f32a` (Prism Studio — Activity Log, created under PS-050). Override with `PRISM_STUDIO_ACTIVITY_LOG_PAGE_ID` if Michele moves the page. Reuses the existing `NOTION_API_KEY` env var — no new credentials. The service is **error-tolerant by design** (never throws into the route handler) so a Notion outage downgrades the Live Activity card to an empty-state instead of breaking the page.
+
 ---
 
 ## 5. The auto-deploy danger zone
