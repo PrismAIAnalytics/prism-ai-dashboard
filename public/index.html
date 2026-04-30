@@ -2369,7 +2369,8 @@ let allTickets = [];
 
 loaders.tickets = async () => {
   const [ticketRes, summaryRes] = await Promise.all([api('tickets'), api('tickets/summary')]);
-  allTickets = ticketRes.tickets || [];
+  // Hide dev-insight tickets from the Tickets page — they get their own surface in T-020.
+  allTickets = (ticketRes.tickets || []).filter(t => t.category !== 'dev-insight');
   const s = summaryRes;
 
   // KPIs
@@ -2468,13 +2469,41 @@ function ticketKeyPill(key) {
   return `<span class="tag" style="background:rgba(255,255,255,0.06);color:var(--muted);font-family:monospace;font-size:10px">${key}</span>`;
 }
 
+// T-019 — upstream-sourced tickets are view-only in the CRM. Edits happen in
+// Notion (PRISM-### / TKT-#### / NTN-####) or in TASKS.md (T-###). The dashboard
+// is a read-only mirror for these.
+function isUpstreamSourced(t) {
+  if (t.notion_page_id) return true;
+  const tags = t.tags || '';
+  return /(?:^|,)(?:src:notion|src:task-md|task-md|notion)(?:,|$)/.test(tags);
+}
+function notionPageUrl(t) {
+  return t.notion_page_id ? 'https://notion.so/' + t.notion_page_id.replace(/-/g, '') : null;
+}
+function tasksMdUrl(t) {
+  const m = (t.tags || '').match(/(?:^|,)(T-\d+[a-z]?)(?:,|$)/);
+  return m ? 'https://github.com/PrismAIAnalytics/prism-ai-dashboard/blob/main/TASKS.md' : null;
+}
+function upstreamLink(t) {
+  return notionPageUrl(t) || tasksMdUrl(t) || null;
+}
+function upstreamLabel(t) {
+  if (t.notion_page_id) return 'Open in Notion';
+  if (tasksMdUrl(t)) return 'Open TASKS.md';
+  return 'Open upstream';
+}
+function lockBadge(t) {
+  if (!isUpstreamSourced(t)) return '';
+  return `<span title="View-only — edit upstream in ${t.notion_page_id ? 'Notion' : 'TASKS.md'}" style="font-size:10px;color:var(--muted);user-select:none" aria-label="view only">🔒</span>`;
+}
+
 function ticketCard(t) {
   const today = new Date().toISOString().split('T')[0];
   const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
   return `<div class="ticket-card" onclick="ticketShowDetail('${t.id}')">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px">
-      ${ticketKeyPill(t.ticket_key)}
-      ${sourceBadge(t.source)}
+      <div style="display:flex;gap:6px;align-items:center">${ticketKeyPill(t.ticket_key)}${sourceBadge(t.source)}</div>
+      ${lockBadge(t)}
     </div>
     <div class="ticket-title">${t.title}</div>
     <div class="ticket-meta">
@@ -2503,7 +2532,7 @@ function ticketRenderKanban(tickets) {
         ondragover="event.preventDefault(); this.style.background='rgba(74,109,181,0.08)'"
         ondragleave="this.style.background=''"
         ondrop="ticketDrop(event, '${col}'); this.style.background=''">
-        ${items.map(t => `<div draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${t.id}')">${ticketCard(t)}</div>`).join('')}
+        ${items.map(t => `<div draggable="${!isUpstreamSourced(t)}" ondragstart="event.dataTransfer.setData('text/plain','${t.id}')">${ticketCard(t)}</div>`).join('')}
       </div>
     </div>`;
   }
@@ -2516,8 +2545,15 @@ function ticketRenderList(tickets) {
   let html = `<table><thead><tr><th>Key</th><th>Source</th><th>Title</th><th>Category</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due</th><th></th></tr></thead><tbody>`;
   for (const t of tickets) {
     const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
+    const upstream = isUpstreamSourced(t);
+    const link = upstream ? upstreamLink(t) : null;
+    const actionCell = upstream
+      ? (link
+          ? `<a href="${link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="btn-sm" title="${upstreamLabel(t)} ↗" style="text-decoration:none;display:inline-block">↗</a>`
+          : `<span title="View-only" style="color:var(--muted)">🔒</span>`)
+      : `<button class="btn-sm btn-danger" onclick="event.stopPropagation();ticketDelete('${t.id}')">✕</button>`;
     html += `<tr style="cursor:pointer" onclick="ticketShowDetail('${t.id}')">
-      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${t.ticket_key || '—'}</td>
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${t.ticket_key || '—'} ${lockBadge(t)}</td>
       <td>${sourceBadge(t.source)}</td>
       <td style="font-weight:600">${t.title}</td>
       <td>${catBadge(t.category || 'general')}</td>
@@ -2526,7 +2562,7 @@ function ticketRenderList(tickets) {
       <td><span class="tag tag-${t.priority}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.priority}</span></td>
       <td style="color:var(--muted)">${t.assignee_name || '—'}</td>
       <td class="${isOverdue ? 'text-red' : ''}">${t.due_date ? fmtDate(t.due_date) : '—'}</td>
-      <td><button class="btn-sm btn-danger" onclick="event.stopPropagation();ticketDelete('${t.id}')">✕</button></td>
+      <td>${actionCell}</td>
     </tr>`;
   }
   html += '</tbody></table>';
@@ -2537,6 +2573,11 @@ async function ticketDrop(event, newStatus) {
   event.preventDefault();
   const id = event.dataTransfer.getData('text/plain');
   if (!id) return;
+  const t = allTickets.find(x => x.id === id);
+  if (t && isUpstreamSourced(t)) {
+    toast(`${t.ticket_key} is upstream-sourced — change status in ${t.notion_page_id ? 'Notion' : 'TASKS.md'}`, true);
+    return;
+  }
   const res = await fetch('/api/tickets/' + id, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SESSION_TOKEN}` },
@@ -2652,6 +2693,11 @@ async function ticketShowDetail(id) {
   const types = ['internal', 'client'];
   const esc = (s) => (s == null ? '' : String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'));
 
+  // T-019 — upstream-sourced tickets show a read-only view; edits redirect to source.
+  if (isUpstreamSourced(ticket)) {
+    return ticketShowDetailReadOnly(ticket, comments, esc);
+  }
+
   const modal = document.createElement('div');
   modal.id = 'ticket-detail-modal';
   modal.className = 'ticket-modal-overlay';
@@ -2717,6 +2763,66 @@ async function ticketQuickUpdate(id, field, value) {
   });
   const data = await res.json();
   if (data.ok) { toast(`Updated ${field.replace(/_/g, ' ')}`); loaders.tickets(); }
+}
+
+// T-019 — read-only modal for upstream-sourced tickets. Same visual shell as the
+// editable modal so the page doesn't feel different, but every input is replaced
+// with a static label and the only action is "Edit upstream ↗".
+function ticketShowDetailReadOnly(ticket, comments, esc) {
+  const link = upstreamLink(ticket);
+  const upstreamWhere = ticket.notion_page_id ? 'Notion' : (tasksMdUrl(ticket) ? 'TASKS.md' : 'upstream source');
+  const fields = [
+    ['Status', ticket.status],
+    ['Priority', ticket.priority],
+    ['Type', ticket.ticket_type],
+    ['Category', ticket.category || 'general'],
+    ['Due Date', ticket.due_date ? fmtDate(ticket.due_date) : '—'],
+    ['Assignee', ticket.assignee_name || '—'],
+    ['Client', ticket.client_name || '—'],
+    ['Project', ticket.project_name || '—'],
+    ['Tags', ticket.tags || '—'],
+  ];
+  const fieldRow = (label, val) => `<div><label>${label}</label><div style="padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;min-height:36px;display:flex;align-items:center">${esc(val)}</div></div>`;
+  const modal = document.createElement('div');
+  modal.id = 'ticket-detail-modal';
+  modal.className = 'ticket-modal-overlay';
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div class="ticket-modal">
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px">
+      ${ticketKeyPill(ticket.ticket_key)}
+      ${sourceBadge(ticket.source)}
+      <span title="View-only — edit in ${upstreamWhere}" style="font-size:10px;color:var(--muted);user-select:none">🔒 view-only</span>
+    </div>
+    <div style="font-size:18px;font-weight:700;color:var(--text);padding:6px 0">${esc(ticket.title)}</div>
+    <div style="margin-top:6px;padding:10px 12px;background:rgba(74,109,181,0.08);border:1px solid rgba(74,109,181,0.25);border-radius:8px;font-size:12px;color:var(--muted)">
+      This ticket is mirrored from ${upstreamWhere}. The dashboard shows a read-only copy — edits, status changes, and deletes happen at the source.
+      ${link ? `<a href="${link}" target="_blank" rel="noopener" class="btn-primary" style="margin-left:10px;padding:6px 14px;font-size:12px;text-decoration:none;display:inline-block;vertical-align:middle">${upstreamLabel(ticket)} ↗</a>` : ''}
+    </div>
+    ${ticket.description ? `<div style="margin-top:12px"><label>Description</label><div style="padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);white-space:pre-wrap">${esc(ticket.description)}</div></div>` : ''}
+    <div class="modal-row" style="margin-top:10px">${fieldRow(fields[0][0], fields[0][1])}${fieldRow(fields[1][0], fields[1][1])}</div>
+    <div class="modal-row" style="margin-top:10px">${fieldRow(fields[2][0], fields[2][1])}${fieldRow(fields[3][0], fields[3][1])}</div>
+    <div class="modal-row" style="margin-top:10px">${fieldRow(fields[4][0], fields[4][1])}${fieldRow(fields[5][0], fields[5][1])}</div>
+    <div class="modal-row" style="margin-top:10px">${fieldRow(fields[6][0], fields[6][1])}${fieldRow(fields[7][0], fields[7][1])}</div>
+    <div style="margin-top:10px">${fieldRow(fields[8][0], fields[8][1])}</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted)">Created ${fmtDate(ticket.created_at?.split('T')[0])}${ticket.created_by ? ' by ' + ticket.created_by : ''}</div>
+
+    <div class="ticket-comments">
+      <h3 style="font-size:13px;margin-bottom:10px">Comments</h3>
+      <div id="td-comments">
+        ${comments.length ? comments.map(c => `<div class="comment"><div class="comment-meta">${c.author || 'system'} · ${fmtDate(c.created_at?.split('T')[0])}</div>${c.comment}</div>`).join('') : '<p style="color:var(--muted);font-size:12px">No comments yet</p>'}
+      </div>
+      <p style="color:var(--muted);font-size:11px;margin-top:8px">Comments are local to the dashboard. For discussion that should travel with the ticket, use ${upstreamWhere}.</p>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input id="td-new-comment" placeholder="Add a local comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit">
+        <button class="btn-primary" style="padding:8px 16px;font-size:12px" onclick="ticketAddComment('${ticket.id}')">Post</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-sm" style="padding:9px 18px;font-size:13px" onclick="document.getElementById('ticket-detail-modal').remove()">Close</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
 }
 
 async function ticketAddComment(id) {
