@@ -660,6 +660,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <a href="javascript:void(0)" class="active" data-page="dashboard" onclick="showPage('dashboard', this)">&#9671; Dashboard</a>
     <a href="javascript:void(0)" data-page="daily-review" onclick="showPage('daily-review', this)">&#9783; Daily Review</a>
     <div class="nav-section">Operations</div>
+    <a href="javascript:void(0)" data-page="prism-studio" onclick="showPage('prism-studio', this)">&#9733; Prism Studio</a>
     <a href="javascript:void(0)" data-page="tickets" onclick="showPage('tickets', this)">&#9776; Tickets</a>
     <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">&#9881; Services</a>
     <a href="javascript:void(0)" data-page="tools" onclick="showPage('tools', this)">&#9874; Tools Inventory</a>
@@ -947,6 +948,31 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="page-drive" class="page">
       <div class="page-header"><h2>Prism Shared Drive</h2><p>Browse and open your Prism AI files directly</p></div>
       <div id="drive-folders" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px"></div>
+    </div>
+
+    <!-- PRISM STUDIO (PS-053 stub) -->
+    <div id="page-prism-studio" class="page">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><h2>&#9733; Prism Studio</h2><p>Single pane of glass — today's work, live activity, and the morning ritual.</p></div>
+        <button class="btn-primary" onclick="loaders['prism-studio']()">&#8635; Refresh</button>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Today</h3>
+          <div id="ps-today" class="scroll-y"><em style="color:var(--muted)">Loading…</em></div>
+        </div>
+        <div class="card">
+          <h3>Daily Routine</h3>
+          <div id="ps-routine"><em style="color:var(--muted)">Loading…</em></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 style="margin:0">Live Activity</h3>
+          <span id="ps-activity-meta" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <div id="ps-activity" class="scroll-y" style="max-height:420px"><em style="color:var(--muted)">Loading…</em></div>
+      </div>
     </div>
 
     <!-- DAILY REVIEW + DOCUMENT LIBRARY -->
@@ -4156,6 +4182,80 @@ loaders.drive = async () => {
       </div>
     </div>
   `;
+};
+
+// --- PRISM STUDIO (PS-053 stub) ---
+// Renders Today / Daily Routine / Live Activity from the three /api/prism-studio/* routes.
+// Stub-grade: empty-state and a minimal block renderer for the Notion activity tail.
+// Michele extends the visual treatment.
+
+function renderNotionBlock(b) {
+  // Minimal block→HTML for the most common Notion block types in a daily journal.
+  const richText = (rt) => (rt || []).map(t => {
+    const text = (t.plain_text || '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+    if (t.href) return `<a href="${t.href}" target="_blank" rel="noopener">${text}</a>`;
+    return text;
+  }).join('');
+  switch (b.type) {
+    case 'paragraph':           return `<p style="margin:6px 0">${richText(b.paragraph?.rich_text)}</p>`;
+    case 'heading_1':           return `<h3 style="margin:14px 0 6px;font-size:14px">${richText(b.heading_1?.rich_text)}</h3>`;
+    case 'heading_2':           return `<h4 style="margin:12px 0 4px;font-size:13px">${richText(b.heading_2?.rich_text)}</h4>`;
+    case 'heading_3':           return `<h5 style="margin:10px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">${richText(b.heading_3?.rich_text)}</h5>`;
+    case 'bulleted_list_item':  return `<div style="margin:2px 0 2px 16px">&bull; ${richText(b.bulleted_list_item?.rich_text)}</div>`;
+    case 'numbered_list_item':  return `<div style="margin:2px 0 2px 16px">&#8226; ${richText(b.numbered_list_item?.rich_text)}</div>`;
+    case 'to_do':               return `<div style="margin:2px 0">${b.to_do?.checked ? '&#9745;' : '&#9744;'} ${richText(b.to_do?.rich_text)}</div>`;
+    case 'divider':             return `<hr style="border:0;border-top:1px solid var(--border);margin:10px 0">`;
+    default:                    return `<div style="font-size:11px;color:var(--muted);font-style:italic">[unsupported block: ${b.type}]</div>`;
+  }
+}
+
+loaders['prism-studio'] = async () => {
+  const [today, routine, activity] = await Promise.all([
+    api('prism-studio/today'),
+    api('prism-studio/routine'),
+    api('prism-studio/activity-log?limit=25'),
+  ]);
+
+  // Today
+  const c = today.counts || {};
+  $('#ps-today').innerHTML = `
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);gap:8px">
+      <div class="kpi"><div class="label">Overdue</div><div class="value text-red">${c.overdue || 0}</div></div>
+      <div class="kpi"><div class="label">Due Today</div><div class="value text-amber">${c.due_today || 0}</div></div>
+      <div class="kpi"><div class="label">In Progress</div><div class="value">${c.in_progress || 0}</div></div>
+      <div class="kpi"><div class="label">Decision Gates</div><div class="value" style="color:var(--purple)">${c.decision_gates || 0}</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">Filtered to <code>category=prism_studio</code>. As of ${new Date(today.as_of || Date.now()).toLocaleTimeString()}.</div>
+  `;
+
+  // Daily Routine
+  const steps = routine.routine || [];
+  $('#ps-routine').innerHTML = steps.length === 0
+    ? `<em style="color:var(--muted)">No routine configured.</em>`
+    : `
+      <ol style="margin:0;padding-left:18px">
+        ${steps.map(s => `<li style="margin:6px 0"><span>${s.label}</span> <span style="color:var(--muted);font-size:11px">(${s.minutes}m)</span></li>`).join('')}
+      </ol>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px">Total: ${routine.total_minutes || 0} minutes.</div>
+    `;
+
+  // Live Activity
+  const blocks = activity.blocks || [];
+  if (activity.stub) {
+    $('#ps-activity').innerHTML = `<em style="color:var(--muted)">NOTION_API_KEY not configured locally — live activity is stubbed. Set the key to see content from the Notion Activity Log page.</em>`;
+    $('#ps-activity-meta').textContent = 'stub';
+  } else if (activity.error) {
+    $('#ps-activity').innerHTML = `<div style="color:var(--red);font-size:12px">Activity Log fetch failed: ${activity.error}</div>`;
+    $('#ps-activity-meta').textContent = 'error';
+  } else if (blocks.length === 0) {
+    const link = activity.page_url ? `<a href="${activity.page_url}" target="_blank" rel="noopener">Open in Notion &#8599;</a>` : '';
+    $('#ps-activity').innerHTML = `<em style="color:var(--muted)">Activity Log is empty. ${link}</em>`;
+    $('#ps-activity-meta').textContent = activity.updated_at ? `Updated ${new Date(activity.updated_at).toLocaleString()}` : '';
+  } else {
+    $('#ps-activity').innerHTML = blocks.map(renderNotionBlock).join('');
+    const link = activity.page_url ? ` &middot; <a href="${activity.page_url}" target="_blank" rel="noopener">Open in Notion &#8599;</a>` : '';
+    $('#ps-activity-meta').innerHTML = `${blocks.length} blocks${activity.has_more ? ' (truncated)' : ''}${activity.updated_at ? ` &middot; updated ${new Date(activity.updated_at).toLocaleString()}` : ''}${link}`;
+  }
 };
 
 loaders['daily-review'] = async () => {
