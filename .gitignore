@@ -36,3 +36,15 @@ reports/
 
 # Pre-edit snapshots
 *.bak
+
+# Large binary design assets (Photoshop / Illustrator / sketch).
+# These belong in Revenue_Workstreams/ workstream folders, never inside the dashboard repo.
+*.psd
+*.psd.zip
+*.ai
+*.sketch
+
+# Per-task PR-body scratch files written during PR creation. Kept out of the
+# repo so they don't accumulate after merge.
+.PR_BODY_*.md
+
