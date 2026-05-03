@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "import:crm": "node import-excel-crm.js"
+    "import:crm": "node import-excel-crm.js",
+    "test": "node --test test/notionAdapter.contract.test.js"
   },
   "engines": {
     "node": ">=18.0.0"
