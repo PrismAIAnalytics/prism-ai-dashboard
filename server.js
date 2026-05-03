@@ -15,6 +15,7 @@ const stripeService = require('./services/stripeService');
 const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
 const notionSync = require('./services/notionSync');
+const notionAdapter = require('./services/notionAdapter'); // T-023 — read-path adapter behind USE_NOTION_SOURCE
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
@@ -4280,7 +4281,20 @@ app.get('/api/skilljar/progress', requireAuth, async (req, res) => {
 // ─── Tickets API ────────────────────────────────────────────────────────────
 
 // GET — list tickets with filters
-app.get('/api/tickets', requireAuth, (req, res) => {
+// T-023: when USE_NOTION_SOURCE='true', answer from Notion via notionAdapter.
+// Falls back to SQLite path on adapter error so a Notion outage doesn't 5xx.
+app.get('/api/tickets', requireAuth, async (req, res) => {
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const { tickets, stale } = await notionAdapter.listTickets(req.query);
+      res.set('X-Source', 'notion');
+      if (stale) res.set('X-Notion-Stale', 'true');
+      return res.json({ ok: true, tickets });
+    } catch (e) {
+      console.warn('[notion-adapter] /api/tickets fallback to SQLite:', e.message);
+      res.set('X-Source', 'sqlite-fallback');
+    }
+  }
   try {
     const { status, priority, ticket_type, assigned_to, client_id, project_id, category, notion_unsynced } = req.query;
     let where = [];
@@ -4315,7 +4329,19 @@ app.get('/api/tickets', requireAuth, (req, res) => {
 });
 
 // GET — ticket dashboard summary
-app.get('/api/tickets/summary', requireAuth, (req, res) => {
+// T-023: Notion-backed when flag is on; SQLite fallback otherwise.
+app.get('/api/tickets/summary', requireAuth, async (req, res) => {
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const { summary, stale } = await notionAdapter.summary();
+      res.set('X-Source', 'notion');
+      if (stale) res.set('X-Notion-Stale', 'true');
+      return res.json({ ok: true, ...summary });
+    } catch (e) {
+      console.warn('[notion-adapter] /api/tickets/summary fallback to SQLite:', e.message);
+      res.set('X-Source', 'sqlite-fallback');
+    }
+  }
   try {
     const byStatus = db.prepare("SELECT status, COUNT(*) as count FROM tickets GROUP BY status").all();
     const byPriority = db.prepare("SELECT priority, COUNT(*) as count FROM tickets GROUP BY priority").all();
@@ -5314,7 +5340,21 @@ app.get('/api/swot', requireAuth, async (req, res) => {
 });
 
 // Action Items
-app.get('/api/actions', requireAuth, (req, res) => {
+// T-023: Notion-backed list when flag is on (filters to pages with `Action Item ID`
+// set). SQLite fallback otherwise. Writes (POST/PATCH/DELETE) stay on SQLite
+// in Phase 1; Phase 4 cuts those over.
+app.get('/api/actions', requireAuth, async (req, res) => {
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const { items, stale } = await notionAdapter.listActionItems(req.query);
+      res.set('X-Source', 'notion');
+      if (stale) res.set('X-Notion-Stale', 'true');
+      return res.json({ ok: true, data: items });
+    } catch (e) {
+      console.warn('[notion-adapter] /api/actions fallback to SQLite:', e.message);
+      res.set('X-Source', 'sqlite-fallback');
+    }
+  }
   try {
     let sql = 'SELECT * FROM action_items WHERE 1=1';
     const params = [];
