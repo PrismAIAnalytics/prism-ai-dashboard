@@ -9,7 +9,15 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-023 | Notion-as-source migration Phase 1 — read-path adapter behind `USE_NOTION_SOURCE` feature flag. First of 5 phases (T-023..T-027) consolidating tickets + action_items to Notion as single source of truth. | `task/notion-source-phase1` | Claude Code | 2026-05-03 12:25 |
+| T-028 | Homepage v2 — Stream D — Add `adoption_stage` column to `clients` table via `migrateCRMColumns()` + `/api/leads` route extracts and stores the field. Handshakes with website's contact form `<select name="adoption_stage">` (already shipped on website branch `task/web-v2-stream-b-html`, PR open) and Netlify webhook pass-through (same branch). Values: `exploring` / `assess` / `architect` / `operate` / `compliance`. Small, contained schema add — no other schema changes, no route signature changes for existing endpoints. Targets May 17 launch. | `task/web-v2d-adoption-stage` | Claude Code | 2026-05-07 19:35 |
+
+---
+
+## Awaiting Merge
+
+| Task ID | Title | Branch | PR | Note |
+|---------|-------|--------|----|------|
+| T-023 | Notion-as-source migration Phase 1 — read-path adapter behind `USE_NOTION_SOURCE` feature flag. First of 5 phases (T-023..T-027) consolidating tickets + action_items to Notion as single source of truth. | `task/notion-source-phase1` | [#13](https://github.com/PrismAIAnalytics/prism-ai-dashboard/pull/13) | Code-complete, PR open since 2026-05-03. Moved out of In Progress 2026-05-07 per Michele's option-A override to free WIP for homepage v2 Stream D (T-028) launch work. Will move to Done This Week with merge SHA when PR #13 lands. |
 
 ---
 

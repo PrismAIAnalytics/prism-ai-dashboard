@@ -441,20 +441,39 @@ app.post(
 // Public (registered BEFORE /api auth middleware).
 //
 // Body expected from Netlify forwarder:
-//   { first_name, last_name, email, company, service_of_interest, message?, source? }
+//   { first_name, last_name, email, company, adoption_stage, message?, source? }
+//
+// adoption_stage is the canonical handshake field with the website's contact
+// form (homepage v2, 2026-05-07). Allowed values: exploring | assess |
+// architect | operate | compliance. Any other value is dropped to null.
 //
 // Security considerations:
 //  - email uniqueness enforced via users.username UNIQUE
 //  - idempotent on email collision: returns ok:true with existing client_id
 //    (prevents the form from double-creating if Netlify retries)
 //  - rate limiter (already mounted globally) caps abuse
+//  - adoption_stage validated against an allow-list before storage
+// allow-list for adoption_stage values — shared module-level state used below
+const ADOPTION_STAGE_VALUES = new Set(['exploring', 'assess', 'architect', 'operate', 'compliance']);
+
 app.post('/api/leads', (req, res) => {
   const body = req.body || {};
   const first = (body.first_name || '').trim();
   const last = (body.last_name || '').trim();
   const email = (body.email || '').trim().toLowerCase();
   const company = (body.company || '').trim();
-  const service = (body.service_of_interest || '').trim();
+  const adoptionStageRaw = (body.adoption_stage || '').trim().toLowerCase();
+  let adoptionStage = null;
+  if (adoptionStageRaw) {
+    if (ADOPTION_STAGE_VALUES.has(adoptionStageRaw)) {
+      adoptionStage = adoptionStageRaw;
+    } else {
+      // Unrecognized value — drop to null but log so we catch website/backend drift.
+      // Escape newlines so an attacker can't split log lines via the input value.
+      const safeRaw = adoptionStageRaw.replace(/[\r\n]/g, '\\n');
+      console.warn(`[leads] unrecognized adoption_stage="${safeRaw}" — stored as null. Add to ADOPTION_STAGE_VALUES if intentional.`);
+    }
+  }
   const message = (body.message || '').trim();
   const source = (body.source || 'website_contact_form').trim();
 
@@ -482,8 +501,8 @@ app.post('/api/leads', (req, res) => {
   const magicExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
 
   const tx = db.transaction(() => {
-    db.prepare('INSERT INTO clients (id, company_name, crm_status, crm_lead_source, crm_contact_name, crm_contact_email, crm_service, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
-      clientId, company, 'New Lead', source, `${first} ${last}`, email, service || null,
+    db.prepare('INSERT INTO clients (id, company_name, crm_status, crm_lead_source, crm_contact_name, crm_contact_email, adoption_stage, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+      clientId, company, 'New Lead', source, `${first} ${last}`, email, adoptionStage,
       message ? `Initial message: ${message}` : null
     );
     db.prepare('INSERT INTO contacts (id, client_id, first_name, last_name, email, job_title, is_primary) VALUES (?, ?, ?, ?, ?, ?, 1)').run(
@@ -773,7 +792,8 @@ function initDB() {
       crm_contact_name TEXT,
       crm_contact_email TEXT,
       crm_contact_phone TEXT,
-      crm_last_status_change TEXT DEFAULT (datetime('now'))
+      crm_last_status_change TEXT DEFAULT (datetime('now')),
+      adoption_stage TEXT
     );
     CREATE TABLE IF NOT EXISTS contacts (
       id TEXT PRIMARY KEY,
@@ -1510,6 +1530,7 @@ function migrateCRMColumns() {
     { name: 'crm_contact_email',      sql: 'ALTER TABLE clients ADD COLUMN crm_contact_email TEXT' },
     { name: 'crm_contact_phone',      sql: 'ALTER TABLE clients ADD COLUMN crm_contact_phone TEXT' },
     { name: 'crm_last_status_change', sql: "ALTER TABLE clients ADD COLUMN crm_last_status_change TEXT DEFAULT (datetime('now'))" },
+    { name: 'adoption_stage',         sql: 'ALTER TABLE clients ADD COLUMN adoption_stage TEXT' },
   ];
   crmCols.forEach(c => { if (!cols.includes(c.name)) db.exec(c.sql); });
 }
