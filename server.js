@@ -4383,9 +4383,28 @@ app.post('/api/tickets', requireAuth, [
   body('ticket_type').optional().isIn(['client', 'internal']),
   body('priority').optional().isIn(['low', 'medium', 'high', 'urgent']),
   body('status').optional().isIn(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  // T-026: Notion-source mode — create the page in Notion, return the
+  // mapped ticket. SQLite is bypassed; tables drop in T-027 Phase 5.
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const ticket = await notionAdapter.createTicket({
+        title: req.body.title,
+        status: req.body.status || 'backlog',
+        priority: req.body.priority || 'medium',
+        category: req.body.category,
+        due_date: req.body.due_date,
+        source: req.body.source || (req.body.category === 'training' ? 'training' : req.body.category === 'project' ? 'project' : req.body.category === 'client' ? 'client' : 'manual'),
+      });
+      res.set('X-Source', 'notion');
+      return res.status(201).json({ ok: true, ticket });
+    } catch (e) {
+      console.warn('[notion-adapter] POST /api/tickets failed:', e.message);
+      return res.status(e.status || 502).json({ ok: false, error: `notion: ${e.message}` });
+    }
+  }
   try {
     const id = uuid();
     const { title, description, ticket_type, category, status, priority, assigned_to, client_id, project_id, due_date, tags } = req.body;
@@ -4406,7 +4425,25 @@ app.post('/api/tickets', requireAuth, [
 });
 
 // PATCH — update ticket
-app.patch('/api/tickets/:id', requireAuth, (req, res) => {
+app.patch('/api/tickets/:id', requireAuth, async (req, res) => {
+  // T-026: Notion-source mode — :id is the Notion page UUID (the adapter
+  // returns page.id as the ticket id on reads, so clients PATCH with that).
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const ticket = await notionAdapter.updateTicket(req.params.id, {
+        title: req.body.title,
+        status: req.body.status,
+        priority: req.body.priority,
+        category: req.body.category,
+        due_date: req.body.due_date,
+      });
+      res.set('X-Source', 'notion');
+      return res.json({ ok: true, ticket });
+    } catch (e) {
+      console.warn('[notion-adapter] PATCH /api/tickets/:id failed:', e.message);
+      return res.status(e.status || 502).json({ ok: false, error: `notion: ${e.message}` });
+    }
+  }
   try {
     // Note: ticket_key and source are immutable — they identify origin
     const allowed = ['title', 'description', 'ticket_type', 'category', 'status', 'priority', 'assigned_to', 'client_id', 'project_id', 'due_date', 'tags', 'sort_order', 'notion_page_id'];
@@ -4443,7 +4480,18 @@ app.patch('/api/tickets/:id', requireAuth, (req, res) => {
 });
 
 // DELETE — remove ticket
-app.delete('/api/tickets/:id', requireAuth, (req, res) => {
+app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
+  // T-026: Notion-source mode — archive the page (no hard delete in Notion).
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const out = await notionAdapter.archiveTicket(req.params.id);
+      res.set('X-Source', 'notion');
+      return res.json({ ok: true, ...out });
+    } catch (e) {
+      console.warn('[notion-adapter] DELETE /api/tickets/:id failed:', e.message);
+      return res.status(e.status || 502).json({ ok: false, error: `notion: ${e.message}` });
+    }
+  }
   try {
     db.prepare('DELETE FROM ticket_comments WHERE ticket_id = ?').run(req.params.id);
     const result = db.prepare('DELETE FROM tickets WHERE id = ?').run(req.params.id);
@@ -4490,6 +4538,12 @@ app.post('/api/tickets/:id/comments', requireAuth, [
 
 app.post('/api/sync/notion', requireAuth, async (req, res) => {
   try {
+    // T-026 Phase 4: when the cutover flag is on, the sync is pointless and
+    // potentially harmful (would re-create the SQLite mirror that's about to
+    // be dropped). Short-circuit to 503 with a clear message.
+    if (process.env.USE_NOTION_SOURCE === 'true') {
+      return res.status(503).json({ ok: false, error: 'USE_NOTION_SOURCE=true — sync short-circuited (T-026 Phase 4)' });
+    }
     if (process.env.NOTION_SYNC_DISABLED === '1') {
       return res.status(503).json({ ok: false, error: 'NOTION_SYNC_DISABLED is set' });
     }
@@ -5390,9 +5444,27 @@ app.post('/api/actions', requireAuth, [
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('urgency').optional().isIn(['immediate', 'this_week', 'this_month', 'this_quarter', 'next_2_weeks', 'next_30_days']).withMessage('Invalid urgency'),
   body('priority').optional().isInt({ min: 1, max: 100 }).withMessage('Priority must be 1-100'),
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  // T-026: Notion-source mode — create the action item as a Notion page.
+  // urgency, priority (1-100), and tools_to_use have no Notion property in
+  // the existing schema; they're dropped silently. Phase 5 / T-027 decides
+  // whether to port them into the page body or accept the data loss.
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const item = await notionAdapter.createActionItem({
+        title: req.body.title,
+        status: 'backlog',
+        action_item_id: req.body.action_item_id, // optional; caller may pre-assign
+      });
+      res.set('X-Source', 'notion');
+      return res.json({ ok: true, data: item });
+    } catch (e) {
+      console.warn('[notion-adapter] POST /api/actions failed:', e.message);
+      return res.status(e.status || 502).json({ ok: false, error: `notion: ${e.message}` });
+    }
+  }
   try {
     const { title, description, urgency, priority, tools_to_use } = req.body;
     const urg = urgency || 'this_month';
@@ -5483,9 +5555,26 @@ app.post('/api/actions/backfill-ticket-keys', requireAuth, (req, res) => {
 
 app.patch('/api/actions/:id', requireAuth, [
   body('status').optional().isIn(['pending', 'in_progress', 'done']).withMessage('Invalid status'),
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  // T-026: Notion-source mode — :id is the Notion page UUID; update Notion.
+  // Action-item status values (pending/in_progress/done) map to the same
+  // dashboard set used by tickets (backlog/in_progress/done) for Notion.
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const statusMap = { pending: 'backlog', in_progress: 'in_progress', done: 'done' };
+      const item = await notionAdapter.updateActionItem(req.params.id, {
+        title: req.body.title,
+        status: req.body.status ? statusMap[req.body.status] : undefined,
+      });
+      res.set('X-Source', 'notion');
+      return res.json({ ok: true, data: item });
+    } catch (e) {
+      console.warn('[notion-adapter] PATCH /api/actions/:id failed:', e.message);
+      return res.status(e.status || 502).json({ ok: false, error: `notion: ${e.message}` });
+    }
+  }
   try {
     const action = db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id);
     if (!action) return res.status(404).json({ ok: false, error: 'Action item not found' });
@@ -5510,7 +5599,18 @@ app.patch('/api/actions/:id', requireAuth, [
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
-app.delete('/api/actions/:id', requireAuth, (req, res) => {
+app.delete('/api/actions/:id', requireAuth, async (req, res) => {
+  // T-026: Notion-source mode — archive the Notion page (no hard delete).
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const out = await notionAdapter.archiveActionItem(req.params.id);
+      res.set('X-Source', 'notion');
+      return res.json({ ok: true, ...out });
+    } catch (e) {
+      console.warn('[notion-adapter] DELETE /api/actions/:id failed:', e.message);
+      return res.status(e.status || 502).json({ ok: false, error: `notion: ${e.message}` });
+    }
+  }
   try {
     // Unlink ticket first if present
     const a = db.prepare('SELECT * FROM action_items WHERE id = ?').get(req.params.id);
@@ -6059,13 +6159,20 @@ app.listen(PORT, () => {
 
   // Notion → dashboard ticket sync (T-019). Runs every 5 min unless disabled.
   // Kill switches:
+  //   USE_NOTION_SOURCE=true            — T-026 Phase 4 cutover: reads + writes
+  //                                       go through notionAdapter, the cron has
+  //                                       nothing to do. Short-circuit here so the
+  //                                       interval never schedules. T-027 Phase 5
+  //                                       deletes the handler outright.
   //   NOTION_SYNC_DISABLED=1            — fully disable
   //   NOTION_API_KEY / NOTION_TICKETS_DB_ID missing — silent skip
   // Cutoff filter:
   //   NOTION_SYNC_SINCE=2026-04-30      — only sync pages with Notion created_time
   //                                       on/after this date. Used pre-T-021 cleanup
   //                                       to keep 194 legacy pages out of the dashboard.
-  if (process.env.NOTION_SYNC_DISABLED === '1') {
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    console.log('  [notion-sync] short-circuited — USE_NOTION_SOURCE=true (T-026 Phase 4)');
+  } else if (process.env.NOTION_SYNC_DISABLED === '1') {
     console.log('  [notion-sync] disabled via NOTION_SYNC_DISABLED');
   } else if (!process.env.NOTION_API_KEY || !process.env.NOTION_TICKETS_DB_ID) {
     console.log('  [notion-sync] disabled — NOTION_API_KEY or NOTION_TICKETS_DB_ID not configured');
