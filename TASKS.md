@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-026 | Notion-as-source migration Phase 4 — write-path cutover, flip flag, short-circuit cron | `task/notion-source-phase-4-cutover` | Claude Code | 2026-05-16 |
 
 ---
 

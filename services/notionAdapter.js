@@ -67,6 +67,81 @@ function categoryNotionToDash(notionCat) {
     .replace(/[^a-z0-9_]/g, '');
 }
 
+// ─── Write-direction maps (T-026 Phase 4) ──────────────────────────────────
+// Mirror the read-direction maps. SQLite-only statuses (`todo`, `review`,
+// `cancelled`) collapse to the closest Notion equivalent because the Notion
+// `Status` property doesn't have those values in the existing schema.
+const STATUS_DASH_TO_NOTION = {
+  backlog: 'Not started',
+  todo: 'Not started',
+  in_progress: 'In progress',
+  review: 'In progress',
+  blocked: 'Blocked',
+  done: 'Done',
+  cancelled: 'Done',
+};
+const PRIORITY_DASH_TO_NOTION = {
+  urgent: 'Urgent',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+const CATEGORY_DASH_TO_NOTION = {
+  delivery: 'Client Work',
+  engineering: 'CRM Development',
+  marketing: 'Marketing',
+  admin: 'Admin',
+  sales: 'Sales & Outreach',
+  content: 'Content',
+  finance: 'Finance',
+  training: 'Training',
+  prism_studio: 'Prism Studio',
+  action: 'Admin', // action items file under Admin per established convention
+};
+
+// Build a Notion properties patch object from dashboard-shape fields. Used by
+// both create (full payload) and update (sparse — only changed fields). Fields
+// without a Notion equivalent in the DB schema (description, ticket_type,
+// assigned_to/team_members.id, project_id, tags, urgency, tools_to_use) are
+// silently dropped here — Phase 5 either ports them into Notion page bodies
+// or accepts the data loss when the SQLite tables go away.
+function dashboardToNotionProperties(input) {
+  const props = {};
+  if (input.title !== undefined && input.title !== null) {
+    props['Ticket'] = { title: [{ text: { content: String(input.title) } }] };
+  }
+  if (input.status !== undefined) {
+    const v = STATUS_DASH_TO_NOTION[input.status];
+    if (v) props['Status'] = { status: { name: v } };
+  }
+  if (input.priority !== undefined) {
+    const v = PRIORITY_DASH_TO_NOTION[input.priority];
+    if (v) props['Priority'] = { select: { name: v } };
+  }
+  if (input.category !== undefined) {
+    const v = CATEGORY_DASH_TO_NOTION[input.category];
+    if (v) props['Category'] = { select: { name: v } };
+  }
+  if (input.due_date !== undefined) {
+    props['Due Date'] = input.due_date
+      ? { date: { start: input.due_date } }
+      : { date: null };
+  }
+  if (input.client_name !== undefined && input.client_name) {
+    props['Client'] = { rich_text: [{ text: { content: String(input.client_name) } }] };
+  }
+  if (input.source !== undefined && input.source) {
+    props['Source'] = { rich_text: [{ text: { content: String(input.source) } }] };
+  }
+  if (input.dashboard_ticket_id !== undefined && input.dashboard_ticket_id) {
+    props['Dashboard Ticket ID'] = { rich_text: [{ text: { content: String(input.dashboard_ticket_id) } }] };
+  }
+  if (input.action_item_id !== undefined && input.action_item_id !== null) {
+    props['Action Item ID'] = { number: input.action_item_id };
+  }
+  return props;
+}
+
 function readProp(props, key, type) {
   const p = props[key];
   if (!p) return null;
@@ -181,6 +256,66 @@ function notionPageToActionItem(page) {
     ticket_id: page.id,
     created_at: readProp(props, 'Created', 'created_time'),
   };
+}
+
+// ─── Write API (T-026 Phase 4) ─────────────────────────────────────────────
+// Thin wrappers around Notion's pages endpoint. Each surfaces a structured
+// Error on non-2xx so the caller can map back to HTTP status.
+async function notionCreatePage({ apiKey, dbId, properties }) {
+  const r = await fetch(`${NOTION_API}/pages`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ parent: { database_id: dbId }, properties }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`notion create failed: ${r.status} ${j.code || ''} ${j.message || ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+async function notionUpdatePage({ apiKey, pageId, properties }) {
+  const r = await fetch(`${NOTION_API}/pages/${pageId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ properties }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`notion update failed: ${r.status} ${j.code || ''} ${j.message || ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+async function notionArchivePage({ apiKey, pageId }) {
+  const r = await fetch(`${NOTION_API}/pages/${pageId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ archived: true }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`notion archive failed: ${r.status} ${j.code || ''} ${j.message || ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
 }
 
 async function fetchAllPages({ apiKey, dbId, pageCap = 50 }) {
@@ -344,7 +479,95 @@ function makeAdapter(getEnv = () => process.env) {
     _inflight.clear();
   }
 
-  return { listTickets, listActionItems, getTicket, summary, invalidate };
+  // ─── Writes (T-026 Phase 4) ──────────────────────────────────────────────
+  // All writes invalidate the read cache so the next list/summary reflects
+  // the mutation. Notion's eventual-consistency window is typically <1s, so
+  // an immediate re-read after a write usually sees the change.
+
+  async function createTicket(input) {
+    const { apiKey, dbId } = ensureCreds();
+    const properties = dashboardToNotionProperties(input);
+    if (!properties['Ticket']) {
+      const e = new Error('createTicket: title is required');
+      e.status = 400;
+      throw e;
+    }
+    const page = await notionCreatePage({ apiKey, dbId, properties });
+    invalidate();
+    return notionPageToTicket(page);
+  }
+
+  async function updateTicket(pageId, updates) {
+    const { apiKey } = ensureCreds();
+    const properties = dashboardToNotionProperties(updates);
+    if (Object.keys(properties).length === 0) {
+      const e = new Error('updateTicket: no mappable fields in updates');
+      e.status = 400;
+      throw e;
+    }
+    const page = await notionUpdatePage({ apiKey, pageId, properties });
+    invalidate();
+    return notionPageToTicket(page);
+  }
+
+  async function archiveTicket(pageId) {
+    const { apiKey } = ensureCreds();
+    await notionArchivePage({ apiKey, pageId });
+    invalidate();
+    return { ok: true, archived: true, page_id: pageId };
+  }
+
+  // Action items share the same Notion database as tickets — the only
+  // distinguisher is the `Action Item ID` numeric property being set.
+  // The caller passes action_item_id; the adapter writes it to the page.
+  async function createActionItem(input) {
+    const { apiKey, dbId } = ensureCreds();
+    const properties = dashboardToNotionProperties({
+      title: input.title,
+      status: input.status || 'backlog',
+      category: 'action',
+      due_date: input.due_date,
+      action_item_id: input.action_item_id,
+    });
+    if (!properties['Ticket']) {
+      const e = new Error('createActionItem: title is required');
+      e.status = 400;
+      throw e;
+    }
+    const page = await notionCreatePage({ apiKey, dbId, properties });
+    invalidate();
+    return notionPageToActionItem(page) || notionPageToTicket(page);
+  }
+
+  async function updateActionItem(pageId, updates) {
+    const { apiKey } = ensureCreds();
+    const properties = dashboardToNotionProperties({
+      title: updates.title,
+      status: updates.status,
+      action_item_id: updates.action_item_id,
+    });
+    if (Object.keys(properties).length === 0) {
+      const e = new Error('updateActionItem: no mappable fields in updates');
+      e.status = 400;
+      throw e;
+    }
+    const page = await notionUpdatePage({ apiKey, pageId, properties });
+    invalidate();
+    return notionPageToActionItem(page) || notionPageToTicket(page);
+  }
+
+  async function archiveActionItem(pageId) {
+    const { apiKey } = ensureCreds();
+    await notionArchivePage({ apiKey, pageId });
+    invalidate();
+    return { ok: true, archived: true, page_id: pageId };
+  }
+
+  return {
+    listTickets, listActionItems, getTicket, summary, invalidate,
+    createTicket, updateTicket, archiveTicket,
+    createActionItem, updateActionItem, archiveActionItem,
+  };
 }
 
 const _default = makeAdapter();
@@ -357,8 +580,17 @@ module.exports = {
   summary: () => _default.summary(),
   invalidate: () => _default.invalidate(),
 
+  // Write API (T-026 Phase 4)
+  createTicket: (input) => _default.createTicket(input),
+  updateTicket: (pageId, updates) => _default.updateTicket(pageId, updates),
+  archiveTicket: (pageId) => _default.archiveTicket(pageId),
+  createActionItem: (input) => _default.createActionItem(input),
+  updateActionItem: (pageId, updates) => _default.updateActionItem(pageId, updates),
+  archiveActionItem: (pageId) => _default.archiveActionItem(pageId),
+
   // Factory + pure mappers exposed for tests with custom env / fixtures
   makeAdapter,
   notionPageToTicket,
   notionPageToActionItem,
+  dashboardToNotionProperties,
 };

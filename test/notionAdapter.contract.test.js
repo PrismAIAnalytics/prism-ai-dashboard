@@ -303,3 +303,89 @@ test('makeAdapter throws when NOTION_TICKETS_DB_ID is missing', async () => {
   const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'x' }));
   await assert.rejects(adapter.listTickets(), /NOTION_TICKETS_DB_ID not configured/);
 });
+
+// ─── Write-direction mapper (T-026 Phase 4) ────────────────────────────────
+
+const { dashboardToNotionProperties } = require('../services/notionAdapter');
+
+test('dashboardToNotionProperties maps title to Ticket title property', () => {
+  const p = dashboardToNotionProperties({ title: 'New ticket' });
+  assert.deepStrictEqual(p['Ticket'], { title: [{ text: { content: 'New ticket' } }] });
+});
+
+test('dashboardToNotionProperties maps backlog/in_progress/blocked/done to Notion status names', () => {
+  const cases = [
+    ['backlog', 'Not started'],
+    ['in_progress', 'In progress'],
+    ['blocked', 'Blocked'],
+    ['done', 'Done'],
+  ];
+  for (const [dash, notion] of cases) {
+    const p = dashboardToNotionProperties({ status: dash });
+    assert.deepStrictEqual(p['Status'], { status: { name: notion } }, `status ${dash} → ${notion}`);
+  }
+});
+
+test('dashboardToNotionProperties collapses SQLite-only statuses (todo/review/cancelled)', () => {
+  assert.deepStrictEqual(
+    dashboardToNotionProperties({ status: 'todo' })['Status'],
+    { status: { name: 'Not started' } },
+  );
+  assert.deepStrictEqual(
+    dashboardToNotionProperties({ status: 'review' })['Status'],
+    { status: { name: 'In progress' } },
+  );
+  assert.deepStrictEqual(
+    dashboardToNotionProperties({ status: 'cancelled' })['Status'],
+    { status: { name: 'Done' } },
+  );
+});
+
+test('dashboardToNotionProperties maps urgent/high/medium/low to Notion priority select', () => {
+  for (const [dash, notion] of [['urgent', 'Urgent'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']]) {
+    const p = dashboardToNotionProperties({ priority: dash });
+    assert.deepStrictEqual(p['Priority'], { select: { name: notion } }, `priority ${dash} → ${notion}`);
+  }
+});
+
+test('dashboardToNotionProperties maps category aliases including `action`', () => {
+  assert.deepStrictEqual(
+    dashboardToNotionProperties({ category: 'engineering' })['Category'],
+    { select: { name: 'CRM Development' } },
+  );
+  assert.deepStrictEqual(
+    dashboardToNotionProperties({ category: 'action' })['Category'],
+    { select: { name: 'Admin' } },
+    'action items file under Admin',
+  );
+});
+
+test('dashboardToNotionProperties produces Due Date with null when due_date is empty string', () => {
+  assert.deepStrictEqual(
+    dashboardToNotionProperties({ due_date: '' })['Due Date'],
+    { date: null },
+  );
+});
+
+test('dashboardToNotionProperties drops fields with no Notion equivalent (description/tags/assigned_to)', () => {
+  const p = dashboardToNotionProperties({
+    title: 'X',
+    description: 'long body text',
+    tags: 'a,b,c',
+    assigned_to: 'team-member-uuid',
+  });
+  assert.ok(p['Ticket'], 'title kept');
+  assert.strictEqual(p['Description'], undefined);
+  assert.strictEqual(p['Tags'], undefined);
+  assert.strictEqual(p['Assignee'], undefined);
+});
+
+test('dashboardToNotionProperties writes Action Item ID as number when provided', () => {
+  const p = dashboardToNotionProperties({ action_item_id: 42 });
+  assert.deepStrictEqual(p['Action Item ID'], { number: 42 });
+});
+
+test('dashboardToNotionProperties returns empty object when no input fields are mappable', () => {
+  const p = dashboardToNotionProperties({ description: 'x', tags: 'y' });
+  assert.deepStrictEqual(p, {});
+});
