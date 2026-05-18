@@ -9,6 +9,34 @@
 <link rel="stylesheet" href="/styles/tokens.css">
 <link rel="stylesheet" href="/styles/base.css">
 <link rel="stylesheet" href="/styles/components.css">
+<script>
+/* T-032 brand chart constants. Kept inline (not ES module) so the
+   existing synchronous chart code can reference window.PRISM without
+   awaiting a module load. The canonical source of truth is
+   /styles/chart-theme.js — keep these in sync. Gold leads the palette
+   (chrome / focal accent per Prismatic Clarity philosophy). */
+window.PRISM = {
+  PALETTE: ['#C8A45A','#4A6DB5','#BDC9DD','#3A5998','#A8883A','#5189BF','#7A85C4','#17135C'],
+  STATUS:  { success: '#4FB48A', warning: '#C8A45A', danger: '#D96A6A', info: '#4A6DB5', neutral: '#BDC9DD' },
+  DRIFT:   { built_in: '#4FB48A', limited: '#C8A45A', audit_log_only: '#9C8FE0', none: '#D96A6A', immutable: '#4A6DB5', unknown: '#7A85C4' },
+  AUTOMATION: { full: '#4FB48A', partial: '#C8A45A', manual_heavy: '#D96A6A' },
+  CHART_AXIS: { bg: '#0F0C30', grid: 'rgba(189,201,221,0.18)', text: '#BDC9DD' },
+};
+if (typeof Chart !== 'undefined') {
+  Chart.defaults.color = window.PRISM.CHART_AXIS.text;
+  Chart.defaults.font.family = "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif";
+  Chart.defaults.font.size = 12;
+  if (Chart.defaults.plugins && Chart.defaults.plugins.tooltip) {
+    Chart.defaults.plugins.tooltip.backgroundColor = '#1E195A';
+    Chart.defaults.plugins.tooltip.titleColor = '#FFFFFF';
+    Chart.defaults.plugins.tooltip.bodyColor = window.PRISM.CHART_AXIS.text;
+    Chart.defaults.plugins.tooltip.borderColor = 'rgba(189,201,221,0.30)';
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.padding = 12;
+    Chart.defaults.plugins.tooltip.cornerRadius = 8;
+  }
+}
+</script>
 <style>
 :root {
   --navy: #17135C; --royal: #3A5998; --blue: #4A6DB5;
@@ -631,12 +659,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 </style>
 </head>
-<body>
+<body class="prism-themed">
 
 <!-- LOGIN -->
 <div id="login-overlay">
   <div class="login-box">
-    <img src="/prism-logo.png" alt="Prism AI Analytics" style="width:260px;margin-bottom:8px">
+    <img src="/prism-logo.svg" alt="Prism AI Analytics" style="width:260px;margin-bottom:8px">
     <div class="subtitle" style="margin-bottom:24px">Illuminating Data. Empowering Decisions.</div>
     <form id="login-form" onsubmit="handleLogin(event)">
       <input type="text" id="login-user" placeholder="Username" autocomplete="username" required>
@@ -1273,7 +1301,7 @@ loaders.dashboard = async () => {
   `).join('');
 
   // ── Charts ──
-  const chartColors = { bg: '#141627', grid: '#1e2140', text: '#8888aa' };
+  const chartColors = window.PRISM.CHART_AXIS;
   const chartDefaults = {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { labels: { color: chartColors.text, font: { size: 11 } } } },
@@ -1321,7 +1349,7 @@ loaders.dashboard = async () => {
   expenses.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; });
   const catLabels = Object.keys(catTotals).sort((a,b) => catTotals[b] - catTotals[a]);
   const catData = catLabels.map(c => catTotals[c]);
-  const catColors = ['#4A6DB5','#3A5998','#a78bfa','#34d399','#fbbf24','#f87171','#BDC9DD','#17135C','#8888aa','#1e2140'];
+  const catColors = window.PRISM.PALETTE;
 
   if (chartExpenses) chartExpenses.destroy();
   const expCtx = document.getElementById('chart-expenses');
@@ -1718,7 +1746,7 @@ function destroyFinCharts() {
   finChartRevenue = finChartIncome = finChartRevExp = finChartNet = finChartOpex = finChartAllExp = null;
 }
 
-const finPalette = ['#4A6DB5','#3A5998','#a78bfa','#34d399','#fbbf24','#f87171','#BDC9DD','#17135C','#8888aa','#1e2140'];
+const finPalette = window.PRISM.PALETTE;
 
 function renderFinCharts(monthly, revenue) {
   destroyFinCharts();
@@ -2984,8 +3012,8 @@ function renderComplianceCharts() {
         labels: ['Full', 'Partial', 'Manual-Heavy', ...(autoOther > 0 ? ['Other'] : [])],
         datasets: [{
           data: [autoFull, autoPartial, autoManual, ...(autoOther > 0 ? [autoOther] : [])],
-          backgroundColor: ['#34D399', '#F59E0B', '#EF4444', ...(autoOther > 0 ? ['#64748B'] : [])],
-          borderColor: '#1A1A2E',
+          backgroundColor: [window.PRISM.STATUS.success, window.PRISM.STATUS.warning, window.PRISM.STATUS.danger, ...(autoOther > 0 ? ['#7A85C4'] : [])],
+          borderColor: '#0F0C30',
           borderWidth: 2
         }]
       },
@@ -3011,7 +3039,7 @@ function renderComplianceCharts() {
     driftCounts[key] = (driftCounts[key] || 0) + 1;
   });
   const driftLabelMap = { built_in: 'Built-In', limited: 'Limited', audit_log_only: 'Audit Log', none: 'None', immutable: 'Immutable', unknown: 'Unknown' };
-  const driftColorMap = { built_in: '#34D399', limited: '#F59E0B', audit_log_only: '#A78BFA', none: '#EF4444', immutable: '#3B82F6', unknown: '#64748B' };
+  const driftColorMap = window.PRISM.DRIFT;
   const driftLabels = Object.keys(driftCounts).map(k => driftLabelMap[k] || k);
   const driftData = Object.values(driftCounts);
   const driftColors = Object.keys(driftCounts).map(k => driftColorMap[k] || '#64748B');
@@ -3026,7 +3054,7 @@ function renderComplianceCharts() {
         datasets: [{
           data: driftData,
           backgroundColor: driftColors,
-          borderColor: '#1A1A2E',
+          borderColor: '#0F0C30',
           borderWidth: 2
         }]
       },
@@ -3055,7 +3083,7 @@ function renderComplianceCharts() {
   const sortedCats = Object.entries(catRules).sort((a, b) => b[1] - a[1]);
   const catLabels = sortedCats.map(c => c[0]);
   const catData = sortedCats.map(c => c[1]);
-  const catColors = ['#3B82F6', '#34D399', '#F59E0B', '#A78BFA', '#EF4444', '#EC4899', '#06B6D4', '#F97316', '#8B5CF6', '#10B981', '#64748B', '#E11D48', '#14B8A6'];
+  const catColors = window.PRISM.PALETTE;
 
   if (chartRulesCategory) chartRulesCategory.destroy();
   const ctxCat = document.getElementById('chart-rules-category');
