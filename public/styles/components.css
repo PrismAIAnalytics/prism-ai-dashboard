@@ -1,0 +1,468 @@
+/* ============================================================
+   Prism AI — Editorial Component Layer
+   ------------------------------------------------------------
+   ALL rules scoped to `body.prism-themed` — INERT until opt-in.
+   Component classes match the dashboard's existing naming
+   (`.card`, `.btn`, `.kpi`, `.badge`, `nav`, `table`...) so
+   T-032 can flip pages by adding the prism-themed class and
+   removing the duplicated embedded rules.
+   ============================================================ */
+
+/* ---------- Layout shell ---------- */
+body.prism-themed .shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+body.prism-themed main {
+  flex: 1;
+  padding: var(--space-5) var(--space-6);
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ---------- Side nav ---------- */
+body.prism-themed nav {
+  width: 220px;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
+  padding: var(--space-5) 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--shell) 0%, var(--frame) 100%);
+  border-right: 1px solid var(--border);
+}
+
+body.prism-themed nav .logo {
+  padding: 0 var(--space-5) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+body.prism-themed nav .logo img {
+  height: 32px;
+  width: auto;
+}
+
+body.prism-themed nav .logo h1 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--white);
+  letter-spacing: 0.01em;
+}
+
+body.prism-themed nav .logo span {
+  font-size: 10px;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--sky);
+  font-weight: var(--weight-medium);
+}
+
+body.prism-themed nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-left-color var(--dur-fast) var(--ease-out);
+}
+
+body.prism-themed nav a:hover {
+  color: var(--white);
+  background: rgba(189, 201, 221, 0.04);
+}
+
+body.prism-themed nav a.active {
+  color: var(--white);
+  border-left-color: var(--gold);
+  background: linear-gradient(
+    90deg,
+    rgba(200, 164, 90, 0.10) 0%,
+    rgba(58, 89, 152, 0.06) 60%,
+    transparent 100%
+  );
+}
+
+body.prism-themed nav .nav-section {
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: var(--space-4) var(--space-5) var(--space-2);
+}
+
+body.prism-themed main { margin-left: 220px; }
+
+/* ---------- Cards ---------- */
+body.prism-themed .card {
+  background: var(--shell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--elev-1);
+  transition:
+    transform var(--dur-normal) var(--ease-out),
+    background var(--dur-normal) var(--ease-out),
+    box-shadow var(--dur-normal) var(--ease-out),
+    border-color var(--dur-normal) var(--ease-out);
+}
+
+body.prism-themed .card.interactive:hover,
+body.prism-themed a.card:hover,
+body.prism-themed button.card:hover {
+  background: var(--shell-elevated);
+  transform: translateY(-2px);
+  box-shadow: var(--elev-2);
+  border-color: var(--border-strong);
+}
+
+/* ---------- KPI tiles ---------- */
+body.prism-themed .kpi {
+  position: relative;
+  background: var(--shell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  overflow: hidden;
+  transition:
+    transform var(--dur-normal) var(--ease-out),
+    box-shadow var(--dur-normal) var(--ease-out),
+    border-color var(--dur-normal) var(--ease-out);
+}
+
+body.prism-themed .kpi::after {
+  content: '';
+  position: absolute;
+  left: var(--space-5);
+  bottom: 0;
+  width: 0;
+  height: 2px;
+  background: var(--grad-chrome);
+  transition: width var(--dur-normal) var(--ease-out);
+}
+
+body.prism-themed .kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elev-2);
+  border-color: var(--border-strong);
+}
+
+body.prism-themed .kpi:hover::after { width: calc(100% - var(--space-7)); }
+
+body.prism-themed .kpi .kpi-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+
+body.prism-themed .kpi .kpi-value {
+  font-size: var(--text-kpi);
+  font-weight: var(--weight-bold);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+}
+
+body.prism-themed .kpi .kpi-delta {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+body.prism-themed .kpi .kpi-delta.up    { color: var(--success); }
+body.prism-themed .kpi .kpi-delta.down  { color: var(--danger); }
+body.prism-themed .kpi .kpi-delta.flat  { color: var(--text-dim); }
+
+/* ---------- Buttons ---------- */
+body.prism-themed .btn,
+body.prism-themed button.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px var(--space-4);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+body.prism-themed .btn-primary {
+  background: var(--grad-chrome);
+  color: var(--navy);
+}
+body.prism-themed .btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(200, 164, 90, 0.35);
+}
+
+body.prism-themed .btn-secondary {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--sky);
+}
+body.prism-themed .btn-secondary:hover {
+  border-color: var(--gold);
+  color: var(--white);
+  background: rgba(200, 164, 90, 0.08);
+}
+
+body.prism-themed .btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+body.prism-themed .btn-ghost:hover {
+  color: var(--white);
+  background: rgba(189, 201, 221, 0.06);
+}
+
+body.prism-themed .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Badges ---------- */
+body.prism-themed .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  line-height: 1.4;
+}
+
+body.prism-themed .badge-success,
+body.prism-themed .badge-completed,
+body.prism-themed .badge-active {
+  background: rgba(79, 180, 138, 0.14);
+  color: #6FCFA3;
+  border-color: rgba(79, 180, 138, 0.30);
+}
+body.prism-themed .badge-warning,
+body.prism-themed .badge-pending,
+body.prism-themed .badge-in_progress {
+  background: rgba(200, 164, 90, 0.14);
+  color: var(--gold);
+  border-color: rgba(200, 164, 90, 0.32);
+}
+body.prism-themed .badge-danger,
+body.prism-themed .badge-overdue,
+body.prism-themed .badge-blocked {
+  background: rgba(217, 106, 106, 0.14);
+  color: #E58B8B;
+  border-color: rgba(217, 106, 106, 0.30);
+}
+body.prism-themed .badge-info,
+body.prism-themed .badge-new {
+  background: rgba(74, 109, 181, 0.18);
+  color: var(--sky);
+  border-color: rgba(74, 109, 181, 0.38);
+}
+body.prism-themed .badge-muted,
+body.prism-themed .badge-scoping {
+  background: rgba(156, 143, 224, 0.12);
+  color: #B4A8E8;
+  border-color: rgba(156, 143, 224, 0.28);
+}
+
+/* View-only lock badge (PS-053 / T-019 — keep recognizable) */
+body.prism-themed .badge-locked {
+  background: rgba(189, 201, 221, 0.08);
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+/* ---------- Inputs ---------- */
+body.prism-themed input,
+body.prism-themed textarea,
+body.prism-themed select {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--frame);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+body.prism-themed input:focus-visible,
+body.prism-themed textarea:focus-visible,
+body.prism-themed select:focus-visible {
+  border-color: var(--gold);
+  box-shadow: var(--ring);
+  outline: none;
+}
+
+body.prism-themed input::placeholder,
+body.prism-themed textarea::placeholder {
+  color: var(--text-dim);
+}
+
+/* ---------- Tables ---------- */
+body.prism-themed table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+body.prism-themed table thead th {
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+body.prism-themed table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+body.prism-themed table tbody tr {
+  transition: background var(--dur-fast) var(--ease-out);
+}
+body.prism-themed table tbody tr:hover {
+  background: rgba(189, 201, 221, 0.03);
+}
+body.prism-themed table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------- Modals ---------- */
+body.prism-themed .modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(8, 6, 26, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+}
+body.prism-themed .modal {
+  background: var(--core);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-modal);
+  max-width: 720px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+/* ---------- Chart container ---------- */
+body.prism-themed .chart-container,
+body.prism-themed .chart-card {
+  background: var(--shell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--elev-1);
+}
+body.prism-themed .chart-container canvas,
+body.prism-themed .chart-card canvas {
+  max-width: 100%;
+}
+
+/* ---------- Section heading row ---------- */
+body.prism-themed .section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+body.prism-themed .section-header .eyebrow {
+  margin-bottom: var(--space-1);
+}
+
+/* ---------- Chat FAB / panel (preserves existing IDs) ---------- */
+body.prism-themed #chat-fab {
+  position: fixed;
+  bottom: var(--space-5);
+  right: var(--space-5);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--grad-chrome);
+  color: var(--navy);
+  border: none;
+  cursor: pointer;
+  z-index: 200;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 24px rgba(200, 164, 90, 0.35);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+body.prism-themed #chat-fab:hover { transform: scale(1.08); }
+
+body.prism-themed #chat-panel {
+  position: fixed;
+  bottom: 88px;
+  right: var(--space-5);
+  width: 420px;
+  height: 520px;
+  background: var(--shell-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-2);
+  z-index: 199;
+  display: none;
+  flex-direction: column;
+}
+body.prism-themed #chat-panel.open { display: flex; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  body.prism-themed nav { width: 100%; height: auto; position: relative; }
+  body.prism-themed main { margin-left: 0; padding: var(--space-4); }
+  body.prism-themed #chat-panel { width: calc(100% - var(--space-8)); right: var(--space-4); }
+}

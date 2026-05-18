@@ -1,0 +1,143 @@
+/* ============================================================
+   Prism AI — Base Layer
+   ------------------------------------------------------------
+   Reset + typography + focus + motion primitives.
+   ALL rules are scoped to `body.prism-themed` so this file is
+   INERT until a page opts in.
+   ============================================================ */
+
+/* Inter — preloaded only if a themed page links the Google Fonts
+   stylesheet in <head>. We don't @import here to avoid a render-
+   blocking request on pages that haven't opted in to the theme. */
+
+body.prism-themed,
+body.prism-themed *,
+body.prism-themed *::before,
+body.prism-themed *::after {
+  box-sizing: border-box;
+}
+
+body.prism-themed {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--frame);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+/* Headings — tighter line-height, brand weight */
+body.prism-themed h1,
+body.prism-themed h2,
+body.prism-themed h3,
+body.prism-themed h4,
+body.prism-themed h5,
+body.prism-themed h6 {
+  font-family: var(--font-sans);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0;
+}
+
+body.prism-themed h1 { font-size: var(--text-2xl); font-weight: var(--weight-bold); }
+body.prism-themed h2 { font-size: var(--text-xl); }
+body.prism-themed h3 { font-size: var(--text-lg); }
+
+/* Small caps / eyebrow labels */
+body.prism-themed .eyebrow {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Links */
+body.prism-themed a {
+  color: var(--gold);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+body.prism-themed a:hover { color: var(--white); }
+
+/* Scrollbars (WebKit) */
+body.prism-themed ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+body.prism-themed ::-webkit-scrollbar-track {
+  background: var(--frame);
+}
+body.prism-themed ::-webkit-scrollbar-thumb {
+  background: var(--shell-elevated);
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--frame);
+}
+body.prism-themed ::-webkit-scrollbar-thumb:hover {
+  background: var(--core);
+}
+
+/* Selection */
+body.prism-themed ::selection {
+  background: rgba(200, 164, 90, 0.35);
+  color: var(--white);
+}
+
+/* Focus ring — brand gold, visible-only (no mouse halos) */
+body.prism-themed :focus { outline: none; }
+body.prism-themed :focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Reveal-on-scroll primitive — IntersectionObserver sets .visible */
+body.prism-themed .reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+  will-change: opacity, transform;
+}
+body.prism-themed .reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+body.prism-themed .reveal-delay-1 { transition-delay: 80ms; }
+body.prism-themed .reveal-delay-2 { transition-delay: 160ms; }
+body.prism-themed .reveal-delay-3 { transition-delay: 240ms; }
+body.prism-themed .reveal-delay-4 { transition-delay: 320ms; }
+
+/* Reduced-motion: snap to visible, no movement */
+@media (prefers-reduced-motion: reduce) {
+  body.prism-themed *,
+  body.prism-themed *::before,
+  body.prism-themed *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  body.prism-themed .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Seam: prismatic 1px divider for major zone boundaries.
+   Use as <hr class="prism-divider"> or apply `background: var(--seam)`
+   to any 1px tall band. Honors the "surfaces have edges" principle. */
+body.prism-themed .prism-divider {
+  height: 1px;
+  border: none;
+  background: var(--seam);
+  margin: var(--space-6) 0;
+}

@@ -1,0 +1,150 @@
+/* ============================================================
+   Prism AI — Design Tokens (single source of truth)
+   ------------------------------------------------------------
+   Loaded by every dashboard page. All editorial tokens are
+   scoped to `body.prism-themed` so this file is fully INERT
+   until a page opts in by adding `class="prism-themed"` on
+   <body>. Until then, each page's existing embedded :root
+   wins by cascade order.
+
+   T-031 ships this file linked-but-dormant. T-032 flips pages
+   to `prism-themed` and removes the duplicated :root blocks.
+
+   Canonical brand palette mirrors prism_website_project/assets/css/main.css
+   ============================================================ */
+
+/* --- Brand primitives (locked, mirror the marketing site) --- */
+:root {
+  --prism-navy:       #17135C;
+  --prism-royal:      #3A5998;
+  --prism-blue:       #4A6DB5;
+  --prism-sky:        #BDC9DD;
+  --prism-white:      #FFFFFF;
+  --prism-offwhite:   #F4F7FB;
+  --prism-charcoal:   #1A1A2E;
+  --prism-gold:       #C8A45A;
+  --prism-gold-dark:  #A8883A;
+}
+
+/* --- Editorial dark-mode token set (opt-in) ---
+   Scoped to body.prism-themed so embedded :root blocks
+   still win on un-themed pages. Specificity: 0,0,1,1 beats
+   the embedded `:root` (0,0,1,0). */
+body.prism-themed {
+  /* Brand aliases, no `prism-` prefix to match website naming */
+  --navy:       var(--prism-navy);
+  --royal:      var(--prism-royal);
+  --blue:       var(--prism-blue);
+  --sky:        var(--prism-sky);
+  --white:      var(--prism-white);
+  --offwhite:   var(--prism-offwhite);
+  --charcoal:   var(--prism-charcoal);
+  --gold:       var(--prism-gold);
+  --gold-dark:  var(--prism-gold-dark);
+
+  /* ---- Surface nesting (chrome / cobalt / sky → applied to dark) ----
+     Mirrors the "Prismatic Clarity" three-zone hierarchy:
+       --frame          : the void around the mark (sky frame, expressed
+                          as deepest navy in dark mode — the eye-rest layer)
+       --shell          : cobalt working layer where cards / surfaces live
+       --shell-elevated : same shell, lifted toward the core on hover
+       --core           : the innermost focal surface (modals, popovers)
+                          — the surface chrome accents rest on. */
+  --frame:          #08061A;
+  --shell:          #0F0C30;
+  --shell-elevated: #161244;
+  --core:           #1E195A;
+  --card:           var(--shell);
+
+  /* Edges are visible — borders read as faceted construction lines, not
+     soft separators. --seam is the prismatic 1px treatment for major
+     zone boundaries (nav↔main, section↔section). */
+  --border:         rgba(189, 201, 221, 0.18);
+  --border-strong:  rgba(189, 201, 221, 0.30);
+  --seam: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(58, 89, 152, 0.55) 30%,
+    rgba(74, 109, 181, 0.70) 50%,
+    rgba(58, 89, 152, 0.55) 70%,
+    transparent 100%
+  );
+
+  /* Semantic text */
+  --text:        var(--white);
+  --text-muted:  var(--sky);
+  --text-dim:    rgba(189, 201, 221, 0.55);
+  --muted:       var(--text-muted);
+
+  /* Status (brand-adjacent, not Tailwind defaults) */
+  --success:  #4FB48A;
+  --warning:  var(--gold);
+  --danger:   #D96A6A;
+  --info:     var(--blue);
+  --green:    var(--success);
+  --amber:    var(--warning);
+  --red:      var(--danger);
+  --purple:   #9C8FE0;
+
+  /* Signature gradients.
+     --grad-chrome is the focal-accent gradient — "chrome" in the
+     Prismatic Clarity sense (the most-distilled focal point),
+     executed as gold-to-gold-dark to align with the website CTA. */
+  --grad-prism:   linear-gradient(135deg, var(--navy) 0%, var(--royal) 45%, var(--blue) 100%);
+  --grad-chrome:  linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  --grad-surface: linear-gradient(180deg, var(--shell) 0%, var(--frame) 100%);
+
+  /* Typography — fluid Inter scale */
+  --font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  --text-xs:    12px;
+  --text-sm:    13px;
+  --text-base:  14px;
+  --text-md:    16px;
+  --text-lg:    clamp(1.125rem, 0.9rem + 0.4vw, 1.25rem);
+  --text-xl:    clamp(1.5rem, 1rem + 1vw, 2rem);
+  --text-2xl:   clamp(1.75rem, 1.2rem + 1.4vw, 2.5rem);
+  --text-kpi:   clamp(2rem, 1.4rem + 1.8vw, 3.25rem);
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --tracking-wide:   0.06em;
+  --tracking-caps:   0.14em;
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Motion */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast:    150ms;
+  --dur-normal:  250ms;
+  --dur-slow:    400ms;
+
+  /* Radii — disciplined to three so repeated geometric forms read as
+     rhythm rather than noise. Inputs / buttons → sm. Cards / KPI /
+     modals / charts → lg. Badges / chips → pill. */
+  --radius-sm:   6px;
+  --radius-lg:   14px;
+  --radius-pill: 999px;
+
+  /* Elevation (composed shadows) */
+  --elev-1: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+            0 4px 16px rgba(8, 6, 26, 0.5);
+  --elev-2: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+            0 12px 40px rgba(8, 6, 26, 0.7);
+  --elev-modal: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+                0 24px 80px rgba(8, 6, 26, 0.85);
+
+  /* Focus ring (gold, brand) */
+  --ring: 0 0 0 2px rgba(200, 164, 90, 0.55);
+  --ring-strong: 0 0 0 3px rgba(200, 164, 90, 0.75);
+}
