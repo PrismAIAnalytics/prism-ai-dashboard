@@ -42,14 +42,33 @@ body.prism-themed {
   --gold:       var(--prism-gold);
   --gold-dark:  var(--prism-gold-dark);
 
-  /* Dark surface scale — navy-tinted, not generic charcoal */
-  --bg:           #08061A;
-  --surface-1:    #0F0C30;
-  --surface-2:    #161244;
-  --surface-3:    #1E195A;
-  --card:         var(--surface-1);
-  --border:       rgba(189, 201, 221, 0.12);
-  --border-strong: rgba(189, 201, 221, 0.22);
+  /* ---- Surface nesting (chrome / cobalt / sky → applied to dark) ----
+     Mirrors the "Prismatic Clarity" three-zone hierarchy:
+       --frame          : the void around the mark (sky frame, expressed
+                          as deepest navy in dark mode — the eye-rest layer)
+       --shell          : cobalt working layer where cards / surfaces live
+       --shell-elevated : same shell, lifted toward the core on hover
+       --core           : the innermost focal surface (modals, popovers)
+                          — the surface chrome accents rest on. */
+  --frame:          #08061A;
+  --shell:          #0F0C30;
+  --shell-elevated: #161244;
+  --core:           #1E195A;
+  --card:           var(--shell);
+
+  /* Edges are visible — borders read as faceted construction lines, not
+     soft separators. --seam is the prismatic 1px treatment for major
+     zone boundaries (nav↔main, section↔section). */
+  --border:         rgba(189, 201, 221, 0.18);
+  --border-strong:  rgba(189, 201, 221, 0.30);
+  --seam: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(58, 89, 152, 0.55) 30%,
+    rgba(74, 109, 181, 0.70) 50%,
+    rgba(58, 89, 152, 0.55) 70%,
+    transparent 100%
+  );
 
   /* Semantic text */
   --text:        var(--white);
@@ -67,10 +86,13 @@ body.prism-themed {
   --red:      var(--danger);
   --purple:   #9C8FE0;
 
-  /* Signature gradients */
-  --grad-prism: linear-gradient(135deg, var(--navy) 0%, var(--royal) 45%, var(--blue) 100%);
-  --grad-gold:  linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
-  --grad-surface: linear-gradient(180deg, var(--surface-1) 0%, var(--bg) 100%);
+  /* Signature gradients.
+     --grad-chrome is the focal-accent gradient — "chrome" in the
+     Prismatic Clarity sense (the most-distilled focal point),
+     executed as gold-to-gold-dark to align with the website CTA. */
+  --grad-prism:   linear-gradient(135deg, var(--navy) 0%, var(--royal) 45%, var(--blue) 100%);
+  --grad-chrome:  linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+  --grad-surface: linear-gradient(180deg, var(--shell) 0%, var(--frame) 100%);
 
   /* Typography — fluid Inter scale */
   --font-sans:  'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -107,11 +129,11 @@ body.prism-themed {
   --dur-normal:  250ms;
   --dur-slow:    400ms;
 
-  /* Radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  /* Radii — disciplined to three so repeated geometric forms read as
+     rhythm rather than noise. Inputs / buttons → sm. Cards / KPI /
+     modals / charts → lg. Badges / chips → pill. */
+  --radius-sm:   6px;
+  --radius-lg:   14px;
   --radius-pill: 999px;
 
   /* Elevation (composed shadows) */

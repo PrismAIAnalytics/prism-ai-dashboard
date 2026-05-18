@@ -100,7 +100,7 @@ export function registerPrismChartDefaults(Chart) {
     if (Chart.defaults.plugins.tooltip) {
       Chart.defaults.plugins.tooltip = {
         ...Chart.defaults.plugins.tooltip,
-        backgroundColor: tokens('--surface-3') || '#1E195A',
+        backgroundColor: tokens('--core') || '#1E195A',
         titleColor: '#FFFFFF',
         bodyColor: tokens('--sky') || '#BDC9DD',
         borderColor: tokens('--border-strong') || 'rgba(189, 201, 221, 0.22)',

@@ -24,7 +24,7 @@ body.prism-themed {
   font-weight: var(--weight-regular);
   line-height: 1.55;
   color: var(--text);
-  background: var(--bg);
+  background: var(--frame);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -73,15 +73,15 @@ body.prism-themed ::-webkit-scrollbar {
   height: 10px;
 }
 body.prism-themed ::-webkit-scrollbar-track {
-  background: var(--bg);
+  background: var(--frame);
 }
 body.prism-themed ::-webkit-scrollbar-thumb {
-  background: var(--surface-2);
+  background: var(--shell-elevated);
   border-radius: var(--radius-pill);
-  border: 2px solid var(--bg);
+  border: 2px solid var(--frame);
 }
 body.prism-themed ::-webkit-scrollbar-thumb:hover {
-  background: var(--surface-3);
+  background: var(--core);
 }
 
 /* Selection */
@@ -132,11 +132,12 @@ body.prism-themed .reveal-delay-4 { transition-delay: 320ms; }
   }
 }
 
-/* Utility: prismatic gradient divider line */
+/* Seam: prismatic 1px divider for major zone boundaries.
+   Use as <hr class="prism-divider"> or apply `background: var(--seam)`
+   to any 1px tall band. Honors the "surfaces have edges" principle. */
 body.prism-themed .prism-divider {
   height: 1px;
   border: none;
-  background: var(--grad-prism);
-  opacity: 0.55;
+  background: var(--seam);
   margin: var(--space-6) 0;
 }

@@ -32,7 +32,7 @@ body.prism-themed nav {
   padding: var(--space-5) 0;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, var(--surface-1) 0%, var(--bg) 100%);
+  background: linear-gradient(180deg, var(--shell) 0%, var(--frame) 100%);
   border-right: 1px solid var(--border);
 }
 
@@ -111,9 +111,9 @@ body.prism-themed main { margin-left: 220px; }
 
 /* ---------- Cards ---------- */
 body.prism-themed .card {
-  background: var(--surface-1);
+  background: var(--shell);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   box-shadow: var(--elev-1);
   transition:
@@ -126,7 +126,7 @@ body.prism-themed .card {
 body.prism-themed .card.interactive:hover,
 body.prism-themed a.card:hover,
 body.prism-themed button.card:hover {
-  background: var(--surface-2);
+  background: var(--shell-elevated);
   transform: translateY(-2px);
   box-shadow: var(--elev-2);
   border-color: var(--border-strong);
@@ -135,9 +135,9 @@ body.prism-themed button.card:hover {
 /* ---------- KPI tiles ---------- */
 body.prism-themed .kpi {
   position: relative;
-  background: var(--surface-1);
+  background: var(--shell);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   overflow: hidden;
   transition:
@@ -153,7 +153,7 @@ body.prism-themed .kpi::after {
   bottom: 0;
   width: 0;
   height: 2px;
-  background: var(--grad-gold);
+  background: var(--grad-chrome);
   transition: width var(--dur-normal) var(--ease-out);
 }
 
@@ -219,7 +219,7 @@ body.prism-themed button.btn {
 }
 
 body.prism-themed .btn-primary {
-  background: var(--grad-gold);
+  background: var(--grad-chrome);
   color: var(--navy);
 }
 body.prism-themed .btn-primary:hover {
@@ -317,7 +317,7 @@ body.prism-themed select {
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   color: var(--text);
-  background: var(--bg);
+  background: var(--frame);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
@@ -383,7 +383,7 @@ body.prism-themed .modal-overlay {
   padding: var(--space-5);
 }
 body.prism-themed .modal {
-  background: var(--surface-2);
+  background: var(--core);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--elev-modal);
@@ -397,9 +397,9 @@ body.prism-themed .modal {
 /* ---------- Chart container ---------- */
 body.prism-themed .chart-container,
 body.prism-themed .chart-card {
-  background: var(--surface-1);
+  background: var(--shell);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-5);
   box-shadow: var(--elev-1);
 }
@@ -430,7 +430,7 @@ body.prism-themed #chat-fab {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--grad-gold);
+  background: var(--grad-chrome);
   color: var(--navy);
   border: none;
   cursor: pointer;
@@ -450,9 +450,9 @@ body.prism-themed #chat-panel {
   right: var(--space-5);
   width: 420px;
   height: 520px;
-  background: var(--surface-2);
+  background: var(--shell-elevated);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--elev-2);
   z-index: 199;
   display: none;
