@@ -1506,7 +1506,7 @@ function seedIfEmpty() {
     data_infra, tech_stack, process_maturity, team_readiness, governance, strategic_alignment,
     overall_score, readiness_band,
     summary, recommendations) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(uuid(), clientData[0].id, projData[0].id, mId, '2026-06-14',
+    .run(uuid(), clientData[0].id, projData[0].id, mId, '2026-04-15',
       2.5, 4.0, 3.0, 2.0, 3.0, 4.0,
       3.1, 'Developing',
       'Solid leadership buy-in and modern tech, but data accessibility and team readiness are lagging.',
