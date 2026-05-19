@@ -29,7 +29,7 @@ body.prism-themed nav {
   bottom: 0;
   left: 0;
   z-index: 50;
-  padding: var(--space-5) 0;
+  padding: var(--space-3) 0;
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, var(--shell) 0%, var(--frame) 100%);
@@ -37,9 +37,9 @@ body.prism-themed nav {
 }
 
 body.prism-themed nav .logo {
-  padding: 0 var(--space-5) var(--space-5);
+  padding: 0 var(--space-5) var(--space-4);
   border-bottom: 1px solid var(--border);
-  margin-bottom: var(--space-2);
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -70,7 +70,7 @@ body.prism-themed nav a {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 10px var(--space-5);
+  padding: 5px var(--space-5);
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
@@ -104,7 +104,8 @@ body.prism-themed nav .nav-section {
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--text-dim);
-  padding: var(--space-4) var(--space-5) var(--space-2);
+  padding: var(--space-3) var(--space-5) 2px;
+  margin-top: 2px;
 }
 
 body.prism-themed main { margin-left: 220px; }
@@ -374,7 +375,7 @@ body.prism-themed .modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(8, 6, 26, 0.78);
+  background: rgba(6, 11, 31, 0.78);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
