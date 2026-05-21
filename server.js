@@ -16,6 +16,7 @@ const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
 const notionSync = require('./services/notionSync');
 const notionAdapter = require('./services/notionAdapter'); // T-023 — read-path adapter behind USE_NOTION_SOURCE
+const inboxRouter = require('./services/inboxRouter'); // T-037 — Mission Control inbox capture/list/triage
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
@@ -4793,6 +4794,59 @@ app.get('/api/mission-control/today', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('[mission-control/today] failed:', e);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ─── Mission Control Inbox API (T-037) ──────────────────────────────────────
+// Sticky capture from every Dashboard page lands here. Captures are Notion
+// tickets with source='cowork:inbox'; Daily Agenda lists open captures and
+// triages them into real tickets, open questions (pending T-040), or
+// archives them.
+
+// POST — create an inbox capture from free-text input.
+app.post('/api/mission-control/inbox', requireAuth, [
+  body('text').isString().trim().notEmpty().withMessage('text is required'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const ticket = await inboxRouter.createCapture(req.body.text);
+    res.set('X-Source', 'notion');
+    return res.status(201).json({ ok: true, ticket });
+  } catch (e) {
+    console.warn('[inbox] POST /api/mission-control/inbox failed:', e.message);
+    return res.status(e.status || 502).json({ ok: false, error: e.message });
+  }
+});
+
+// GET — list open inbox captures (newest first).
+app.get('/api/mission-control/inbox', requireAuth, async (req, res) => {
+  try {
+    const result = await inboxRouter.listCaptures();
+    res.set('X-Source', 'notion');
+    return res.json({ ok: true, ...result });
+  } catch (e) {
+    console.warn('[inbox] GET /api/mission-control/inbox failed:', e.message);
+    return res.status(e.status || 502).json({ ok: false, error: e.message });
+  }
+});
+
+// POST — triage one capture by Notion page id. action ∈ {ticket, open_question, dismiss}.
+app.post('/api/mission-control/inbox/:id/triage', requireAuth, [
+  body('action').isIn(['ticket', 'open_question', 'dismiss']).withMessage('invalid action'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const out = await inboxRouter.triage(req.params.id, req.body.action, {
+      category: req.body.category,
+      due_date: req.body.due_date,
+    });
+    res.set('X-Source', 'notion');
+    return res.json(out);
+  } catch (e) {
+    console.warn('[inbox] POST /api/mission-control/inbox/:id/triage failed:', e.message);
+    return res.status(e.status || 502).json({ ok: false, error: e.message });
   }
 });
 
