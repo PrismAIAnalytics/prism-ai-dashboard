@@ -108,6 +108,38 @@ body.prism-themed nav .nav-section {
   margin-top: 2px;
 }
 
+/* "More" group — collapsible nav section using <details>. */
+body.prism-themed nav details.nav-more { display: block; }
+body.prism-themed nav details.nav-more > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+body.prism-themed nav details.nav-more > summary::-webkit-details-marker { display: none; }
+body.prism-themed nav details.nav-more .nav-more-chevron {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform var(--dur-fast) var(--ease-out);
+  color: var(--text-dim);
+}
+body.prism-themed nav details.nav-more[open] .nav-more-chevron {
+  transform: rotate(90deg);
+}
+
+/* End of Day collapsible on Daily Agenda */
+body.prism-themed details#agenda-end-of-day > summary {
+  list-style: none;
+  cursor: pointer;
+}
+body.prism-themed details#agenda-end-of-day > summary::-webkit-details-marker { display: none; }
+body.prism-themed details#agenda-end-of-day .eod-chevron {
+  display: inline-block;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+body.prism-themed details#agenda-end-of-day[open] .eod-chevron { transform: rotate(90deg); }
+
 body.prism-themed main { margin-left: 220px; }
 
 /* ---------- Cards ---------- */

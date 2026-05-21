@@ -4632,6 +4632,170 @@ app.get('/api/prism-studio/routine', requireAuth, (req, res) => {
   });
 });
 
+// ─── Mission Control (T-036, Daily Agenda) ──────────────────────────────────
+// Aggregator for the Daily Agenda page: tile counts + today context (latest
+// Daily Log + Chloe morning brief headlines + escalation count) + last-24h
+// decisions ticker. Reads from Notion (via notionAdapter) for tickets and from
+// the Obsidian vault (PRISM-Vault) for narrative context. Path-traversal
+// containment follows the scripts/sync-briefs.js pattern.
+
+const MC_VAULT_DEFAULT = path.resolve(path.join(__dirname, '..', '..', 'PRISM-Vault'));
+const MC_DECISIONS_LIMIT = 5;
+
+function mcResolveVaultRoot() {
+  const envPath = process.env.PRISM_VAULT_PATH;
+  const candidate = envPath ? path.resolve(envPath) : MC_VAULT_DEFAULT;
+  try {
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate;
+  } catch (_) { /* fall through */ }
+  return null;
+}
+
+// Read a file inside the vault, with explicit containment to prevent traversal.
+// Returns null when the vault is unavailable (Railway prod) or the file is missing.
+// Containment is two-layered: first path.resolve normalizes ../ segments, then
+// fs.realpathSync dereferences any symlinks so a planted symlink inside the
+// vault tree cannot escape containment. Both the lexical and the real path must
+// live under the vault root.
+function mcReadVaultFile(relPath) {
+  const root = mcResolveVaultRoot();
+  if (!root) return null;
+  const resolved = path.resolve(path.join(root, relPath));
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) return null;
+  try {
+    const realPath = fs.realpathSync(resolved);
+    if (realPath !== root && !realPath.startsWith(root + path.sep)) return null;
+    return fs.readFileSync(realPath, 'utf8');
+  } catch (_) {
+    return null;
+  }
+}
+
+function mcReadTodayContext() {
+  const today = new Date().toISOString().slice(0, 10);
+  const ctx = { date: today, daily_log_headline: null, brief_headline: null, escalation_count: 0 };
+
+  // Latest Daily Log — try today, then yesterday (Prism log sync runs ~6 PM ET; AM checks may see prior day)
+  const candidates = [today];
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  candidates.push(y.toISOString().slice(0, 10));
+  for (const d of candidates) {
+    const c = mcReadVaultFile(`Admin/Daily_Logs/Daily_Log_${d}.md`);
+    if (c) {
+      ctx.date = d;
+      // First H2 line (after optional frontmatter)
+      const headerMatch = c.match(/^##\s+(.+?)\s*$/m);
+      if (headerMatch) ctx.daily_log_headline = headerMatch[1].trim();
+      // Escalations — count list items under an "__Escalations needing Michele__" or similar block
+      const escBlock = c.match(/__Escalations needing Michele__[\s\S]*?(?=\n__|\n##|\n---|$)/);
+      if (escBlock) {
+        ctx.escalation_count = escBlock[0]
+          .split('\n')
+          .filter(line => /^\s*[-*]\s+\S/.test(line) || /^\s*\d+\.\s+\S/.test(line))
+          .length;
+      }
+      break;
+    }
+  }
+
+  // Chloe morning brief — lives inside the dashboard repo at reports/cos-morning-brief-YYYY-MM-DD.md
+  for (const d of candidates) {
+    try {
+      const briefPath = path.join(__dirname, 'reports', `cos-morning-brief-${d}.md`);
+      const content = fs.readFileSync(briefPath, 'utf8');
+      const m = content.match(/^#\s+(.+?)\s*$/m) || content.match(/^##\s+(.+?)\s*$/m);
+      if (m) ctx.brief_headline = m[1].trim();
+      break;
+    } catch (_) { /* try previous day */ }
+  }
+
+  return ctx;
+}
+
+function mcReadRecentDecisions(maxEntries) {
+  const content = mcReadVaultFile('Admin/CoS/decisions-log.md');
+  if (!content) return [];
+  // Entries are H2 with a date prefix: "## YYYY-MM-DD — headline" (em-dash, en-dash, or hyphen tolerated).
+  // We surface today's and yesterday's date-stamped entries, newest first, capped.
+  // The decisions-log doesn't carry time-of-day; we return date-only and let the
+  // client render a "Today" / "Yesterday" label rather than a fake 12:00 PM timestamp.
+  const today = new Date().toISOString().slice(0, 10);
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yesterday = y.toISOString().slice(0, 10);
+  const allowedDates = new Set([today, yesterday]);
+
+  const out = [];
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const m = line.match(/^##\s+(\d{4}-\d{2}-\d{2})\s*[—–\-:]\s*(.+?)\s*$/);
+    if (!m) continue;
+    const dateStr = m[1];
+    if (!allowedDates.has(dateStr)) continue;
+    const headline = m[2].trim();
+    const label = dateStr === today ? 'Today' : 'Yesterday';
+    out.push({ date: dateStr, label, headline, signature: 'Chloe' });
+    if (out.length >= maxEntries) break;
+  }
+  return out;
+}
+
+app.get('/api/mission-control/today', requireAuth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const useNotion = process.env.USE_NOTION_SOURCE === 'true';
+
+    let tiles = {
+      urgent_due_today: 0,
+      overdue: 0,
+      in_progress_count: 0,
+      in_progress_breakdown: '',
+      needs_decision: 0,
+    };
+
+    if (useNotion) {
+      try {
+        const { tickets } = await notionAdapter.listTickets({});
+        const active = (tickets || []).filter(t =>
+          t.category !== 'dev_insight' &&
+          t.status !== 'done' &&
+          t.status !== 'cancelled'
+        );
+        tiles.urgent_due_today = active.filter(t => t.priority === 'urgent' && t.due_date === today).length;
+        tiles.overdue = active.filter(t => t.due_date && t.due_date < today).length;
+        const inProgress = active.filter(t => t.status === 'in_progress');
+        tiles.in_progress_count = inProgress.length;
+        const groups = {};
+        for (const t of inProgress) {
+          const a = (t.assignee_name || t.assigned_to || 'Unassigned').toString().trim() || 'Unassigned';
+          groups[a] = (groups[a] || 0) + 1;
+        }
+        // Render breakdown as "Initial N · Initial N" using first letter; mirrors T-029 brief sketch.
+        tiles.in_progress_breakdown = Object.entries(groups)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, n]) => `${name.charAt(0).toUpperCase()} ${n}`)
+          .join(' · ');
+        tiles.needs_decision = active.filter(t => t.status === 'review').length;
+      } catch (e) {
+        console.warn('[mission-control/today] notion path failed:', e.message);
+      }
+    }
+
+    const todayContext = mcReadTodayContext();
+    const recentDecisions = mcReadRecentDecisions(MC_DECISIONS_LIMIT);
+
+    res.json({
+      ok: true,
+      tiles,
+      todayContext,
+      recentDecisions,
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[mission-control/today] failed:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ─── Benchmark Products API ─────────────────────────────────────────────────
 
 // List all products with optional filters
