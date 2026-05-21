@@ -5236,7 +5236,7 @@ async function handleLogin(e) {
       CURRENT_USER = data.user;
       localStorage.setItem('prism_token', data.token);
       hideLoginScreen();
-      loaders.dashboard();
+      loaders['daily-agenda']();
       checkEnvBanner();
     } else {
       $('#login-error').textContent = data.error || 'Login failed';
@@ -5273,7 +5273,7 @@ async function boot() {
     try {
       var r = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+SESSION_TOKEN} });
       var data = await r.json();
-      if (data.ok) { CURRENT_USER = data.user; hideLoginScreen(); loaders.dashboard(); checkEnvBanner(); return; }
+      if (data.ok) { CURRENT_USER = data.user; hideLoginScreen(); loaders['daily-agenda'](); checkEnvBanner(); return; }
     } catch(e) {}
   }
   var urlKey = new URLSearchParams(window.location.search).get('key');
@@ -5283,7 +5283,7 @@ async function boot() {
     try {
       var r2 = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+urlKey} });
       var d2 = await r2.json();
-      if (d2.ok) { CURRENT_USER = d2.user; hideLoginScreen(); loaders.dashboard(); checkEnvBanner(); window.history.replaceState({},'',window.location.pathname); return; }
+      if (d2.ok) { CURRENT_USER = d2.user; hideLoginScreen(); loaders['daily-agenda'](); checkEnvBanner(); window.history.replaceState({},'',window.location.pathname); return; }
     } catch(e) {}
   }
   showLoginScreen();
