@@ -196,6 +196,10 @@ function notionPageToTicket(page) {
   const status = STATUS_NOTION_TO_DASH[readProp(props, 'Status', 'status')] || 'backlog';
   const priority = PRIORITY_NOTION_TO_DASH[readProp(props, 'Priority', 'select')] || 'medium';
   const lastEdited = readProp(props, 'Last Updated', 'last_edited');
+  // T-037: expose raw Notion Source property so source_prefix filter can match
+  // free-form source strings (e.g. 'cowork:inbox') that don't show up in the
+  // derived `source` categorical above.
+  const sourceRaw = readProp(props, 'Source', 'rich_text');
 
   return {
     // Notion page UUID is the canonical id; matches the existing notion_page_id
@@ -203,6 +207,7 @@ function notionPageToTicket(page) {
     id: page.id,
     ticket_key,
     source,
+    source_raw: sourceRaw,
     title: readProp(props, 'Ticket', 'title') || '',
     // Notion has no description property; page-body fetch deferred to Phase 4
     // (would explode per-request count to satisfy a single list endpoint).
@@ -417,6 +422,12 @@ function makeAdapter(getEnv = () => process.env) {
     if (filters.client_id) tickets = tickets.filter(t => t.client_id === filters.client_id);
     if (filters.project_id) tickets = tickets.filter(t => t.project_id === filters.project_id);
     if (filters.notion_unsynced === '1') tickets = tickets.filter(t => t.category === 'action' && !t.notion_page_id);
+    // T-037: prefix-match against raw Notion Source property. Used by inbox
+    // captures (`cowork:inbox`) and any future Cowork sub-streams.
+    if (filters.source_prefix) {
+      const prefix = String(filters.source_prefix);
+      tickets = tickets.filter(t => t.source_raw && t.source_raw.startsWith(prefix));
+    }
 
     // Match SQLite ORDER BY: priority bucket, then created_at DESC.
     // sort_order doesn't exist in Notion, so it drops out of the sort.
