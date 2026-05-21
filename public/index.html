@@ -4436,7 +4436,9 @@ loaders['daily-agenda'] = async () => {
   allDocuments = (docRes && docRes.documents) || [];
   renderDocLibrary();
 
-  const d = await api('daily-reviews');
+  // T-036b: cap End of Day to the last 10 days. The full archive is still
+  // reachable via /api/daily-reviews?limit=365 when a deeper view is needed.
+  const d = await api('daily-reviews?limit=10');
   if (d.error) { $('#daily-review-list').innerHTML = '<p style="color:var(--red)">Failed to load reviews.</p>'; return; }
 
   const reviews = d.reviews || [];
