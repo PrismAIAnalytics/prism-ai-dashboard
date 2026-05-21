@@ -38,13 +38,11 @@ if (typeof Chart !== 'undefined') {
 }
 </script>
 <style>
-:root {
-  --navy: #17135C; --royal: #3A5998; --blue: #4A6DB5;
-  --sky: #BDC9DD; --white: #FFFFFF; --offwhite: #F4F7FB;
-  --charcoal: #1A1A2E; --bg: #0d0f1a; --card: #141627;
-  --border: #1e2140; --text: #e0e0e0; --muted: #8888aa;
-  --green: #34d399; --red: #f87171; --amber: #fbbf24; --purple: #a78bfa;
-}
+/* T-035: page-level :root block removed. All tokens now come from
+   /styles/tokens.css via the body.prism-themed scope. The single
+   --bg name is preserved as a back-compat alias in tokens.css
+   (resolves to var(--frame)) so the embedded rules below keep
+   working unchanged. */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 

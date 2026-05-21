@@ -61,6 +61,12 @@ body.prism-themed {
   --core:           #16245C;
   --card:           var(--shell);
 
+  /* Back-compat aliases for embedded page styles that still use the
+     T-031 surface names. These let older HTML pages keep rendering
+     correctly through the cleanup window (T-035 onward). Remove
+     once every page has migrated to --frame / --shell / etc. */
+  --bg:             var(--frame);
+
   /* Edges are visible — borders read as faceted construction lines, not
      soft separators. --seam is the prismatic 1px treatment for major
      zone boundaries (nav↔main, section↔section). */
