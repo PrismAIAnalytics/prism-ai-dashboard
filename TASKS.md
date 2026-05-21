@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-036b | Cap End of Day section to last 10 days (Daily Agenda perf fix) | `fix/eod-cap-10-days` | Claude Code | 2026-05-21 |
 
 ---
 
