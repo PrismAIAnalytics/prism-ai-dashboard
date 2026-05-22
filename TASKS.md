@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-060 | Add Security Gate CI workflow (npm audit / Semgrep / gitleaks / CycloneDX SBOM) | `task/security-gate-ci` | Claude Code | 2026-05-22 |
+_(none)_
 
 ---
 
@@ -45,6 +45,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-060 | Add Security Gate CI workflow (npm audit / Semgrep / TruffleHog / CycloneDX SBOM) | 2026-05-22 | Merged via PR #39 as `ee82a22` (squash). Close-out posted by this housekeeping commit. Implements Layer 1B controls 7.2 (SAST + SCA on release) and SBOM emission per the CIS-style hardening baseline at `CIS Benchmarks/dev-surface-hardening-baseline.html`. Five-iteration CI tuning cycle: (1) gitleaks-action@v2 requires paid org license → switched to TruffleHog `--only-verified` (free, more capable); (2) Semgrep `p/nodejs-best-practice` and (3) `p/express` both 404 on registry → kept `p/owasp-top-ten` + `p/javascript`; (4) npm audit surfaced 4 High-severity transitives all in `node-quickbooks` (filed T-061 to upgrade and restore `--audit-level=high`; currently set to `critical`); (5) Semgrep flagged Dockerfile missing-USER → architectural decision per Dockerfile:56 (Railway volume needs root for SQLite WAL), suppressed with `--exclude-rule` and full rationale block in the workflow. SBOM job runs on push-to-main only (release artifact), uploads CycloneDX JSON with 90-day retention. |
 | T-058 | Daily Agenda — remove KPI tiles row + Today card | 2026-05-22 | Merged via PR #38 as `0de624c` (squash). Close-out posted by T-060's first commit per WORKFLOW.md §4 (lock was held by T-058 for ~6 hours past merge before cleared). Removed KPI tiles row + Today card from Daily Agenda per the simplification thread following T-036e/g/h's morning-brief surface taking over the above-the-fold attention. |
 | T-038 | Mission Control — Daily ticket snapshot cron (Phase 1 of T-036–T-055 roadmap) | 2026-05-22 | Merged via PR #37 as `56b7143` (squash). Close-out bundled into T-058's first commit per WORKFLOW.md §4. Nightly cron writes `reports/ticket-snapshot-YYYY-MM-DD.json` from `/api/tickets/summary` (excluding `category=dev_insight`); idempotent same-day overwrite. Powers the 14-day burndown viz in T-050. Railway scheduler config remains out-of-band of the repo diff. |
 | T-026a | Notion adapter — treat empty-mappable updates as no-ops instead of 400 (unblocks sync-tasks.js linkBack + business-health-eval progress_update) | 2026-05-22 | Merged via PR #36 as `08c6ee6` (squash). Close-out bundled into T-038's first commit per WORKFLOW.md §4. Adapter's `updateTicket` and `updateActionItem` previously returned 400 when called with a payload that contained only un-mapped properties (e.g., `progress_update` from business-health-eval, which the dashboard SQLite schema accepts but the Notion DB has no equivalent property for). Fix: when the resulting Notion properties object is empty, return a no-op success instead of throwing — preserves caller contract and unblocks the linkBack flow in `sync-tasks.js`. Includes contract test coverage. |
