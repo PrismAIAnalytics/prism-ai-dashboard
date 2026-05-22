@@ -389,3 +389,106 @@ test('dashboardToNotionProperties returns empty object when no input fields are 
   const p = dashboardToNotionProperties({ description: 'x', tags: 'y' });
   assert.deepStrictEqual(p, {});
 });
+
+// ─── Empty-update no-op behavior (T-026a fix) ──────────────────────────────
+// Pre-fix, updateTicket/updateActionItem threw "no mappable fields in updates"
+// when the caller's update payload only carried fields with no Notion property
+// (description, tags, notion_page_id, etc.). That 400 broke sync-tasks.js's
+// linkBackDashboard PATCH ({notion_page_id}) and business-health-eval's
+// progress_update PATCH ({description}). Both are legitimate no-ops in
+// Notion-source mode — the adapter should return the current page state.
+
+function withStubbedFetch(t, handler) {
+  const original = global.fetch;
+  global.fetch = handler;
+  t.after(() => { global.fetch = original; });
+}
+
+const stubPage = {
+  id: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  properties: {
+    Ticket: { type: 'title', title: [{ plain_text: 'Existing title' }] },
+    Status: { type: 'status', status: { name: 'In progress' } },
+    Priority: { type: 'select', select: { name: 'Medium' } },
+    Category: { type: 'select', select: { name: 'CRM Development' } },
+    'T-ID': { type: 'rich_text', rich_text: [] },
+    'Dashboard Ticket ID': { type: 'rich_text', rich_text: [] },
+    'Action Item ID': { type: 'number', number: null },
+    Created: { type: 'created_time', created_time: '2026-05-22T00:00:00.000Z' },
+    'Last Updated': { type: 'last_edited_time', last_edited_time: '2026-05-22T00:00:00.000Z' },
+  },
+};
+
+test('updateTicket no-ops on empty mappable updates and returns current page state via GET', async (t) => {
+  let patchCalled = false;
+  let getCalled = false;
+  withStubbedFetch(t, async (url, opts) => {
+    const method = (opts && opts.method) || 'GET';
+    if (method === 'GET' && url.endsWith(`/pages/${stubPage.id}`)) {
+      getCalled = true;
+      return { ok: true, json: async () => stubPage };
+    }
+    if (method === 'PATCH') patchCalled = true;
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  const ticket = await adapter.updateTicket(stubPage.id, { notion_page_id: stubPage.id });
+
+  assert.strictEqual(patchCalled, false, 'no PATCH should be issued for an empty-mappable update');
+  assert.strictEqual(getCalled, true, 'current page state should be fetched');
+  assert.strictEqual(ticket.id, stubPage.id);
+  assert.strictEqual(ticket.title, 'Existing title');
+});
+
+test('updateTicket no-ops when payload only contains description (no Notion equivalent)', async (t) => {
+  let patchCalled = false;
+  withStubbedFetch(t, async (url, opts) => {
+    const method = (opts && opts.method) || 'GET';
+    if (method === 'PATCH') patchCalled = true;
+    if (method === 'GET') return { ok: true, json: async () => stubPage };
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  const ticket = await adapter.updateTicket(stubPage.id, { description: 'refreshed by progress_update' });
+  assert.strictEqual(patchCalled, false);
+  assert.strictEqual(ticket.id, stubPage.id);
+});
+
+test('updateActionItem no-ops on empty mappable updates and returns current page state', async (t) => {
+  let patchCalled = false;
+  const actionPage = {
+    ...stubPage,
+    properties: { ...stubPage.properties, 'Action Item ID': { type: 'number', number: 7 } },
+  };
+  withStubbedFetch(t, async (url, opts) => {
+    const method = (opts && opts.method) || 'GET';
+    if (method === 'PATCH') patchCalled = true;
+    if (method === 'GET') return { ok: true, json: async () => actionPage };
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  const item = await adapter.updateActionItem(actionPage.id, { urgency: 'this_month', priority: 50 });
+
+  assert.strictEqual(patchCalled, false, 'no PATCH should be issued for an empty-mappable action-item update');
+  assert.strictEqual(item.id, 7, 'returned action item carries the numeric Action Item ID');
+});
+
+test('updateTicket still PATCHes when at least one field is mappable', async (t) => {
+  let patchCalled = false;
+  let patchBody = null;
+  withStubbedFetch(t, async (url, opts) => {
+    const method = (opts && opts.method) || 'GET';
+    if (method === 'PATCH') {
+      patchCalled = true;
+      patchBody = JSON.parse(opts.body);
+      return { ok: true, json: async () => stubPage };
+    }
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  await adapter.updateTicket(stubPage.id, { status: 'done', description: 'ignored' });
+  assert.strictEqual(patchCalled, true);
+  assert.deepStrictEqual(patchBody.properties['Status'], { status: { name: 'Done' } });
+});
