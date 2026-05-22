@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-058 | Daily Agenda — remove KPI tiles row + Today card | `task/agenda-tile-removal` | Claude Code | 2026-05-22 |
+| T-060 | Add Security Gate CI workflow (npm audit / Semgrep / gitleaks / CycloneDX SBOM) | `task/security-gate-ci` | Claude Code | 2026-05-22 |
 
 ---
 
@@ -44,6 +44,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-058 | Daily Agenda — remove KPI tiles row + Today card | 2026-05-22 | Merged via PR #38 as `0de624c` (squash). Close-out posted by T-060's first commit per WORKFLOW.md §4 (lock was held by T-058 for ~6 hours past merge before cleared). Removed KPI tiles row + Today card from Daily Agenda per the simplification thread following T-036e/g/h's morning-brief surface taking over the above-the-fold attention. |
 | T-038 | Mission Control — Daily ticket snapshot cron (Phase 1 of T-036–T-055 roadmap) | 2026-05-22 | Merged via PR #37 as `56b7143` (squash). Close-out bundled into T-058's first commit per WORKFLOW.md §4. Nightly cron writes `reports/ticket-snapshot-YYYY-MM-DD.json` from `/api/tickets/summary` (excluding `category=dev_insight`); idempotent same-day overwrite. Powers the 14-day burndown viz in T-050. Railway scheduler config remains out-of-band of the repo diff. |
 | T-026a | Notion adapter — treat empty-mappable updates as no-ops instead of 400 (unblocks sync-tasks.js linkBack + business-health-eval progress_update) | 2026-05-22 | Merged via PR #36 as `08c6ee6` (squash). Close-out bundled into T-038's first commit per WORKFLOW.md §4. Adapter's `updateTicket` and `updateActionItem` previously returned 400 when called with a payload that contained only un-mapped properties (e.g., `progress_update` from business-health-eval, which the dashboard SQLite schema accepts but the Notion DB has no equivalent property for). Fix: when the resulting Notion properties object is empty, return a no-op success instead of throwing — preserves caller contract and unblocks the linkBack flow in `sync-tasks.js`. Includes contract test coverage. |
 | T-036h | Dockerfile — include `reports/` in production image (fixes broken brief surface on Railway) | 2026-05-22 | Merged via PR #35 as `94c3ff6` (squash). Close-out bundled into T-026a's first commit per WORKFLOW.md §4. One-line Dockerfile fix (`COPY reports/ ./reports/`) so the deployed container has the 22 morning-brief markdown files T-036e's renderer reads. Closes the root cause flagged in T-036g's close note — `attached_brief: null` on every End-of-Day row and `/api/mission-control/morning-brief` returning `available:false` were both downstream of the same missing COPY. Lesson recorded: "files in the repo ≠ files on Railway when the build is Dockerfile-driven with explicit COPY lists." |

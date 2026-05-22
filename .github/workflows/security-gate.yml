@@ -1,0 +1,85 @@
+# Security Gate CI — T-060
+#
+# Implements Layer 1B controls 7.2 (SAST + SCA on release) and SBOM emission
+# from the Prism CIS-style hardening baseline (CIS Benchmarks/dev-surface-hardening-baseline.html).
+#
+# Gates that fail the PR: npm audit (high+ in prod deps), Semgrep SAST, gitleaks.
+# Release artifact (push to main only): CycloneDX SBOM uploaded with 90-day retention.
+
+name: Security Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    name: npm audit (high+ in prod deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      # --ignore-scripts: avoids lifecycle-script RCE class during install
+      - name: Install
+        run: npm ci --ignore-scripts
+      # --omit=dev: production-only audit; dev tooling CVEs don't ship to Railway
+      # --audit-level=high: gate fails on High or Critical CVEs
+      - name: Audit
+        run: npm audit --omit=dev --audit-level=high
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan
+        run: |
+          semgrep scan \
+            --config=p/owasp-top-ten \
+            --config=p/javascript \
+            --config=p/nodejs-best-practice \
+            --error \
+            --metrics=off
+
+  gitleaks:
+    name: Gitleaks (secret scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sbom:
+    name: CycloneDX SBOM (release artifact)
+    runs-on: ubuntu-latest
+    # Release-only: emit SBOM on push to main, not on every PR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Generate CycloneDX SBOM
+        run: npx --yes @cyclonedx/cyclonedx-npm@1.19.3 --output-file sbom.cdx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
