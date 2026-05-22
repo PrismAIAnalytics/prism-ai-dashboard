@@ -46,6 +46,12 @@ COPY public/ ./public/
 COPY scripts/ ./scripts/
 COPY lib/ ./lib/
 
+# T-036h: include reports/ so the morning-brief surface (T-036e/f) can read
+# cos-morning-brief-YYYY-MM-DD.md files at runtime. Without this COPY, Railway's
+# __dirname/reports/ directory does not exist on the deployed container and
+# mcReadMorningBriefFile() returns null for every date.
+COPY reports/ ./reports/
+
 # Create data directory for SQLite
 # NOTE: Running as root so Railway-mounted volumes are writable.
 # Railway handles container isolation at the platform level.

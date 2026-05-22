@@ -109,4 +109,15 @@ Floors stand: Client Delivery Ops (20), Sales & Pipeline (25), Financial Operati
 - 8 Business Health Auto-Eval duplicate clusters in Notion (size-2 each) from 2026-04-10 batch.
 - Phase 2D schema gap: dashboard column-mapping still fakes `Backlog`/`To Do`/`Review` because Notion only has `Not started`/`In progress`/`Blocked`/`Done`.
 
+## Update — 11:55 local (orchestrator re-run)
+
+The orchestrator re-ran at 11:37 local after the 11:13 fallback-path run. Step 6 now resolves `C:\Users\miche\OneDrive\Documents\Claude\Scheduled\chloe-morning-brief\SKILL.md` cleanly — the "SKILL.md missing" claim in the header was a transient resolution issue, not a missing file. Treat the file-resolution Top-10 item (#10) as recovered.
+
+**New inbox capture since the morning brief generated:**
+- **NTN-0111** — *"Stop the bleed it's taking up your time!!"* (15:49 UTC / ~11:49 local, source `cowork:inbox`). No description. Inbox is now at 1, not 0 — this is a self-capture from Michele worth triaging at the next conversation; the title alone suggests it's a meta-observation about where time is being spent, not a discrete task.
+
+**Maturity refresh status (orchestrator Step 3):** All 12 areas re-evaluated. None breached the 14-day staleness floor (oldest assessment is 4d). Today is Friday, so no Monday-trigger refresh either. The earlier 11:13 invocation already PATCHed 4 areas (Technical Infrastructure 75, Brand & Identity 74, Operations 67, Service Design & Pricing 53) — this run held quiet on the remaining 8. Audit line will mark `partial` because zero PATCH calls fired in the 11:37 step, but no scores legitimately moved; that's an honest hold-quiet, not a missed signal.
+
+**Action queue groom (orchestrator Step 4):** 4 pending strategic actions (#19 dedup, #20 onboarding runbook, #17 weekly status cadence, #18 first case study) — all unmovable via the current Notion-backed `PATCH /api/actions/:id` endpoint, which only accepts `title`/`status`/`action_item_id` (the dashboard skill spec assumes `description` is settable; it isn't, per `notionAdapter.updateActionItem`). None of the 4 are completable on today's data. Flag for backlog: extend `updateActionItem` to map `description`, or accept that action progress notes have to live elsewhere (ticket comments).
+
 *— Chloe*
