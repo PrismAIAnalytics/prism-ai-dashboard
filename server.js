@@ -4758,8 +4758,11 @@ function mcReadRecentDecisions(maxEntries) {
 const MC_BRIEF_REPORTS_DIR = path.resolve(path.join(__dirname, 'reports'));
 
 function mcReadMorningBriefFile() {
-  const today = new Date().toISOString().slice(0, 10);
-  const y = new Date(); y.setDate(y.getDate() - 1);
+  // Single Date instance — avoids the (astronomical) midnight-straddle case
+  // where today and yesterday could be computed from different ms timestamps.
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const yesterday = y.toISOString().slice(0, 10);
   for (const d of [today, yesterday]) {
     const filename = `cos-morning-brief-${d}.md`;
@@ -4776,15 +4779,16 @@ function mcReadMorningBriefFile() {
 }
 
 // Strip YAML frontmatter (`---\n...\n---\n`) and return { frontmatter, body }.
+// Tolerates CRLF line endings (orchestrator runs on Windows) and missing trailing newline.
 function mcSplitFrontmatter(text) {
-  const fmMatch = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+  const fmMatch = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n([\s\S]*))?$/);
   if (!fmMatch) return { frontmatter: {}, body: text };
   const fm = {};
-  for (const line of fmMatch[1].split('\n')) {
-    const kv = line.match(/^\s*([^:]+?)\s*:\s*(.*)$/);
-    if (kv) fm[kv[1]] = kv[2].trim();
+  for (const line of fmMatch[1].split(/\r?\n/)) {
+    const kv = line.match(/^\s*([^:]+?)\s*:\s*(.*?)\s*$/);
+    if (kv) fm[kv[1]] = kv[2];
   }
-  return { frontmatter: fm, body: fmMatch[2] };
+  return { frontmatter: fm, body: fmMatch[2] || '' };
 }
 
 // Split body by H2 sections. Returns { headline, subheader, sections: {label: content} }.
@@ -4864,7 +4868,6 @@ app.get('/api/mission-control/morning-brief', requireAuth, (req, res) => {
       subheader,
       sections: {
         today_looks_like: get('today looks like'),
-        top_10_markdown: topTenMd,
         top_10: mcParseTopTen(topTenMd),
         needs_michele: get('needs michele'),
         carry_forward: get('carry-forward'),
