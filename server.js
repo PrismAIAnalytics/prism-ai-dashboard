@@ -4055,6 +4055,21 @@ app.get('/api/daily-reviews', requireAuth, (req, res) => {
   try {
     const limit = req.query.limit ? Math.min(parseInt(req.query.limit) || 365, 365) : 365;
     const rows = db.prepare('SELECT * FROM daily_reviews ORDER BY review_date DESC LIMIT ?').all(limit);
+    // T-036g: attach the morning brief (parsed) for each row's date. The Daily
+    // Agenda End of Day cards use this as the primary Top 10 source, falling
+    // back to the summary heuristic only when no brief file exists.
+    // The mcReadAndParseBriefForDate helper short-circuits on bad dates and
+    // missing files, so unmatched rows simply carry attached_brief: null.
+    const attach = req.query.with_briefs !== '0';
+    if (attach) {
+      for (const row of rows) {
+        try {
+          row.attached_brief = mcReadAndParseBriefForDate(row.review_date);
+        } catch (_) {
+          row.attached_brief = null;
+        }
+      }
+    }
     res.json({ ok: true, reviews: rows });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -4756,6 +4771,55 @@ function mcReadRecentDecisions(maxEntries) {
 // runs ~6am ET; before that, the previous day's brief is the most recent).
 
 const MC_BRIEF_REPORTS_DIR = path.resolve(path.join(__dirname, 'reports'));
+
+// Read the brief file for a specific date. Returns { content, filename } or null.
+// T-036g: extracted from mcReadMorningBriefFile so each daily_reviews row can
+// look up its own date's brief.
+function mcReadBriefFileForDate(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr))) return null;
+  const filename = `cos-morning-brief-${dateStr}.md`;
+  const resolved = path.resolve(path.join(MC_BRIEF_REPORTS_DIR, filename));
+  if (resolved !== MC_BRIEF_REPORTS_DIR && !resolved.startsWith(MC_BRIEF_REPORTS_DIR + path.sep)) return null;
+  try {
+    const content = fs.readFileSync(resolved, 'utf8');
+    return { content, filename };
+  } catch (_) {
+    return null;
+  }
+}
+
+// T-036g: full read + parse pipeline for a single date. Used by the
+// /api/daily-reviews handler to attach the brief to each row.
+function mcReadAndParseBriefForDate(dateStr) {
+  const file = mcReadBriefFileForDate(dateStr);
+  if (!file) return null;
+  const { frontmatter, body } = mcSplitFrontmatter(file.content);
+  const { headline, subheader, sections } = mcParseBriefSections(body);
+  const normalize = (label) => label.replace(/\s*\(.*?\)\s*$/, '').toLowerCase().trim();
+  const sectionByNorm = {};
+  for (const [label, content] of Object.entries(sections)) {
+    sectionByNorm[normalize(label)] = content;
+  }
+  const get = (norm) => sectionByNorm[norm] || '';
+  const topTenMd = get('top 10 for today') || get('top 10');
+  return {
+    file: file.filename,
+    date: dateStr,
+    frontmatter,
+    headline,
+    subheader,
+    sections: {
+      today_looks_like: get('today looks like'),
+      top_10: mcParseTopTen(topTenMd),
+      needs_michele: get('needs michele'),
+      carry_forward: get('carry-forward'),
+      bucket_counts: get('bucket counts'),
+      maturity_refresh: get('maturity refresh'),
+      what_landed: get('what landed yesterday'),
+      data_hygiene: get('data hygiene flags'),
+    },
+  };
+}
 
 function mcReadMorningBriefFile() {
   // Single Date instance — avoids the (astronomical) midnight-straddle case

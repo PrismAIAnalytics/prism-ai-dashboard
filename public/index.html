@@ -4037,7 +4037,20 @@ function inlineMd(text) {
 // (3) muted "no Top 10 captured" hint. The heuristic gives Michele a Top 10
 // today even before T-036d ships the orchestrator change.
 function extractTopTen(review) {
-  // Path 1: structured JSON column (T-036d)
+  // T-036g: Path 0 — attached morning brief from /api/daily-reviews. The brief
+  // is the canonical Top 10 source; the daily_reviews.summary heuristic is the
+  // fallback for legacy days where no brief file exists.
+  if (review.attached_brief && Array.isArray(review.attached_brief.sections?.top_10) && review.attached_brief.sections.top_10.length > 0) {
+    // Map the brief's { n, markdown } items to the same shape as the heuristic's
+    // { n, text } so renderTopTen handles both uniformly. The brief items use
+    // `markdown` (full editorial bold-lead + prose), so we feed it as `text`.
+    const items = review.attached_brief.sections.top_10.slice(0, 10).map(it => ({
+      n: it.n,
+      text: it.markdown,
+    }));
+    return { items, source: 'attached_brief', remainderSummary: review.summary || '' };
+  }
+  // Path 1: structured JSON column (T-036d future state)
   if (review.top_10) {
     try {
       const parsed = typeof review.top_10 === 'string' ? JSON.parse(review.top_10) : review.top_10;
@@ -4122,7 +4135,7 @@ function renderReviewSection(label, icon, content, color, sectionKey, reviewDate
   </div>`;
 }
 
-function renderReviewCard(r, docs) {
+function renderReviewCard(r, docs, openByDefault) {
   const d = new Date(r.review_date + 'T12:00:00');
   // Short editorial date format: "Thu · May 21" + muted year suffix
   const shortDay = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -4183,27 +4196,43 @@ function renderReviewCard(r, docs) {
       </div>`
     : '';
 
-  return `<div id="review-${safeDateAttr}" class="card eod-card">
-    <div class="eod-header">
-      <div class="eod-header-left">
-        <span class="eod-header-date">${shortDay}</span><span class="eod-header-year">, ${year}</span>
-        ${sprintInfo ? `<span class="eod-header-sprint">${sprintInfo}</span>` : ''}
-      </div>
+  // T-036g: each day is its own <details> collapsible. The most-recent day is
+  // open by default (passed via openByDefault); older days closed. The header
+  // strip moves into <summary> so the date + sprint chip act as the click target.
+  // The Link Document button is moved INTO the body to avoid swallowing the
+  // summary click (clicking the button would toggle the details otherwise).
+  const openAttr = openByDefault ? ' open' : '';
+  // Top 10 source label — helps debugging when "no Top 10" appears
+  const sourceLabel = top.source === 'attached_brief' ? 'morning brief' :
+                      top.source === 'structured' ? 'structured' :
+                      top.source === 'heuristic' ? 'summary heuristic' : '';
+  const sourceChipHtml = sourceLabel
+    ? `<span class="eod-top10-source">${escapeHtml(sourceLabel)}</span>`
+    : '';
+
+  return `<details id="review-${safeDateAttr}" class="eod-day card eod-card"${openAttr}>
+    <summary class="eod-day-summary">
+      <span class="eod-day-chevron">&#9654;</span>
+      <span class="eod-header-date">${shortDay}</span><span class="eod-header-year">, ${year}</span>
+      ${sprintInfo ? `<span class="eod-header-sprint">${sprintInfo}</span>` : ''}
+      ${top.items.length > 0 ? `<span class="eod-day-top10-count">Top 10 &middot; ${top.items.length}</span>` : ''}
+    </summary>
+    <div class="eod-day-body">
       <div class="eod-header-right">
         <button class="btn-sm eod-link-doc" onclick="openDocModalForDate(decodeURIComponent('${safeDate}'))">&#128206; Link Document</button>
       </div>
+      <div class="eod-seam"></div>
+      <div class="eod-top10">
+        <div class="eod-zone-label">Top 10 ${sourceChipHtml}</div>
+        ${top10Html}
+      </div>
+      ${sectionsHtml}
+      ${narrativeHtml}
+      ${emptyHtml}
+      <div id="review-docs-${safeDateAttr}" class="eod-docs"></div>
+      ${sourcesHtml}
     </div>
-    <div class="eod-seam"></div>
-    <div class="eod-top10">
-      <div class="eod-zone-label">Top 10</div>
-      ${top10Html}
-    </div>
-    ${sectionsHtml}
-    ${narrativeHtml}
-    ${emptyHtml}
-    <div id="review-docs-${safeDateAttr}" class="eod-docs"></div>
-    ${sourcesHtml}
-  </div>`;
+  </details>`;
 }
 
 // Render docs that are linked to a date but have NO section (general/unsectioned artifacts)
@@ -4762,7 +4791,8 @@ loaders['daily-agenda'] = async () => {
     return;
   }
 
-  $('#daily-review-list').innerHTML = reviews.map(r => renderReviewCard(r, allDocuments)).join('');
+  // T-036g: open the most-recent day's card by default; older days closed.
+  $('#daily-review-list').innerHTML = reviews.map((r, i) => renderReviewCard(r, allDocuments, i === 0)).join('');
 
   // Render unsectioned docs (linked to date but no specific section) under each review card
   reviews.forEach(r => renderUnsectionedDocs(r.review_date, allDocuments));
