@@ -4748,6 +4748,142 @@ function mcReadRecentDecisions(maxEntries) {
   return out;
 }
 
+// ─── Morning Brief parser (T-036e) ─────────────────────────────────────────
+// Reads today's cos-morning-brief-YYYY-MM-DD.md from the dashboard's reports/
+// directory (the orchestrator's Step 6 writes it daily). Parses by H2 section
+// header, returns structured data for the Daily Agenda's Morning Brief surface.
+// Yesterday fallback when today's brief hasn't been written yet (orchestrator
+// runs ~6am ET; before that, the previous day's brief is the most recent).
+
+const MC_BRIEF_REPORTS_DIR = path.resolve(path.join(__dirname, 'reports'));
+
+function mcReadMorningBriefFile() {
+  // Single Date instance — avoids the (astronomical) midnight-straddle case
+  // where today and yesterday could be computed from different ms timestamps.
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const yesterday = y.toISOString().slice(0, 10);
+  for (const d of [today, yesterday]) {
+    const filename = `cos-morning-brief-${d}.md`;
+    // Containment — filename is server-derived (ISO date) but defense in depth:
+    // resolve and check the result stays inside MC_BRIEF_REPORTS_DIR.
+    const resolved = path.resolve(path.join(MC_BRIEF_REPORTS_DIR, filename));
+    if (resolved !== MC_BRIEF_REPORTS_DIR && !resolved.startsWith(MC_BRIEF_REPORTS_DIR + path.sep)) continue;
+    try {
+      const content = fs.readFileSync(resolved, 'utf8');
+      return { date: d, content, filename, isToday: d === today };
+    } catch (_) { /* try yesterday */ }
+  }
+  return null;
+}
+
+// Strip YAML frontmatter (`---\n...\n---\n`) and return { frontmatter, body }.
+// Tolerates CRLF line endings (orchestrator runs on Windows) and missing trailing newline.
+function mcSplitFrontmatter(text) {
+  const fmMatch = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n([\s\S]*))?$/);
+  if (!fmMatch) return { frontmatter: {}, body: text };
+  const fm = {};
+  for (const line of fmMatch[1].split(/\r?\n/)) {
+    const kv = line.match(/^\s*([^:]+?)\s*:\s*(.*?)\s*$/);
+    if (kv) fm[kv[1]] = kv[2];
+  }
+  return { frontmatter: fm, body: fmMatch[2] || '' };
+}
+
+// Split body by H2 sections. Returns { headline, subheader, sections: {label: content} }.
+function mcParseBriefSections(body) {
+  const lines = body.split('\n');
+  const sections = {};
+  let headline = null;
+  let subheader = null;
+  let currentLabel = null;
+  let currentLines = [];
+
+  const flush = () => {
+    if (currentLabel) sections[currentLabel] = currentLines.join('\n').trim();
+    currentLines = [];
+  };
+
+  for (const line of lines) {
+    const h1 = line.match(/^#\s+(.+?)\s*$/);
+    if (h1 && !headline) { headline = h1[1].trim(); continue; }
+    // Italicized subheader like *Sprint Day 64 of 91 · Week 10*
+    const sh = line.match(/^\*([^*\n].+?[^*\n])\*\s*$/);
+    if (sh && !subheader && !currentLabel) { subheader = sh[1].trim(); continue; }
+    const h2 = line.match(/^##\s+(.+?)\s*$/);
+    if (h2) {
+      flush();
+      currentLabel = h2[1].trim();
+      continue;
+    }
+    if (currentLabel) currentLines.push(line);
+  }
+  flush();
+  return { headline, subheader, sections };
+}
+
+// Parse the Top 10 list — each item is one paragraph starting with `\d+. **bold lead.**` then prose.
+// Items are separated by blank lines.
+function mcParseTopTen(top10Md) {
+  if (!top10Md) return [];
+  // Split on blank-line boundaries, then parse each block.
+  const blocks = top10Md.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  const items = [];
+  for (const block of blocks) {
+    const m = block.match(/^(\d+)\.\s+([\s\S]+)$/);
+    if (m) items.push({ n: parseInt(m[1], 10), markdown: m[2].trim() });
+    if (items.length >= 10) break;
+  }
+  return items;
+}
+
+app.get('/api/mission-control/morning-brief', requireAuth, (req, res) => {
+  try {
+    const file = mcReadMorningBriefFile();
+    if (!file) {
+      return res.json({ ok: true, available: false, message: 'No morning brief found for today or yesterday.' });
+    }
+    const { frontmatter, body } = mcSplitFrontmatter(file.content);
+    const { headline, subheader, sections } = mcParseBriefSections(body);
+
+    // Normalize known section labels — strip trailing "(...)" parentheticals so we can match consistently
+    const normalize = (label) => label.replace(/\s*\(.*?\)\s*$/, '').toLowerCase().trim();
+    const sectionByNorm = {};
+    for (const [label, content] of Object.entries(sections)) {
+      sectionByNorm[normalize(label)] = { label, content };
+    }
+
+    const get = (norm) => sectionByNorm[norm]?.content || '';
+    const topTenMd = get('top 10 for today') || get('top 10');
+
+    res.json({
+      ok: true,
+      available: true,
+      file: file.filename,
+      date: file.date,
+      is_today: file.isToday,
+      frontmatter,
+      headline,
+      subheader,
+      sections: {
+        today_looks_like: get('today looks like'),
+        top_10: mcParseTopTen(topTenMd),
+        needs_michele: get('needs michele'),
+        carry_forward: get('carry-forward'),
+        bucket_counts: get('bucket counts'),
+        maturity_refresh: get('maturity refresh'),
+        what_landed: get('what landed yesterday'),
+        data_hygiene: get('data hygiene flags'),
+      },
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[mission-control/morning-brief] failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/mission-control/today', requireAuth, async (req, res) => {
   try {
     const today = new Date().toISOString().slice(0, 10);
