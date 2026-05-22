@@ -4094,9 +4094,16 @@ function renderReviewSection(label, icon, content, color, sectionKey, reviewDate
 
   // Parse markdown in category content so the orchestrator's `**bold**` / `- bullets`
   // render correctly even when it routes content to the right column.
+  // T-036c security review: escape reviewDate + sectionKey before they flow into
+  // the onclick string (defense-in-depth — server-side regex validation in
+  // POST /api/daily-reviews is the primary gate, but the field passes through
+  // SQLite where we can't assume it'll always be well-formed). Use single-quote
+  // JS-string-safe escaping for the onclick argument.
+  const safeReviewDate = encodeURIComponent(String(reviewDate || ''));
+  const safeSectionKey = encodeURIComponent(String(sectionKey || ''));
   const contentHtml = content ? `<div class="eod-cat-body">${parseMiniMarkdown(content)}</div>` : '';
   const docsHtml = sectionDocs.length > 0 ? sectionDocs.map(d => renderInlineDoc(d)).join('') : '';
-  const addBtn = `<button class="btn-sm eod-cat-add" onclick="openDocModalForDate('${reviewDate}','${sectionKey}')" title="Link a document to this section">+</button>`;
+  const addBtn = `<button class="btn-sm eod-cat-add" onclick="openDocModalForDate(decodeURIComponent('${safeReviewDate}'),decodeURIComponent('${safeSectionKey}'))" title="Link a document to this section">+</button>`;
 
   return `<div class="eod-cat-card" style="--cat-color:${color || 'var(--sky)'}">
     <div class="eod-cat-label">${icon} ${label} ${addBtn}</div>
@@ -4110,7 +4117,13 @@ function renderReviewCard(r, docs) {
   // Short editorial date format: "Thu · May 21" + muted year suffix
   const shortDay = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   const year = d.getFullYear();
-  const sprintInfo = r.sprint_day ? `Sprint Day ${r.sprint_day}` + (r.sprint_week ? ` &middot; Wk ${r.sprint_week}` : '') : '';
+  // T-036c security review: integer-coerce sprint fields before they flow into
+  // HTML — defense-in-depth on top of the POST validators in server.js.
+  const sprintDayNum = Number.isFinite(Number(r.sprint_day)) ? Math.trunc(Number(r.sprint_day)) : null;
+  const sprintWeekNum = Number.isFinite(Number(r.sprint_week)) ? Math.trunc(Number(r.sprint_week)) : null;
+  const sprintInfo = sprintDayNum != null
+    ? `Sprint Day ${sprintDayNum}` + (sprintWeekNum != null ? ` &middot; Wk ${sprintWeekNum}` : '')
+    : '';
 
   // Zone 1: Top 10 (extracted from top_10 JSON or summary heuristic)
   const top = extractTopTen(r);
@@ -4137,8 +4150,16 @@ function renderReviewCard(r, docs) {
     ? '<div class="eod-empty">No updates recorded for this day.</div>'
     : '';
 
+  // T-036c security review: review_date flows into multiple `id="..."` attributes
+  // and an inline `onclick="...('...')"` string. Server-side POST validation now
+  // enforces strict YYYY-MM-DD format (per `body('review_date').matches(...)` in
+  // server.js), but as defense-in-depth we also escape here so any non-conforming
+  // legacy row in SQLite cannot break out of the attribute or JS string.
+  const safeDate = encodeURIComponent(String(r.review_date || ''));
+  const safeDateAttr = escapeHtml(String(r.review_date || ''));
+
   // Sources Reviewed (existing collapsible — preserved, just restyled inline)
-  const srcId = 'src-' + r.review_date;
+  const srcId = 'src-' + safeDateAttr;
   const sourcesText = r.sources_reviewed
     ? escapeHtml(r.sources_reviewed).replace(/\.\s+(?=[A-Z])/g, '.<br>').replace(/\n/g, '<br>')
     : '';
@@ -4152,14 +4173,14 @@ function renderReviewCard(r, docs) {
       </div>`
     : '';
 
-  return `<div id="review-${r.review_date}" class="card eod-card">
+  return `<div id="review-${safeDateAttr}" class="card eod-card">
     <div class="eod-header">
       <div class="eod-header-left">
         <span class="eod-header-date">${shortDay}</span><span class="eod-header-year">, ${year}</span>
         ${sprintInfo ? `<span class="eod-header-sprint">${sprintInfo}</span>` : ''}
       </div>
       <div class="eod-header-right">
-        <button class="btn-sm eod-link-doc" onclick="openDocModalForDate('${r.review_date}')">&#128206; Link Document</button>
+        <button class="btn-sm eod-link-doc" onclick="openDocModalForDate(decodeURIComponent('${safeDate}'))">&#128206; Link Document</button>
       </div>
     </div>
     <div class="eod-seam"></div>
@@ -4170,7 +4191,7 @@ function renderReviewCard(r, docs) {
     ${sectionsHtml}
     ${narrativeHtml}
     ${emptyHtml}
-    <div id="review-docs-${r.review_date}" class="eod-docs"></div>
+    <div id="review-docs-${safeDateAttr}" class="eod-docs"></div>
     ${sourcesHtml}
   </div>`;
 }
@@ -4507,14 +4528,10 @@ loaders['prism-studio'] = async () => {
 // HTML escape for server-sourced content that flows into innerHTML. The vault is
 // written by Chloe/Michele (not arbitrary users) but defensive escaping protects
 // against a malicious headline accidentally landing in a daily log or brief.
-function escHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+// T-036c: unified to alias the canonical escapeHtml defined earlier with the
+// REVIEW_SECTIONS constants — two parallel implementations was a maintenance
+// hazard per code-reviewer.
+const escHtml = escapeHtml;
 
 function renderAgendaTiles(tiles) {
   const t = tiles || {};

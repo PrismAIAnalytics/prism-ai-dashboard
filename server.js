@@ -4074,7 +4074,15 @@ app.get('/api/daily-reviews/:date', requireAuth, (req, res) => {
 
 // POST — create or update a daily review (upsert by date)
 app.post('/api/daily-reviews', [
-  body('review_date').trim().notEmpty().withMessage('review_date is required'),
+  // T-036c security review: review_date is rendered into HTML attributes and an
+  // inline onclick string by renderReviewCard. Strict ISO-date format
+  // validation prevents stored-XSS via crafted values like `'); alert(1); ('`.
+  body('review_date').trim().notEmpty().withMessage('review_date is required')
+    .matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('review_date must be YYYY-MM-DD'),
+  body('sprint_day').optional({ nullable: true, checkFalsy: true })
+    .isInt({ min: 1, max: 366 }).withMessage('sprint_day must be an integer 1-366'),
+  body('sprint_week').optional({ nullable: true, checkFalsy: true })
+    .isInt({ min: 1, max: 53 }).withMessage('sprint_week must be an integer 1-53'),
 ], handleValidation, (req, res) => {
   try {
     const { review_date, sprint_day, sprint_week, clients_revenue, sprint_progress,
