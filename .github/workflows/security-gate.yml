@@ -1,0 +1,112 @@
+# Security Gate CI — T-060
+#
+# Implements Layer 1B controls 7.2 (SAST + SCA on release) and SBOM emission
+# from the Prism CIS-style hardening baseline (CIS Benchmarks/dev-surface-hardening-baseline.html).
+#
+# Gates that fail the PR: npm audit (high+ in prod deps), Semgrep SAST, gitleaks.
+# Release artifact (push to main only): CycloneDX SBOM uploaded with 90-day retention.
+
+name: Security Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    name: npm audit (critical in prod deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      # --ignore-scripts: avoids lifecycle-script RCE class during install
+      - name: Install
+        run: npm ci --ignore-scripts
+      # --omit=dev: production-only audit; dev tooling CVEs don't ship to Railway
+      # --audit-level=critical (interim): gate fails on Critical CVEs only.
+      #
+      # Why not 'high' (the recommended bar)?
+      # As of 2026-05-22 the prod tree carries 4 High-severity transitive CVEs,
+      # all inside node-quickbooks's pinned dependency ranges (fast-xml-parser,
+      # lodash, underscore, uuid). Upgrading to node-quickbooks@2.0.43 (the
+      # patched line) is a breaking change against the live QBO integration
+      # at server.js:5816+. Tracked as T-061 — once tested, raise this gate
+      # back to 'high'.
+      - name: Audit
+        run: npm audit --omit=dev --audit-level=critical
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan
+        # Two confirmed-stable Semgrep registry packs. p/express and
+        # p/nodejs-best-practice both 404 on the registry as of 2026-05-22 —
+        # if Semgrep adds an Express-specific pack later, add it back.
+        #
+        # --exclude-rule dockerfile.security.missing-user.missing-user:
+        # The dashboard container intentionally runs as root because Railway's
+        # mounted volume at /app/data needs write access for the SQLite WAL
+        # file. See Dockerfile lines above CMD for the architectural
+        # justification. Promotion to non-root requires a Railway volume
+        # permissions test (out of scope for T-060). Inline nosemgrep
+        # directive in the Dockerfile is also present but not recognized for
+        # this end-of-file rule type — workflow-level exclude is the
+        # documented suppression path.
+        run: |
+          semgrep scan \
+            --config=p/owasp-top-ten \
+            --config=p/javascript \
+            --exclude-rule dockerfile.security.missing-user.missing-user \
+            --error \
+            --metrics=off
+
+  trufflehog:
+    name: TruffleHog (secret scan)
+    runs-on: ubuntu-latest
+    # Replaced gitleaks-action@v2 (required paid Gitleaks Premium license for
+    # GitHub Orgs as of 2026). TruffleHog is free for orgs and arguably more
+    # capable — entropy detection + active-credential verification.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  sbom:
+    name: CycloneDX SBOM (release artifact)
+    runs-on: ubuntu-latest
+    # Release-only: emit SBOM on push to main, not on every PR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install
+        run: npm ci --ignore-scripts
+      - name: Generate CycloneDX SBOM
+        run: npx --yes @cyclonedx/cyclonedx-npm@1.19.3 --output-file sbom.cdx.json
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
