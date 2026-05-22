@@ -7,6 +7,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "import:crm": "node import-excel-crm.js",
+    "snapshot:tickets": "node scripts/snapshot-tickets.js",
     "test": "node --test test/notionAdapter.contract.test.js"
   },
   "engines": {

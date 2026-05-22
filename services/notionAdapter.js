@@ -493,6 +493,7 @@ function makeAdapter(getEnv = () => process.env) {
         byStatus: counts('status'),
         byPriority: counts('priority'),
         byType: counts('ticket_type'),
+        byCategory: counts('category'),
         overdue: tickets.filter(t => t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled').length,
         completedThisWeek: tickets.filter(t => t.completed_date && t.completed_date >= weekAgo).length,
         total: tickets.length,
