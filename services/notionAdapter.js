@@ -304,6 +304,23 @@ async function notionUpdatePage({ apiKey, pageId, properties }) {
   return r.json();
 }
 
+async function notionGetPage({ apiKey, pageId }) {
+  const r = await fetch(`${NOTION_API}/pages/${pageId}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Notion-Version': NOTION_VERSION,
+    },
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`notion get failed: ${r.status} ${j.code || ''} ${j.message || ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
 async function notionArchivePage({ apiKey, pageId }) {
   const r = await fetch(`${NOTION_API}/pages/${pageId}`, {
     method: 'PATCH',
@@ -511,10 +528,15 @@ function makeAdapter(getEnv = () => process.env) {
   async function updateTicket(pageId, updates) {
     const { apiKey } = ensureCreds();
     const properties = dashboardToNotionProperties(updates);
+    // Empty properties = caller-supplied fields all have no Notion equivalent in
+    // this schema (description, tags, notion_page_id, ticket_type, etc.). In
+    // Notion-source mode notion_page_id is identity and description has no
+    // mapped property, so these are legitimate no-ops rather than 400-worthy.
+    // Return the current page state so callers (sync-tasks linkBack,
+    // business-health-eval progress_update) get a sane 200 response.
     if (Object.keys(properties).length === 0) {
-      const e = new Error('updateTicket: no mappable fields in updates');
-      e.status = 400;
-      throw e;
+      const page = await notionGetPage({ apiKey, pageId });
+      return notionPageToTicket(page);
     }
     const page = await notionUpdatePage({ apiKey, pageId, properties });
     invalidate();
@@ -557,10 +579,13 @@ function makeAdapter(getEnv = () => process.env) {
       status: updates.status,
       action_item_id: updates.action_item_id,
     });
+    // Same no-op semantics as updateTicket — see comment there. Action items
+    // share the underlying Notion page, so unmappable-fields-only updates
+    // (urgency, priority numeric, tools_to_use, completed_at) return current
+    // state rather than 400.
     if (Object.keys(properties).length === 0) {
-      const e = new Error('updateActionItem: no mappable fields in updates');
-      e.status = 400;
-      throw e;
+      const page = await notionGetPage({ apiKey, pageId });
+      return notionPageToActionItem(page) || notionPageToTicket(page);
     }
     const page = await notionUpdatePage({ apiKey, pageId, properties });
     invalidate();
