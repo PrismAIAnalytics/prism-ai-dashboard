@@ -67,4 +67,11 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 
 EXPOSE ${PORT}
 
+# nosemgrep: dockerfile.security.missing-user.missing-user
+# Suppression rationale: the container intentionally runs as root so the
+# Railway-mounted volume at /app/data is writable for the SQLite WAL file.
+# See the architectural note at line 56 above. Railway provides container
+# isolation at the platform level (gVisor / Firecracker per their runtime).
+# Promotion to non-root is tracked separately and requires a Railway volume
+# permissions test before flipping.
 CMD ["node", "server.js"]
