@@ -1,0 +1,133 @@
+{
+  "_doc": "Excel → Notion 'Content Calendar' migration mapping for T-044. Loaded by scripts/migrate-content-calendar.js. See docs/content-calendar-schema.md for the Notion property contract. See PRISM-Vault/Admin/CoS/decisions-log.md (2026-05-21) for the multi-select Platform + Linked Asset split resolutions, and the non-data-row skip rules.",
+  "version": 1,
+
+  "sheet_filter": {
+    "_doc": "A sheet is processed only if its first 10 rows contain a row matching this header sequence (case-insensitive, whitespace-trimmed). Sheets that don't match (Overview / KPIs / Tooling & Budget / Pod Roles) are skipped with a 'no-header' note in the report.",
+    "header_row_signature": ["Date", "Day", "Channel", "Format", "Topic / Title", "CTA", "Status", "Notes"]
+  },
+
+  "non_data_row_rules": {
+    "_doc": "Per resolved 2026-05-21 — T-044 skips rows where column A spans all 8 columns (section header), or where columns B–H are all NULL.",
+    "skip_if_column_a_spans_all": true,
+    "skip_if_columns_b_through_h_all_null": true
+  },
+
+  "column_to_property": {
+    "_doc": "Maps Excel column header → Notion property. Unmapped values fall to the named default and surface in the report's 'Unmapped values' section so Michele can spot-check.",
+
+    "Date": {
+      "notion_property": "Publish Date",
+      "notion_type": "date",
+      "transform": "parse_date",
+      "required": true
+    },
+    "Day": {
+      "notion_property": "Series",
+      "notion_type": "rich_text",
+      "transform": "trim",
+      "_note": "Excel column is labeled 'Day' but the contents are phase tags ('Foundation', 'Pre-Launch', 'Launch Week', etc.) — closer to a Series tag than a weekday."
+    },
+    "Channel": {
+      "notion_property": "Platform",
+      "notion_type": "multi_select",
+      "transform": "parse_platforms"
+    },
+    "Format": {
+      "notion_property": "Type",
+      "notion_type": "select",
+      "transform": "map_type",
+      "default_on_unmapped": "Other"
+    },
+    "Topic / Title": {
+      "notion_property": "Title",
+      "notion_type": "title",
+      "transform": "trim",
+      "required": true
+    },
+    "CTA": {
+      "notion_property": null,
+      "include_in_body": true,
+      "body_label": "CTA"
+    },
+    "Status": {
+      "notion_property": "Status",
+      "notion_type": "select",
+      "transform": "map_status",
+      "default_on_unmapped": "Draft"
+    },
+    "Notes": {
+      "notion_property": null,
+      "include_in_body": true,
+      "body_label": "Notes"
+    }
+  },
+
+  "platform_map": {
+    "_doc": "Split Channel cell on '/' and '+', strip parentheticals (everything from '(' onward), trim, then look up. Format-as-platform aliases (Shorts → YouTube, Reels → Instagram, LinkedIn Live → LinkedIn) are intentional: in the Excel calendar these are written as channels but they're really platform-bound formats. Unmapped values default to N/A and surface in the report.",
+    "LinkedIn": "LinkedIn",
+    "LinkedIn Live": "LinkedIn",
+    "X": "X",
+    "Twitter": "X",
+    "TikTok": "TikTok",
+    "Instagram": "Instagram",
+    "IG": "Instagram",
+    "Reels": "Instagram",
+    "Threads": "Threads",
+    "Bluesky": "Bluesky",
+    "Website": "Website",
+    "Email": "Email",
+    "Beehiiv": "Email",
+    "Newsletter": "Email",
+    "Press": null,
+    "Spotify": "Spotify",
+    "YouTube": "YouTube",
+    "YT": "YouTube",
+    "YT Shorts": "YouTube",
+    "Shorts": "YouTube",
+    "Buffer": "N/A",
+    "Metricool": "N/A",
+    "Internal": "N/A",
+    "Zoom": null,
+    "All channels": null,
+    "Charlotte network": null,
+    "—": null,
+    "N/A": "N/A"
+  },
+
+  "type_map": {
+    "_doc": "Format cell → Notion Type. Unmapped → 'Other' (logged in report).",
+    "Founder post": "Social",
+    "Native video": "Social",
+    "Carousel": "Social",
+    "Short": "Social",
+    "Shorts": "Social",
+    "Reel": "Social",
+    "Story": "Social",
+    "Blog": "Blog",
+    "Article": "Blog",
+    "Newsletter": "Newsletter",
+    "Email": "Newsletter",
+    "Podcast": "Podcast",
+    "Podcast Episode": "Podcast",
+    "Anchor Video": "Other",
+    "ANCHOR VIDEO": "Other",
+    "Lead Magnet": "Other",
+    "Internal": "Other",
+    "Setup": "Other",
+    "Repurpose": "Social"
+  },
+
+  "status_map": {
+    "_doc": "Excel Status → Notion Status. 'Planned' is the Excel default; T-044 maps it to Notion 'Draft' (committed to a date but not yet published).",
+    "Planned": "Draft",
+    "Draft": "Draft",
+    "Scheduled": "Scheduled",
+    "Live": "Published",
+    "Published": "Published",
+    "Done": "Published",
+    "Cancelled": "Cancelled",
+    "Canceled": "Cancelled",
+    "Skipped": "Cancelled"
+  }
+}
