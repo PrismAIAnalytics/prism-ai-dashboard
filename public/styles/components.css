@@ -745,6 +745,73 @@ body.prism-themed .eod-docs { margin-top: var(--space-3); }
   body.prism-themed .eod-cat-card { padding: var(--space-2) var(--space-3); }
 }
 
+/* — Per-day collapsible (T-036g) — */
+/* Each daily review card is its own <details> inside the End of Day parent.
+   Latest day open by default; older days closed. Summary acts as the click
+   target; body holds the Top 10 + categories + narrative + sources. */
+body.prism-themed .eod-day {
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: var(--space-3);
+}
+body.prism-themed .eod-day > summary.eod-day-summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+}
+body.prism-themed .eod-day > summary.eod-day-summary::-webkit-details-marker { display: none; }
+body.prism-themed .eod-day-chevron {
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform var(--dur-fast, 150ms) var(--ease-out, ease-out);
+  display: inline-block;
+  flex-shrink: 0;
+}
+body.prism-themed .eod-day[open] .eod-day-chevron { transform: rotate(90deg); }
+body.prism-themed .eod-day-summary:hover {
+  background: rgba(189, 201, 221, 0.03);
+}
+body.prism-themed .eod-day-top10-count {
+  margin-left: auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--gold);
+  font-weight: var(--weight-semibold);
+  padding: 2px 8px;
+  border: 1px solid rgba(200, 164, 90, 0.30);
+  border-radius: var(--radius-pill, 999px);
+  background: rgba(200, 164, 90, 0.06);
+}
+body.prism-themed .eod-day-body {
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+body.prism-themed .eod-day-body .eod-header-right {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+/* — Top 10 source label (which path extracted the items) — */
+body.prism-themed .eod-top10-source {
+  margin-left: var(--space-2);
+  font-size: 9px;
+  text-transform: lowercase;
+  letter-spacing: 0.2px;
+  color: var(--text-dim);
+  font-weight: var(--weight-medium);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill, 999px);
+  background: rgba(189, 201, 221, 0.06);
+  vertical-align: middle;
+}
+
 /* ---------- Morning Brief surface (T-036e) ---------- */
 /* Above-the-fold Top 10 + collapsible Needs/Carry/Maturity/etc. sections.
    Source: reports/cos-morning-brief-YYYY-MM-DD.md parsed by the
