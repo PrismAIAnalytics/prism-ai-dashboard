@@ -1022,15 +1022,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <p id="agenda-context-line">Loading today's view…</p>
       </div>
 
-      <!-- Today panel: 4 tiles -->
-      <div class="kpi-grid" id="agenda-tiles" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
-
-      <!-- Today section: Daily Log headline + Chloe brief headline + escalations -->
-      <div class="card" id="agenda-today-card" style="margin-bottom:20px">
-        <h3 style="margin:0 0 12px;font-size:14px;color:var(--text);letter-spacing:0.3px">Today</h3>
-        <div id="agenda-today-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
-      </div>
-
       <!-- Morning Brief surface (T-036e) — parsed from reports/cos-morning-brief-YYYY-MM-DD.md.
            Top 10 above the fold; Needs Michele / Carry-forward / Maturity / What Landed / Data Hygiene below as collapsibles. -->
       <div id="agenda-brief" class="brief-card">
@@ -4572,41 +4563,9 @@ loaders['prism-studio'] = async () => {
 // hazard per code-reviewer.
 const escHtml = escapeHtml;
 
-function renderAgendaTiles(tiles) {
-  const t = tiles || {};
-  const urgent = t.urgent_due_today ?? 0;
-  const overdue = t.overdue ?? 0;
-  const inProgress = t.in_progress_count ?? 0;
-  const ipBreakdown = escHtml(t.in_progress_breakdown || '');
-  const needsDecision = t.needs_decision ?? 0;
-  const overdueColor = overdue > 0 ? 'var(--red)' : 'var(--text)';
-  const urgentColor = urgent > 0 ? 'var(--amber)' : 'var(--text)';
-  const ndColor = needsDecision > 0 ? 'var(--amber)' : 'var(--text)';
-  $('#agenda-tiles').innerHTML = `
-    <div class="kpi"><div class="label">Urgent &amp; Due Today</div><div class="value" style="color:${urgentColor}">${urgent}</div></div>
-    <div class="kpi"><div class="label">Overdue</div><div class="value" style="color:${overdueColor}">${overdue}</div></div>
-    <div class="kpi"><div class="label">In Progress</div><div class="value">${inProgress}</div>${ipBreakdown ? `<div class="sub">${ipBreakdown}</div>` : ''}</div>
-    <div class="kpi"><div class="label">Needs Decision</div><div class="value" style="color:${ndColor}">${needsDecision}</div></div>
-  `;
-}
-
-function renderAgendaToday(ctx) {
-  const c = ctx || {};
+function setAgendaContextLine() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
   $('#agenda-context-line').textContent = `${today} — what needs your attention.`;
-  const parts = [];
-  if (c.daily_log_headline) {
-    parts.push(`<div><span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Daily Log</span><br>${escHtml(c.daily_log_headline)}</div>`);
-  }
-  if (c.brief_headline) {
-    parts.push(`<div style="margin-top:10px"><span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Chloe Morning Brief</span><br>${escHtml(c.brief_headline)}</div>`);
-  }
-  if (typeof c.escalation_count === 'number' && c.escalation_count > 0) {
-    parts.push(`<div style="margin-top:10px;color:var(--amber)">&#128993; Needs Michele: ${c.escalation_count} escalation${c.escalation_count === 1 ? '' : 's'}</div>`);
-  }
-  $('#agenda-today-body').innerHTML = parts.length
-    ? parts.join('')
-    : `<div style="color:var(--muted)">No daily log or brief found for today. Sync runs at 6 PM ET.</div>`;
 }
 
 function renderAgendaDecisions(decisions) {
@@ -4745,19 +4704,16 @@ function parseBucketChips(md) {
 }
 
 loaders['daily-agenda'] = async () => {
-  // Today panel — Mission Control aggregator (new in T-036). Endpoint may not exist
-  // on older deploys; degrade silently to empty tiles.
+  setAgendaContextLine();
+
+  // Recent Decisions — Mission Control aggregator. Tiles and Today card removed in T-058;
+  // endpoint still returns them but the client no longer consumes them (server-side trim is
+  // a possible followup). Endpoint may not exist on older deploys; degrade silently.
   try {
     const mc = await api('mission-control/today');
-    if (mc && !mc.error) {
-      renderAgendaTiles(mc.tiles);
-      renderAgendaToday(mc.todayContext);
-      renderAgendaDecisions(mc.recentDecisions);
-    } else {
-      renderAgendaTiles({}); renderAgendaToday({}); renderAgendaDecisions([]);
-    }
+    renderAgendaDecisions(mc && !mc.error ? mc.recentDecisions : []);
   } catch (e) {
-    renderAgendaTiles({}); renderAgendaToday({}); renderAgendaDecisions([]);
+    renderAgendaDecisions([]);
   }
 
   // Morning Brief surface — T-036e. Independent failure mode from Today aggregator.
