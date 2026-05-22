@@ -54,10 +54,21 @@ jobs:
         # Two confirmed-stable Semgrep registry packs. p/express and
         # p/nodejs-best-practice both 404 on the registry as of 2026-05-22 —
         # if Semgrep adds an Express-specific pack later, add it back.
+        #
+        # --exclude-rule dockerfile.security.missing-user.missing-user:
+        # The dashboard container intentionally runs as root because Railway's
+        # mounted volume at /app/data needs write access for the SQLite WAL
+        # file. See Dockerfile lines above CMD for the architectural
+        # justification. Promotion to non-root requires a Railway volume
+        # permissions test (out of scope for T-060). Inline nosemgrep
+        # directive in the Dockerfile is also present but not recognized for
+        # this end-of-file rule type — workflow-level exclude is the
+        # documented suppression path.
         run: |
           semgrep scan \
             --config=p/owasp-top-ten \
             --config=p/javascript \
+            --exclude-rule dockerfile.security.missing-user.missing-user \
             --error \
             --metrics=off
 
