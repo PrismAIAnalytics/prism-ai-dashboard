@@ -1031,6 +1031,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div id="agenda-today-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
       </div>
 
+      <!-- Morning Brief surface (T-036e) — parsed from reports/cos-morning-brief-YYYY-MM-DD.md.
+           Top 10 above the fold; Needs Michele / Carry-forward / Maturity / What Landed / Data Hygiene below as collapsibles. -->
+      <div id="agenda-brief" class="brief-card">
+        <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
+      </div>
+
       <!-- Recent Decisions ticker (last 24h) -->
       <div class="card" id="agenda-decisions-card" style="margin-bottom:20px">
         <h3 style="margin:0 0 12px;font-size:14px;color:var(--text);letter-spacing:0.3px">Recent Decisions <span style="font-size:11px;color:var(--muted);font-weight:400">— last 24h</span></h3>
@@ -4065,9 +4071,13 @@ function renderTopTen(extracted) {
   if (extracted.items.length === 0) {
     return `<div class="eod-top10-empty">No Top 10 captured for this day. <span class="muted-hint">(Orchestrator may have omitted it &mdash; see Narrative below.)</span></div>`;
   }
+  // T-036e: pass item text through inlineMd so **bold leads** and `code` render,
+  // matching the morning brief's editorial format (bold lead phrase followed by
+  // prose). inlineMd consumes the already-escaped string from escapeHtml, so the
+  // safe-by-construction defense is preserved.
   const rows = extracted.items.map((it, idx) => {
     const n = it.n != null ? String(it.n).padStart(2, '0') : String(idx + 1).padStart(2, '0');
-    const text = escapeHtml(it.text || '');
+    const text = inlineMd(escapeHtml(it.text || ''));
     const tag = it.tag ? `<span class="badge eod-top10-tag">${escapeHtml(it.tag)}</span>` : '';
     return `<div class="eod-top10-row"><span class="eod-top10-n">${n}</span><span class="eod-top10-text">${text}${tag}</span></div>`;
   }).join('');
@@ -4586,6 +4596,125 @@ function renderAgendaDecisions(decisions) {
   }).join('');
 }
 
+// ─── Morning Brief renderer (T-036e) ────────────────────────────────────────
+// Surfaces today's reports/cos-morning-brief-YYYY-MM-DD.md on the Daily Agenda
+// above the fold. Top 10 is the primary view; Needs Michele open-by-default;
+// Carry-forward / Maturity / What Landed / Data Hygiene as closed collapsibles.
+
+function renderAgendaBrief(brief) {
+  const el = document.getElementById('agenda-brief');
+  if (!el) return;
+  if (!brief || !brief.available) {
+    el.innerHTML = `<div class="brief-empty">No morning brief available. The orchestrator's Step 6 may not have run yet today.</div>`;
+    return;
+  }
+  const s = brief.sections || {};
+  const dateLabel = brief.is_today ? 'Today' : `${brief.date} (yesterday's brief — today's not yet written)`;
+  const headline = escapeHtml(brief.headline || 'Morning Brief');
+  const subheader = brief.subheader ? `<div class="brief-subheader">${escapeHtml(brief.subheader)}</div>` : '';
+
+  // "Today looks like" narrative
+  const today_html = s.today_looks_like
+    ? `<div class="brief-narrative">${parseMiniMarkdown(s.today_looks_like)}</div>`
+    : '';
+
+  // Top 10 — primary above-the-fold surface
+  const top10Html = renderBriefTopTen(s.top_10);
+
+  // Bucket counts as a chip strip
+  const buckets_html = s.bucket_counts
+    ? `<div class="brief-buckets">${parseBucketChips(s.bucket_counts)}</div>`
+    : '';
+
+  // Needs Michele — collapsible, open by default
+  const needs_html = s.needs_michele
+    ? renderBriefCollapsible('brief-needs', 'Needs Michele', s.needs_michele, true)
+    : '';
+
+  // Carry-forward / Maturity / What landed / Data hygiene — collapsibles, closed by default
+  const carry_html = s.carry_forward
+    ? renderBriefCollapsible('brief-carry', 'Carry-forward', s.carry_forward, false)
+    : '';
+  const maturity_html = s.maturity_refresh
+    ? renderBriefCollapsible('brief-maturity', 'Maturity refresh (last 24h)', s.maturity_refresh, false)
+    : '';
+  const landed_html = s.what_landed
+    ? renderBriefCollapsible('brief-landed', 'What landed yesterday', s.what_landed, false)
+    : '';
+  const hygiene_html = s.data_hygiene
+    ? renderBriefCollapsible('brief-hygiene', 'Data hygiene flags', s.data_hygiene, false)
+    : '';
+
+  el.innerHTML = `
+    <div class="brief-header">
+      <div class="brief-header-left">
+        <span class="brief-headline">${headline}</span>
+        ${subheader}
+      </div>
+      <span class="brief-date-chip">${escapeHtml(dateLabel)}</span>
+    </div>
+    ${today_html}
+    ${buckets_html}
+    <div class="brief-top10">
+      <div class="brief-zone-label">Top 10 for today</div>
+      ${top10Html}
+    </div>
+    ${needs_html}
+    ${carry_html}
+    ${maturity_html}
+    ${landed_html}
+    ${hygiene_html}
+  `;
+}
+
+function renderBriefTopTen(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (list.length === 0) {
+    return `<div class="brief-top10-empty">No Top 10 in today's brief. <span class="muted-hint">(Section may be missing or unparsed.)</span></div>`;
+  }
+  // Each item: bold lead phrase first sentence, then explanation prose. Render via
+  // parseMiniMarkdown so bold/italic/code inside the item's markdown all render.
+  return `<div class="brief-top10-list">${list.map((it, i) => {
+    const n = it.n != null ? String(it.n).padStart(2, '0') : String(i + 1).padStart(2, '0');
+    const body = parseMiniMarkdown(it.markdown || '');
+    return `<div class="brief-top10-row"><span class="brief-top10-n">${escapeHtml(n)}</span><div class="brief-top10-body">${body}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function renderBriefCollapsible(id, label, contentMd, openByDefault) {
+  const safeId = id.replace(/[^a-zA-Z0-9_-]/g, '');
+  const openAttr = openByDefault ? ' open' : '';
+  return `<details id="${safeId}" class="brief-section"${openAttr}>
+    <summary class="brief-section-summary">
+      <span class="brief-section-chevron">&#9654;</span>
+      <span class="brief-section-label">${escapeHtml(label)}</span>
+    </summary>
+    <div class="brief-section-body">${parseMiniMarkdown(contentMd)}</div>
+  </details>`;
+}
+
+// Parse Bucket counts into chips. Format in the brief:
+//   - **Overdue (open):** 59
+//   - **In progress:** 28
+//   - **Due this week (...):** 11 (...)
+//   - **Inbox captures:** 0 (...)
+//   - **Needs decision (Review status):** 0
+function parseBucketChips(md) {
+  if (!md) return '';
+  const lines = md.split('\n');
+  const chips = [];
+  for (const line of lines) {
+    const m = line.match(/^\s*-\s+\*\*([^:]+):\*\*\s+(\d+)/);
+    if (m) {
+      const label = m[1].trim().replace(/\s*\(.*?\)\s*/, '').trim();
+      const count = m[2];
+      const className = parseInt(count, 10) > 0 ? 'brief-chip brief-chip-active' : 'brief-chip';
+      chips.push(`<span class="${className}"><span class="brief-chip-label">${escapeHtml(label)}</span><span class="brief-chip-count">${escapeHtml(count)}</span></span>`);
+    }
+  }
+  return chips.join('');
+}
+
 loaders['daily-agenda'] = async () => {
   // Today panel — Mission Control aggregator (new in T-036). Endpoint may not exist
   // on older deploys; degrade silently to empty tiles.
@@ -4600,6 +4729,14 @@ loaders['daily-agenda'] = async () => {
     }
   } catch (e) {
     renderAgendaTiles({}); renderAgendaToday({}); renderAgendaDecisions([]);
+  }
+
+  // Morning Brief surface — T-036e. Independent failure mode from Today aggregator.
+  try {
+    const brief = await api('mission-control/morning-brief');
+    renderAgendaBrief(brief);
+  } catch (e) {
+    renderAgendaBrief(null);
   }
 
   // Inbox panel — T-037. Independent failure mode from Today aggregator.
