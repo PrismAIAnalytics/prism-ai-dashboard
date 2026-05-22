@@ -475,6 +475,57 @@ test('updateActionItem no-ops on empty mappable updates and returns current page
   assert.strictEqual(item.id, 7, 'returned action item carries the numeric Action Item ID');
 });
 
+// ─── summary() exposes byCategory (T-038 — required by snapshot-tickets cron) ───
+
+test('summary() includes byCategory aggregation so snapshot cron can filter dev_insight', async (t) => {
+  // Two pages: one engineering, one fake dev-insight (via unknown category that
+  // normalizes to dev_insight). We stub the database query endpoint, not the
+  // adapter internals, so this exercises the real summary() → counts() flow.
+  const pages = [
+    {
+      id: 'p1',
+      properties: {
+        Ticket: { type: 'title', title: [{ plain_text: 'A' }] },
+        Status: { type: 'status', status: { name: 'In progress' } },
+        Priority: { type: 'select', select: { name: 'Medium' } },
+        Category: { type: 'select', select: { name: 'CRM Development' } },
+        'T-ID': { type: 'rich_text', rich_text: [] },
+        'Dashboard Ticket ID': { type: 'rich_text', rich_text: [] },
+        'Action Item ID': { type: 'number', number: null },
+        Created: { type: 'created_time', created_time: '2026-05-22T00:00:00.000Z' },
+        'Last Updated': { type: 'last_edited_time', last_edited_time: '2026-05-22T00:00:00.000Z' },
+      },
+    },
+    {
+      id: 'p2',
+      properties: {
+        Ticket: { type: 'title', title: [{ plain_text: 'B' }] },
+        Status: { type: 'status', status: { name: 'Not started' } },
+        Priority: { type: 'select', select: { name: 'Low' } },
+        Category: { type: 'select', select: { name: 'Dev Insight' } },
+        'T-ID': { type: 'rich_text', rich_text: [] },
+        'Dashboard Ticket ID': { type: 'rich_text', rich_text: [] },
+        'Action Item ID': { type: 'number', number: null },
+        Created: { type: 'created_time', created_time: '2026-05-22T00:00:00.000Z' },
+        'Last Updated': { type: 'last_edited_time', last_edited_time: '2026-05-22T00:00:00.000Z' },
+      },
+    },
+  ];
+  withStubbedFetch(t, async (url, opts) => {
+    if (url.includes('/databases/') && opts && opts.method === 'POST') {
+      return { ok: true, json: async () => ({ results: pages, has_more: false }) };
+    }
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  const { summary } = await adapter.summary();
+  assert.ok(Array.isArray(summary.byCategory), 'byCategory must be an array');
+  const cats = Object.fromEntries(summary.byCategory.map(r => [r.category, r.count]));
+  assert.strictEqual(cats.engineering, 1, 'CRM Development → engineering');
+  assert.strictEqual(cats.dev_insight, 1, 'Dev Insight → dev_insight (unknown-cat normalization)');
+});
+
 test('updateTicket still PATCHes when at least one field is mappable', async (t) => {
   let patchCalled = false;
   let patchBody = null;

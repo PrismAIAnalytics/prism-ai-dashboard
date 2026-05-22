@@ -4391,11 +4391,12 @@ app.get('/api/tickets/summary', requireAuth, async (req, res) => {
     const byStatus = db.prepare("SELECT status, COUNT(*) as count FROM tickets GROUP BY status").all();
     const byPriority = db.prepare("SELECT priority, COUNT(*) as count FROM tickets GROUP BY priority").all();
     const byType = db.prepare("SELECT ticket_type, COUNT(*) as count FROM tickets GROUP BY ticket_type").all();
+    const byCategory = db.prepare("SELECT category, COUNT(*) as count FROM tickets GROUP BY category").all();
     const overdue = db.prepare("SELECT COUNT(*) as count FROM tickets WHERE due_date < date('now') AND status NOT IN ('done', 'cancelled')").get();
     const completedThisWeek = db.prepare("SELECT COUNT(*) as count FROM tickets WHERE completed_date >= date('now', '-7 days')").get();
     const total = db.prepare("SELECT COUNT(*) as count FROM tickets").get();
     const open = db.prepare("SELECT COUNT(*) as count FROM tickets WHERE status NOT IN ('done', 'cancelled')").get();
-    res.json({ ok: true, byStatus, byPriority, byType, overdue: overdue.count, completedThisWeek: completedThisWeek.count, total: total.count, open: open.count });
+    res.json({ ok: true, byStatus, byPriority, byType, byCategory, overdue: overdue.count, completedThisWeek: completedThisWeek.count, total: total.count, open: open.count });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
