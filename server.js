@@ -17,6 +17,7 @@ const cacheService = require('./services/cacheService');
 const notionSync = require('./services/notionSync');
 const notionAdapter = require('./services/notionAdapter'); // T-023 — read-path adapter behind USE_NOTION_SOURCE
 const plansAggregator = require('./services/plansAggregator'); // T-057 — Plans panel data
+const pendingPlansAggregator = require('./services/pendingPlansAggregator'); // T-065 — Pending Plans panel data
 const inboxRouter = require('./services/inboxRouter'); // T-037 — Mission Control inbox capture/list/triage
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const readinessScoring = require('./lib/readiness-scoring');
@@ -5051,6 +5052,28 @@ app.get('/api/mission-control/plans', requireAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('[mission-control/plans] failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-065: Pending Plans panel. Returns hand-curated manifest entries from
+// config/pending-plans.json plus auto-suggested plan files scanned from
+// ~/.claude/plans/ that carry explicit review markers ("Draft for review" /
+// "For review:" / "Not approved" / "Awaiting review" / "Deferred for review").
+// Auto-scan returns empty when the plans directory is unavailable (Railway).
+app.get('/api/mission-control/pending-plans', requireAuth, async (req, res) => {
+  try {
+    const result = await pendingPlansAggregator.getPendingPlans();
+    res.json({
+      ok: true,
+      pending_plans: result.pending_plans,
+      suggested_plans: result.suggested_plans,
+      manifest_present: result.manifest_present,
+      plans_dir_available: result.plans_dir_available,
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[mission-control/pending-plans] failed:', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });

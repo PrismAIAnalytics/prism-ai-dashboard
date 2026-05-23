@@ -1022,9 +1022,10 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <p id="agenda-context-line">Loading today's view…</p>
       </div>
 
-      <!-- Inbox + Active Plans (two-column above-the-fold operations row).
-           T-037 Inbox left, T-057 Plans right. Grid stacks single-column at <760px. -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:20px;margin-bottom:20px;align-items:stretch">
+      <!-- Idea Vault + Active Plans + Pending Plans (three-column above-the-fold operations row).
+           T-037 Idea Vault, T-057 Active Plans, T-065 Pending Plans. Grid uses auto-fit minmax so
+           it collapses to two columns then one column on narrower viewports. -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:20px;align-items:stretch">
 
         <!-- Inbox panel — T-037. Lists open cowork:inbox captures with triage actions. -->
         <div class="card" id="agenda-inbox-card" style="margin-bottom:0">
@@ -1035,13 +1036,23 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="agenda-inbox-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
         </div>
 
-        <!-- Plans panel — T-057. Active multi-ticket roadmaps with live ship progress from Notion. -->
+        <!-- Active Plans panel — T-057. Active multi-ticket roadmaps with live ship progress from Notion. -->
         <div class="card" id="agenda-plans-card" style="margin-bottom:0">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
             <h3 style="margin:0;font-size:14px;color:var(--text);letter-spacing:0.3px">Active Plans <span id="agenda-plans-count" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
             <span id="agenda-plans-note" style="font-size:11px;color:var(--muted)"></span>
           </div>
           <div id="agenda-plans-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
+        </div>
+
+        <!-- Pending Plans panel — T-065. Plans awaiting Michele's review (hand-curated manifest +
+             auto-suggested entries scanned from ~/.claude/plans/ for explicit review markers). -->
+        <div class="card" id="agenda-pending-plans-card" style="margin-bottom:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0;font-size:14px;color:var(--text);letter-spacing:0.3px">Pending Plans <span id="agenda-pending-plans-count" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
+            <span id="agenda-pending-plans-note" style="font-size:11px;color:var(--muted)"></span>
+          </div>
+          <div id="agenda-pending-plans-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
         </div>
 
       </div>
@@ -4646,6 +4657,70 @@ function renderAgendaPlans(data) {
   }).join('');
 }
 
+// T-065: Pending Plans panel renderer. Hand-curated manifest entries render
+// with name + dates + summary. Auto-suggested entries (scanned from
+// ~/.claude/plans/) render under a "Suggested" subhead with a small pill so
+// Michele can see them as candidates without confusing them for promoted plans.
+function renderAgendaPendingPlans(data) {
+  const body = document.getElementById('agenda-pending-plans-body');
+  const count = document.getElementById('agenda-pending-plans-count');
+  const note = document.getElementById('agenda-pending-plans-note');
+  if (!body) return;
+
+  const pending = (data && Array.isArray(data.pending_plans)) ? data.pending_plans : [];
+  const suggested = (data && Array.isArray(data.suggested_plans)) ? data.suggested_plans : [];
+  const total = pending.length + suggested.length;
+
+  if (count) count.textContent = total ? `(${total})` : '';
+  if (note) {
+    if (data && data.plans_dir_available === false) {
+      note.textContent = 'auto-scan unavailable';
+      note.style.color = 'var(--muted)';
+    } else {
+      note.textContent = '';
+    }
+  }
+
+  if (total === 0) {
+    body.innerHTML = `<div style="color:var(--muted)">No pending plans. Edit <code style="font-size:11px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">config/pending-plans.json</code> to add one.</div>`;
+    return;
+  }
+
+  const renderManifestRow = (p) => {
+    const created = p.created_date ? escHtml(p.created_date) : '';
+    const review = p.review_date ? escHtml(p.review_date) : '';
+    const dateLine = (created || review)
+      ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">${created ? `created ${created}` : ''}${created && review ? ' · ' : ''}${review ? `for review ${review}` : ''}</div>`
+      : '';
+    return `
+      <div style="padding:12px 0;border-bottom:1px dashed var(--border)">
+        <div style="font-size:13px;color:var(--text);font-weight:500;line-height:1.4">${escHtml(p.name || p.slug || '(unnamed plan)')}</div>
+        ${p.plan_file ? `<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-top:2px;word-break:break-all">${escHtml(p.plan_file)}</div>` : ''}
+        ${dateLine}
+        ${p.summary ? `<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5">${escHtml(p.summary)}</div>` : ''}
+      </div>
+    `;
+  };
+
+  const renderSuggestedRow = (p) => `
+      <div style="padding:12px 0;border-bottom:1px dashed var(--border)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+          <div style="font-size:13px;color:var(--text);font-weight:500;line-height:1.4;flex:1">${escHtml(p.name || p.slug || '(unnamed plan)')}</div>
+          <span style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:1px 8px;white-space:nowrap;text-transform:uppercase;letter-spacing:0.5px">suggested</span>
+        </div>
+        ${p.plan_file ? `<div style="font-size:11px;color:var(--muted);font-family:monospace;margin-top:2px;word-break:break-all">${escHtml(p.plan_file)}</div>` : ''}
+        ${p.modified_date ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">modified ${escHtml(p.modified_date)}</div>` : ''}
+      </div>
+    `;
+
+  let html = pending.map(renderManifestRow).join('');
+  if (suggested.length > 0) {
+    html += `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:14px;margin-bottom:2px">Auto-suggested from ~/.claude/plans/</div>`;
+    html += suggested.map(renderSuggestedRow).join('');
+  }
+  body.innerHTML = html;
+}
+
 function renderAgendaBrief(brief) {
   const el = document.getElementById('agenda-brief');
   if (!el) return;
@@ -4783,6 +4858,14 @@ loaders['daily-agenda'] = async () => {
     renderAgendaPlans(plans);
   } catch (e) {
     renderAgendaPlans({ active_roadmaps: [], notion_available: false });
+  }
+
+  // Pending Plans panel — T-065. Independent failure mode from other surfaces.
+  try {
+    const pending = await api('mission-control/pending-plans');
+    renderAgendaPendingPlans(pending);
+  } catch (e) {
+    renderAgendaPendingPlans({ pending_plans: [], suggested_plans: [], plans_dir_available: false });
   }
 
   // End of Day — preserves Daily Review behavior unchanged (load docs, load reviews).
