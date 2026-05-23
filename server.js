@@ -1002,6 +1002,19 @@ function initDB() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS daily_artifacts (
+      date_iso      TEXT NOT NULL,
+      kind          TEXT NOT NULL,
+      content       TEXT NOT NULL,
+      content_type  TEXT NOT NULL DEFAULT 'text/markdown',
+      metadata_json TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (date_iso, kind)
+    );
+    CREATE INDEX IF NOT EXISTS idx_artifacts_kind_date
+      ON daily_artifacts (kind, date_iso DESC);
+
     CREATE TABLE IF NOT EXISTS documents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -4658,110 +4671,32 @@ app.get('/api/prism-studio/routine', requireAuth, (req, res) => {
 });
 
 // ─── Mission Control (T-036, Daily Agenda) ──────────────────────────────────
-// Aggregator for the Daily Agenda page: tile counts + today context (latest
-// Daily Log + Chloe morning brief headlines + escalation count) + last-24h
-// decisions ticker. Reads from Notion (via notionAdapter) for tickets and from
-// the Obsidian vault (PRISM-Vault) for narrative context. Path-traversal
-// containment follows the scripts/sync-briefs.js pattern.
-
-const MC_VAULT_DEFAULT = path.resolve(path.join(__dirname, '..', '..', 'PRISM-Vault'));
-const MC_DECISIONS_LIMIT = 5;
-
-function mcResolveVaultRoot() {
-  const envPath = process.env.PRISM_VAULT_PATH;
-  const candidate = envPath ? path.resolve(envPath) : MC_VAULT_DEFAULT;
-  try {
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) return candidate;
-  } catch (_) { /* fall through */ }
-  return null;
-}
-
-// Read a file inside the vault, with explicit containment to prevent traversal.
-// Returns null when the vault is unavailable (Railway prod) or the file is missing.
-// Containment is two-layered: first path.resolve normalizes ../ segments, then
-// fs.realpathSync dereferences any symlinks so a planted symlink inside the
-// vault tree cannot escape containment. Both the lexical and the real path must
-// live under the vault root.
-function mcReadVaultFile(relPath) {
-  const root = mcResolveVaultRoot();
-  if (!root) return null;
-  const resolved = path.resolve(path.join(root, relPath));
-  if (resolved !== root && !resolved.startsWith(root + path.sep)) return null;
-  try {
-    const realPath = fs.realpathSync(resolved);
-    if (realPath !== root && !realPath.startsWith(root + path.sep)) return null;
-    return fs.readFileSync(realPath, 'utf8');
-  } catch (_) {
-    return null;
-  }
-}
+// Aggregator for the Daily Agenda page: tile counts (from Notion) + today
+// context (brief headline only, post-T-062). The vault-sourced surfaces
+// (Daily Log headline, Recent Decisions) were removed in T-062 — they read
+// from PRISM-Vault on the local machine, which never reaches Railway, so
+// they were silently empty in prod since deploy. Briefs now travel through
+// the daily_artifacts table via mcResolveBriefForDate.
 
 function mcReadTodayContext() {
   const today = new Date().toISOString().slice(0, 10);
-  const ctx = { date: today, daily_log_headline: null, brief_headline: null, escalation_count: 0 };
+  const ctx = { date: today, brief_headline: null };
 
-  // Latest Daily Log — try today, then yesterday (Prism log sync runs ~6 PM ET; AM checks may see prior day)
+  // Today's brief headline, with yesterday fallback (orchestrator runs ~7 AM ET).
   const candidates = [today];
   const y = new Date(); y.setDate(y.getDate() - 1);
   candidates.push(y.toISOString().slice(0, 10));
   for (const d of candidates) {
-    const c = mcReadVaultFile(`Admin/Daily_Logs/Daily_Log_${d}.md`);
-    if (c) {
+    const file = mcResolveBriefForDate(d);
+    if (file) {
       ctx.date = d;
-      // First H2 line (after optional frontmatter)
-      const headerMatch = c.match(/^##\s+(.+?)\s*$/m);
-      if (headerMatch) ctx.daily_log_headline = headerMatch[1].trim();
-      // Escalations — count list items under an "__Escalations needing Michele__" or similar block
-      const escBlock = c.match(/__Escalations needing Michele__[\s\S]*?(?=\n__|\n##|\n---|$)/);
-      if (escBlock) {
-        ctx.escalation_count = escBlock[0]
-          .split('\n')
-          .filter(line => /^\s*[-*]\s+\S/.test(line) || /^\s*\d+\.\s+\S/.test(line))
-          .length;
-      }
+      const m = file.content.match(/^#\s+(.+?)\s*$/m) || file.content.match(/^##\s+(.+?)\s*$/m);
+      if (m) ctx.brief_headline = m[1].trim();
       break;
     }
   }
 
-  // Chloe morning brief — lives inside the dashboard repo at reports/cos-morning-brief-YYYY-MM-DD.md
-  for (const d of candidates) {
-    try {
-      const briefPath = path.join(__dirname, 'reports', `cos-morning-brief-${d}.md`);
-      const content = fs.readFileSync(briefPath, 'utf8');
-      const m = content.match(/^#\s+(.+?)\s*$/m) || content.match(/^##\s+(.+?)\s*$/m);
-      if (m) ctx.brief_headline = m[1].trim();
-      break;
-    } catch (_) { /* try previous day */ }
-  }
-
   return ctx;
-}
-
-function mcReadRecentDecisions(maxEntries) {
-  const content = mcReadVaultFile('Admin/CoS/decisions-log.md');
-  if (!content) return [];
-  // Entries are H2 with a date prefix: "## YYYY-MM-DD — headline" (em-dash, en-dash, or hyphen tolerated).
-  // We surface today's and yesterday's date-stamped entries, newest first, capped.
-  // The decisions-log doesn't carry time-of-day; we return date-only and let the
-  // client render a "Today" / "Yesterday" label rather than a fake 12:00 PM timestamp.
-  const today = new Date().toISOString().slice(0, 10);
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const yesterday = y.toISOString().slice(0, 10);
-  const allowedDates = new Set([today, yesterday]);
-
-  const out = [];
-  const lines = content.split('\n');
-  for (const line of lines) {
-    const m = line.match(/^##\s+(\d{4}-\d{2}-\d{2})\s*[—–\-:]\s*(.+?)\s*$/);
-    if (!m) continue;
-    const dateStr = m[1];
-    if (!allowedDates.has(dateStr)) continue;
-    const headline = m[2].trim();
-    const label = dateStr === today ? 'Today' : 'Yesterday';
-    out.push({ date: dateStr, label, headline, signature: 'Chloe' });
-    if (out.length >= maxEntries) break;
-  }
-  return out;
 }
 
 // ─── Morning Brief parser (T-036e) ─────────────────────────────────────────
@@ -4791,8 +4726,10 @@ function mcReadBriefFileForDate(dateStr) {
 
 // T-036g: full read + parse pipeline for a single date. Used by the
 // /api/daily-reviews handler to attach the brief to each row.
+// T-062: switched from mcReadBriefFileForDate to mcResolveBriefForDate so the
+// DB-stored brief (orchestrator POST) wins over the disk copy when both exist.
 function mcReadAndParseBriefForDate(dateStr) {
-  const file = mcReadBriefFileForDate(dateStr);
+  const file = mcResolveBriefForDate(dateStr);
   if (!file) return null;
   const { frontmatter, body } = mcSplitFrontmatter(file.content);
   const { headline, subheader, sections } = mcParseBriefSections(body);
@@ -4839,6 +4776,39 @@ function mcReadMorningBriefFile() {
       const content = fs.readFileSync(resolved, 'utf8');
       return { date: d, content, filename, isToday: d === today };
     } catch (_) { /* try yesterday */ }
+  }
+  return null;
+}
+
+// T-062: DB-prefer wrapper around mcReadBriefFileForDate. The orchestrator POSTs
+// the morning brief to /api/daily-artifacts/morning_brief/{date}; this resolver
+// checks daily_artifacts first and falls through to the filesystem so existing
+// historical briefs (force-staged into git pre-T-062) keep working during the
+// transition. Returns the same {content, filename} shape with an added `source`.
+function mcResolveBriefForDate(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr))) return null;
+  try {
+    const row = db.prepare(
+      `SELECT content FROM daily_artifacts WHERE date_iso = ? AND kind = 'morning_brief'`
+    ).get(dateStr);
+    if (row && row.content) {
+      return { content: row.content, filename: `cos-morning-brief-${dateStr}.md`, source: 'db' };
+    }
+  } catch (_) { /* fall through to file */ }
+  const file = mcReadBriefFileForDate(dateStr);
+  return file ? { ...file, source: 'file' } : null;
+}
+
+// T-062: today→yesterday variant of the resolver. Mirrors mcReadMorningBriefFile's
+// fallback semantics but checks the DB first for each date before disk.
+function mcResolveTodayOrYesterdayBrief() {
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const yesterday = y.toISOString().slice(0, 10);
+  for (const d of [today, yesterday]) {
+    const resolved = mcResolveBriefForDate(d);
+    if (resolved) return { date: d, content: resolved.content, filename: resolved.filename, isToday: d === today, source: resolved.source };
   }
   return null;
 }
@@ -4903,9 +4873,62 @@ function mcParseTopTen(top10Md) {
   return items;
 }
 
+// T-062: Daily artifact upsert. Orchestrator POSTs the morning brief here after
+// writing the local file; dashboard reads it back via mcResolveBriefForDate. Idempotent
+// (re-running the same orchestrator step overwrites). Mirrors POST /api/daily-reviews's
+// shape but is param-keyed (kind, date) for future artifact kinds.
+//
+// Auth: requireAuth (Bearer token, same as the rest of /api/*).
+// Validation: kind allowlist, ISO date, content size cap (512KB enforced in handler).
+// Upsert: ON CONFLICT(date_iso, kind) DO UPDATE — preserves created_at, refreshes
+//   updated_at (SQLite does not auto-update column defaults on UPDATE).
+const DAILY_ARTIFACT_KINDS = ['morning_brief'];
+const DAILY_ARTIFACT_MAX_BYTES = 524288; // 512KB app-layer cap; no SQLite CHECK.
+
+app.post('/api/daily-artifacts/:kind/:date', requireAuth, [
+  param('kind').isIn(DAILY_ARTIFACT_KINDS).withMessage(`kind must be one of: ${DAILY_ARTIFACT_KINDS.join(', ')}`),
+  param('date').matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('date must be YYYY-MM-DD'),
+  body('content').isString().withMessage('content must be a string').notEmpty().withMessage('content is required'),
+  body('content_type').optional().isString().isLength({ max: 100 }),
+  body('metadata_json').optional({ nullable: true }).isString(),
+], handleValidation, (req, res) => {
+  try {
+    const { kind, date } = req.params;
+    const content = req.body.content;
+    const contentType = req.body.content_type || 'text/markdown';
+    const metadataJson = req.body.metadata_json || null;
+
+    const bytes = Buffer.byteLength(content, 'utf8');
+    if (bytes > DAILY_ARTIFACT_MAX_BYTES) {
+      return res.status(413).json({ ok: false, error: `content exceeds ${DAILY_ARTIFACT_MAX_BYTES} bytes (got ${bytes})` });
+    }
+
+    const existing = db.prepare(
+      `SELECT 1 FROM daily_artifacts WHERE date_iso = ? AND kind = ?`
+    ).get(date, kind);
+
+    db.prepare(`
+      INSERT INTO daily_artifacts (date_iso, kind, content, content_type, metadata_json)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(date_iso, kind) DO UPDATE SET
+        content       = excluded.content,
+        content_type  = excluded.content_type,
+        metadata_json = excluded.metadata_json,
+        updated_at    = datetime('now')
+    `).run(date, kind, content, contentType, metadataJson);
+
+    const action = existing ? 'updated' : 'created';
+    console.info('[daily-artifacts] %s kind=%s date=%s bytes=%d', action, kind, date, bytes);
+    res.status(existing ? 200 : 201).json({ ok: true, action, date_iso: date, kind, bytes });
+  } catch (e) {
+    console.error('[daily-artifacts] POST failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.get('/api/mission-control/morning-brief', requireAuth, (req, res) => {
   try {
-    const file = mcReadMorningBriefFile();
+    const file = mcResolveTodayOrYesterdayBrief();
     if (!file) {
       return res.json({ ok: true, available: false, message: 'No morning brief found for today or yesterday.' });
     }
@@ -4922,12 +4945,15 @@ app.get('/api/mission-control/morning-brief', requireAuth, (req, res) => {
     const get = (norm) => sectionByNorm[norm]?.content || '';
     const topTenMd = get('top 10 for today') || get('top 10');
 
+    console.info('[daily-artifacts] morning_brief read source=%s date=%s', file.source, file.date);
+
     res.json({
       ok: true,
       available: true,
       file: file.filename,
       date: file.date,
       is_today: file.isToday,
+      source: file.source, // T-062 canary: 'db' = orchestrator POST landed, 'file' = fell back to disk
       frontmatter,
       headline,
       subheader,
@@ -4991,13 +5017,15 @@ app.get('/api/mission-control/today', requireAuth, async (req, res) => {
     }
 
     const todayContext = mcReadTodayContext();
-    const recentDecisions = mcReadRecentDecisions(MC_DECISIONS_LIMIT);
 
+    // T-062: recentDecisions removed — read PRISM-Vault decisions-log.md on local FS
+    // which never reaches Railway, so it was always empty in prod. The frontend's
+    // Recent Decisions card was removed in the same change. Chloe's auto-load
+    // continues to read tiles.needs_decision (and inbox count from a separate endpoint).
     res.json({
       ok: true,
       tiles,
       todayContext,
-      recentDecisions,
       as_of: new Date().toISOString(),
     });
   } catch (e) {
