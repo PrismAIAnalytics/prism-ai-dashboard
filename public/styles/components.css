@@ -493,10 +493,20 @@ body.prism-themed #chat-panel {
 }
 body.prism-themed #chat-panel.open { display: flex; }
 
-/* ---------- Responsive ---------- */
+/* ---------- Responsive ----------
+   Mobile nav is a slide-in drawer. Keep position:fixed from the base
+   rule (line 25) so nav doesn't become a flex child of .shell — that
+   was the regression that pushed <main> off-screen on iPhone. The
+   embedded #nav-toggle button in index.html toggles `body.nav-open`. */
 @media (max-width: 768px) {
-  body.prism-themed nav { width: 100%; height: auto; position: relative; }
-  body.prism-themed main { margin-left: 0; padding: var(--space-4); }
+  body.prism-themed nav {
+    width: 240px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 2px 0 16px rgba(0,0,0,0.5);
+  }
+  body.prism-themed.nav-open nav { transform: translateX(0); }
+  body.prism-themed main { margin-left: 0; padding: 60px var(--space-3) var(--space-4); overflow-x: hidden; }
   body.prism-themed #chat-panel { width: calc(100% - var(--space-8)); right: var(--space-4); }
 }
 
