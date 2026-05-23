@@ -517,6 +517,14 @@ app.post('/api/leads', (req, res) => {
     db.prepare('INSERT INTO magic_link_tokens (token, user_id, purpose, expires_at) VALUES (?, ?, ?, ?)').run(
       magicToken, userId, 'login', magicExpires
     );
+    // Upsert lead_source: source values posted by the website forwarder
+    // ('website_contact_form', 'ai_readiness_landing') aren't in the seeded
+    // list (LinkedIn / Website-SEO / Chamber / etc.), so we add them lazily.
+    db.prepare("INSERT OR IGNORE INTO lead_sources (name, channel) VALUES (?, 'website')").run(source);
+    const leadSourceRow = db.prepare('SELECT id FROM lead_sources WHERE name = ?').get(source);
+    db.prepare(
+      "INSERT INTO leads (id, contact_id, client_id, lead_source_id, status, discovery_date) VALUES (?, ?, ?, ?, 'new', date('now'))"
+    ).run(uuid(), contactId, clientId, leadSourceRow.id);
   });
   try {
     tx();
