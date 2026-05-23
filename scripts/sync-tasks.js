@@ -54,7 +54,7 @@ const URL_FLAG = process.argv.find(a => a.startsWith('--dashboard-url='));
 
 const DASHBOARD_URL = URL_FLAG ? URL_FLAG.split('=')[1]
   : USE_LOCAL ? 'http://localhost:3000'
-  : (process.env.DASHBOARD_URL || 'https://dashboard-api-production-dabe.up.railway.app');
+  : (process.env.DASHBOARD_URL || 'https://portal.prismaianalytics.com');
 
 const TASKS_MD_PATH = path.join(__dirname, '..', 'TASKS.md');
 const NOTION_API = 'https://api.notion.com/v1';
