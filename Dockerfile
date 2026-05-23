@@ -52,6 +52,12 @@ COPY lib/ ./lib/
 # mcReadMorningBriefFile() returns null for every date.
 COPY reports/ ./reports/
 
+# T-063: include config/ so the Plans panel (T-057) can read
+# active-roadmaps.json at runtime. NOT under /app/data (that's the SQLite volume
+# mount — Railway overlays it, hiding any baked-in files). Without this COPY,
+# /api/mission-control/plans returns an empty manifest and notion_available:false.
+COPY config/ ./config/
+
 # Create data directory for SQLite
 # NOTE: Running as root so Railway-mounted volumes are writable.
 # Railway handles container isolation at the platform level.
