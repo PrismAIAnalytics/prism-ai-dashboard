@@ -21,6 +21,13 @@
       "ticket_ids": ["PS-057", "PS-058", "PS-059"],
       "decision_date": "2026-05-17",
       "note": "$59 Etsy template — PS-058 (75-prompt master library, Michele-only) is the go-live bottleneck."
+    },
+    {
+      "slug": "founder-journey-personal-account",
+      "name": "Founder Journey — personal TikTok + IG",
+      "ticket_ids": ["SOC-005", "F-001", "F-002", "F-003"],
+      "decision_date": "2026-05-23",
+      "note": "5-week pilot Jun 8 → Jul 10. 14 post drafts ready, first filming session 5/24. Foundation tickets F-001/F-002/F-003 (voice rework + voice-vault + source archive) unblock the weekly cycle. Master plan: PRISM-Vault/Marketing/founder-journey/master-plan.md. As I-001/C-00X/P-00X/G-00X tickets get filed, add their IDs to this list."
     }
   ]
 }
