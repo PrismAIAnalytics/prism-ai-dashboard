@@ -1028,12 +1028,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
       </div>
 
-      <!-- Recent Decisions ticker (last 24h) -->
-      <div class="card" id="agenda-decisions-card" style="margin-bottom:20px">
-        <h3 style="margin:0 0 12px;font-size:14px;color:var(--text);letter-spacing:0.3px">Recent Decisions <span style="font-size:11px;color:var(--muted);font-weight:400">— last 24h</span></h3>
-        <div id="agenda-decisions-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
-      </div>
-
       <!-- Inbox panel — T-037. Lists open cowork:inbox captures with triage actions. -->
       <div class="card" id="agenda-inbox-card" style="margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
@@ -4568,22 +4562,6 @@ function setAgendaContextLine() {
   $('#agenda-context-line').textContent = `${today} — what needs your attention.`;
 }
 
-function renderAgendaDecisions(decisions) {
-  const list = Array.isArray(decisions) ? decisions : [];
-  if (list.length === 0) {
-    $('#agenda-decisions-body').innerHTML = `<div style="color:var(--muted)">No decisions logged in the last 24 hours.</div>`;
-    return;
-  }
-  $('#agenda-decisions-body').innerHTML = list.map(d => {
-    // The decisions-log carries date only (no time-of-day); render a "Today" / "Yesterday" label
-    // rather than a fake clock time. Fall back to the ISO date if the server omits the label.
-    const label = escHtml(d.label || d.date || '');
-    const head = escHtml(d.headline || '');
-    const sig = d.signature ? `<span style="color:var(--muted)"> &mdash; ${escHtml(d.signature)}</span>` : '';
-    return `<div style="padding:4px 0;border-bottom:1px dashed var(--border)"><span style="color:var(--muted);font-size:11px;min-width:90px;display:inline-block">${label}</span> ${head}${sig}</div>`;
-  }).join('');
-}
-
 // ─── Morning Brief renderer (T-036e) ────────────────────────────────────────
 // Surfaces today's reports/cos-morning-brief-YYYY-MM-DD.md on the Daily Agenda
 // above the fold. Top 10 is the primary view; Needs Michele open-by-default;
@@ -4706,15 +4684,8 @@ function parseBucketChips(md) {
 loaders['daily-agenda'] = async () => {
   setAgendaContextLine();
 
-  // Recent Decisions — Mission Control aggregator. Tiles and Today card removed in T-058;
-  // endpoint still returns them but the client no longer consumes them (server-side trim is
-  // a possible followup). Endpoint may not exist on older deploys; degrade silently.
-  try {
-    const mc = await api('mission-control/today');
-    renderAgendaDecisions(mc && !mc.error ? mc.recentDecisions : []);
-  } catch (e) {
-    renderAgendaDecisions([]);
-  }
+  // T-062: Recent Decisions card removed (read PRISM-Vault on local FS, always empty on prod).
+  // The /api/mission-control/today endpoint still exists for Chloe's auto-load (tiles.needs_decision).
 
   // Morning Brief surface — T-036e. Independent failure mode from Today aggregator.
   try {
