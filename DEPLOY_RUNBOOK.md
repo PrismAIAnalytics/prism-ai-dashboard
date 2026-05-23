@@ -1,7 +1,7 @@
 # DEPLOY_RUNBOOK.md
 
 **Owner:** Michele Fisher | **App:** Prism AI Dashboard | **Host:** Railway | **DB:** SQLite (`prism.db`)
-**Production URL:** https://dashboard-api-production-dabe.up.railway.app
+**Production URL:** https://portal.prismaianalytics.com
 
 > Production has been wiped twice. This runbook exists to prevent wipe #3. Follow it literally. No steps are optional.
 
@@ -70,7 +70,7 @@ If `server.js` exposes something like `GET /api/admin/db-dump` (auth-gated by `A
 $ts = Get-Date -Format "yyyyMMdd-HHmmss"
 mkdir -Force backups
 curl.exe -H "Authorization: Bearer $env:PRISM_API_KEY" `
-  https://dashboard-api-production-dabe.up.railway.app/api/admin/db-dump `
+  https://portal.prismaianalytics.com/api/admin/db-dump `
   -o "backups/prism-$ts.db"
 ```
 
@@ -107,7 +107,7 @@ Copy-Item "backups/prism-$ts.zip" "$env:OneDrive\PrismBackups\"
    ```
 6. Within 60 seconds of deploy showing "Success", hit:
    ```powershell
-   curl.exe https://dashboard-api-production-dabe.up.railway.app/health
+   curl.exe https://portal.prismaianalytics.com/health
    ```
    Then run through the smoke-test list from the PR.
 
@@ -148,7 +148,7 @@ Expand-Archive backups/prism-<ts>.zip -DestinationPath backups/restore/
 # A) If admin endpoint accepts uploads:
 curl.exe -X POST -H "Authorization: Bearer $env:PRISM_API_KEY" `
   -F "file=@backups/restore/prism-<ts>.db" `
-  https://dashboard-api-production-dabe.up.railway.app/api/admin/db-restore
+  https://portal.prismaianalytics.com/api/admin/db-restore
 
 # B) Via Railway shell:
 # TODO: confirm Railway file-copy command
