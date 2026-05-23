@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-_(none)_
+| T-062 | Daily artifacts table + brief POST endpoint + kill vault-sourced surfaces | task/daily-artifacts-table | Claude Code | 2026-05-23 09:15 |
 
 ---
 
