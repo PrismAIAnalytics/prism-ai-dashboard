@@ -5820,6 +5820,12 @@ async function handleLogin(e) {
       SESSION_TOKEN = data.token;
       CURRENT_USER = data.user;
       localStorage.setItem('prism_token', data.token);
+      // SECURITY: clients (lead-created users) must never reach the admin UI.
+      // Their portal lives at /portal — same session token works there.
+      if (CURRENT_USER && CURRENT_USER.role === 'client') {
+        window.location.href = '/portal';
+        return;
+      }
       hideLoginScreen();
       loaders['daily-agenda']();
       checkEnvBanner();
@@ -5858,7 +5864,11 @@ async function boot() {
     try {
       var r = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+SESSION_TOKEN} });
       var data = await r.json();
-      if (data.ok) { CURRENT_USER = data.user; hideLoginScreen(); loaders['daily-agenda'](); checkEnvBanner(); return; }
+      if (data.ok) {
+        CURRENT_USER = data.user;
+        if (CURRENT_USER && CURRENT_USER.role === 'client') { window.location.href = '/portal'; return; }
+        hideLoginScreen(); loaders['daily-agenda'](); checkEnvBanner(); return;
+      }
     } catch(e) {}
   }
   var urlKey = new URLSearchParams(window.location.search).get('key');
@@ -5868,7 +5878,11 @@ async function boot() {
     try {
       var r2 = await fetch('/api/auth/me', { headers:{'Authorization':'Bearer '+urlKey} });
       var d2 = await r2.json();
-      if (d2.ok) { CURRENT_USER = d2.user; hideLoginScreen(); loaders['daily-agenda'](); checkEnvBanner(); window.history.replaceState({},'',window.location.pathname); return; }
+      if (d2.ok) {
+        CURRENT_USER = d2.user;
+        if (CURRENT_USER && CURRENT_USER.role === 'client') { window.location.href = '/portal'; return; }
+        hideLoginScreen(); loaders['daily-agenda'](); checkEnvBanner(); window.history.replaceState({},'',window.location.pathname); return;
+      }
     } catch(e) {}
   }
   showLoginScreen();

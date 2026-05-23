@@ -79,7 +79,10 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-app.use(express.static(path.join(__dirname, 'public')));
+// `extensions: ['html']` so /portal resolves to public/portal.html. Without this
+// the magic-link redirect target (server.js below) 404s and the browser falls
+// back to the admin dashboard at /.
+app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 app.use(express.json({ limit: '1mb' }));
 
 // ─── Bearer-token auth middleware ───────────────────────────────────────────
@@ -89,11 +92,21 @@ function requireAuth(req, res, next) {
   // Local dev: skip if no API_KEY and no users
   if (!API_KEY) { try { if (db.prepare('SELECT COUNT(*) as n FROM users').get().n === 0) return next(); } catch(e) { return next(); } }
 
+  // Token can come from Authorization: Bearer header OR the prism_session
+  // HttpOnly cookie set by the magic-link login flow (see GET
+  // /api/auth/magic/:token). Header takes precedence.
+  let token = null;
   const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
+  if (header && header.startsWith('Bearer ')) {
+    token = header.slice(7);
+  } else {
+    const cookieHeader = req.headers.cookie || '';
+    const m = cookieHeader.match(/(?:^|;\s*)prism_session=([^;]+)/);
+    if (m) token = m[1];
+  }
+  if (!token) {
     return res.status(401).json({ ok: false, error: 'Missing or invalid Authorization header' });
   }
-  const token = header.slice(7);
   if (API_KEY && token === API_KEY) return next();
   try {
     const session = db.prepare("SELECT s.*, u.id as uid, u.username, u.role, u.team_member_id FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > datetime('now')").get(token);
@@ -664,6 +677,62 @@ app.post('/api/assessments', (req, res) => {
 
 // Apply auth to all /api/* routes
 app.use('/api', requireAuth);
+
+// SECURITY: role-based access control for /api/*. Lead-created users have
+// role='client' (server.js:514, POST /api/leads). They can call only the
+// portal/auth/assessment endpoints listed below; everything else (clients
+// list, pipeline, financials, tickets, mission-control, etc.) returns 403.
+// API_KEY tokens bypass req.user entirely (treated as admin); admin-role
+// users (Michele, team_members) also pass through.
+app.use('/api', (req, res, next) => {
+  if (!req.user) return next();
+  if (req.user.role === 'admin') return next();
+  const p = req.path;
+  const allowedForClient = (
+    p === '/auth/me' ||
+    p === '/auth/logout' ||
+    p === '/portal/me' ||
+    p === '/services' || p.startsWith('/services/') ||
+    (p === '/assessments' && req.method === 'POST')
+  );
+  if (allowedForClient) return next();
+  return res.status(403).json({ ok: false, error: 'Forbidden — admin role required' });
+});
+
+// GET /api/portal/me — client-only portal payload. Returns the contact, client,
+// and most-recent assessment for the authenticated client user. Powers
+// public/portal.html (the page lead users land on after the magic-link redirect).
+app.get('/api/portal/me', (req, res) => {
+  if (!req.user || req.user.role !== 'client') {
+    return res.status(403).json({ ok: false, error: 'client-only' });
+  }
+  const contact = db.prepare(
+    'SELECT id, client_id, first_name, last_name, email FROM contacts WHERE email = ?'
+  ).get(req.user.username);
+  if (!contact) return res.status(404).json({ ok: false, error: 'Contact not found' });
+  const client = db.prepare(
+    'SELECT id, company_name, adoption_stage, crm_status FROM clients WHERE id = ?'
+  ).get(contact.client_id);
+  if (!client) return res.status(404).json({ ok: false, error: 'Client not found' });
+  const row = db.prepare(
+    'SELECT data_infra, tech_stack, process_maturity, team_readiness, governance, strategic_alignment, overall_score, readiness_band, summary, recommendations FROM ai_readiness_assessments WHERE client_id = ? ORDER BY assessment_date DESC LIMIT 1'
+  ).get(client.id);
+  const assessment = row ? {
+    dimensions: {
+      data_infra: row.data_infra,
+      tech_stack: row.tech_stack,
+      process_maturity: row.process_maturity,
+      team_readiness: row.team_readiness,
+      governance: row.governance,
+      strategic_alignment: row.strategic_alignment,
+    },
+    overall_score: row.overall_score,
+    readiness_band: row.readiness_band,
+    summary: row.summary,
+    recommendations: row.recommendations,
+  } : null;
+  res.json({ ok: true, contact, client, assessment });
+});
 
 // ─── Validation helper ──────────────────────────────────────────────────────
 function handleValidation(req, res, next) {

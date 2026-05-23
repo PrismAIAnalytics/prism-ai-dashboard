@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-066 | Lead intake completion — install `resend` (Bug D) + insert into `leads` table inside POST /api/leads tx (Bug B) | fix/lead-intake-completion | Claude Code | 2026-05-23 15:21 |
+| T-068 | SECURITY — client role can see admin dashboard via magic-link login (Bug E). Fix /portal route, add role-gate middleware on /api/*, redirect client role away from index.html in frontend boot | fix/portal-role-based-access | Claude Code | 2026-05-23 16:30 |
 
 ---
 
@@ -44,6 +44,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-066 | Lead intake completion — install `resend` (Bug D) + insert into `leads` table inside POST /api/leads tx (Bug B) | 2026-05-23 | Merged via PR #46 as `7c618d6` (squash). Close-out bundled into T-068's first commit per WORKFLOW.md §4. Closed the website-form investigation thread (Bugs A/B/C/D). End-to-end verified live submission → welcome email → magic link → production URL. Discovery during verification: clicking the magic link landed the lead in the **admin dashboard** instead of the client portal — Bug E (privilege escalation), filed as T-068. T-067 (portal-domain hardcoded-URL sweep) was started after T-066 but paused mid-edits when Bug E was discovered; sweep edits preserved in stash `T-067 sweep edits — paused for T-068 security work 2026-05-23`. Notion ticket: https://www.notion.so/369236b6b03a818b89b6efe47d45d15b. |
 | T-065 | Pending Plans panel on Daily Agenda (3rd column beside Idea Vault + Active Plans) | 2026-05-23 | Merged via PR #45 as `48998b5` (squash). Close-out bundled into T-066's first commit per WORKFLOW.md §4. |
 | T-064 | Idea Vault rendering polish — drop "by " prefix on capture attribution | 2026-05-23 | Merged via PR #44 as `06ca6ee` (squash). Close-out bundled into T-065's first commit per WORKFLOW.md §4. One-line tweak in `_renderInboxItem` (public/index.html ~line 4895) — capture attribution now renders as `michele · 1:02 PM` instead of `by michele · 1:02 PM`. Per Michele 2026-05-23: username and timestamp on the same line are self-explanatory; the `by ` prefix added visual weight without adding information. |
 | T-063 | Hotfix Plans manifest never reaches Railway (rename data/ → config/, COPY into Docker image) | 2026-05-23 | Merged via PR #43 as `63862a5` (squash). Close-out bundled into T-064's first commit per WORKFLOW.md §4. T-057 shipped `data/active-roadmaps.json` but Dockerfile didn't `COPY data/`, AND `/app/data` is the Railway-mounted SQLite volume which would have overlaid any baked-in files anyway. Renamed to `config/active-roadmaps.json` (no volume collision), added `COPY config/ ./config/` to the Dockerfile right after the analogous T-036h `COPY reports/` block, updated `plansAggregator.js` MANIFEST_PATH. Post-merge prod smoke green: `notion_available: true`, 3 roadmaps populated, same data as local. Required the now-standard Railway "Deploy commit" manual override on the SKIPPED row because Security Gate CI still red (T-061 outstanding). |
