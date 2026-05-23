@@ -1,0 +1,29 @@
+{
+  "_comment": "T-065: Pending plans awaiting Michele's review. Seeded with plans surfaced 2026-05-23 from ~/.claude/plans/ that are explicitly 'Draft for review' / 'Not approved'. Promotion to active = move the entry to active-roadmaps.json (and remove from here). Auto-suggested entries (scanned from ~/.claude/plans/ at request time, not stored here) come from services/pendingPlansAggregator.js and are returned alongside this manifest as the `suggested_plans` field on the API response.",
+  "pending_plans": [
+    {
+      "slug": "cis-hardening-baseline-v1.1",
+      "name": "CIS Hardening Baseline v1.1 — Engineering Gap Closure",
+      "plan_file": "~/.claude/plans/let-s-start-with-the-smooth-yao.md",
+      "created_date": "2026-05-22",
+      "review_date": "2026-05-23",
+      "summary": "Closes 8 of 12 Gap controls in 5 phases (destructive-action allowlist scrub, npm audit + Semgrep CI gate, SBOM emission, prompt-injection sanitization, allowedTools allowlist). Gap count drops 12 → 4. Required before Stripe + QuickBooks production traffic."
+    },
+    {
+      "slug": "non-dilutive-capital-stack",
+      "name": "Pre-Launch Non-Dilutive Capital Stack (Now → Oct 1, 2026)",
+      "plan_file": "~/.claude/plans/create-a-plan-to-atomic-dahl.md",
+      "created_date": "2026-05-22",
+      "review_date": "2026-05-23",
+      "summary": "$10K–$50K non-dilutive cash + $100K–$300K cloud/API credits over 90 days, zero equity. Four parallel tracks (cloud/API credits, grants, WOSB/WBENC certs, CDFI bridge). 5 sub-decisions owed; default if no decision this week = run Microsoft + AWS + NVIDIA self-serve (~90 min)."
+    },
+    {
+      "slug": "tickets-page-enhancements-v2",
+      "name": "Tickets Page Enhancements v2 (post-council)",
+      "plan_file": "~/.claude/plans/create-the-plan-for-logical-micali.md",
+      "created_date": "2026-05-23",
+      "review_date": "2026-05-23",
+      "summary": "6-phase plan (F → E → B → C → D1 → D2) to fix Tickets page workflow: clickable ticket IDs, recency-first detail modal, past-due-in-backlog promotion, recommended-for-todo panel, visible Review surface, [NEEDS-DECISION] enforcement. Blocked on Phase A prerequisite — Michele adds 3 status options to Notion DB (Backlog, To Do, Review, ~3 min in UI)."
+    }
+  ]
+}
