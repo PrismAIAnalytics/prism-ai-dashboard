@@ -1,0 +1,26 @@
+{
+  "_comment": "T-057: Active roadmaps the Daily Agenda Plans panel surfaces. Edit this file to add or retire a roadmap; ship progress is computed live from Notion via services/plansAggregator.js. Two ways to specify which tickets belong to a roadmap: ticket_id_range (inclusive bounds, must share a prefix) OR ticket_ids (explicit list). Use one or the other per entry, not both.",
+  "active_roadmaps": [
+    {
+      "slug": "mission-control",
+      "name": "Mission Control",
+      "ticket_id_range": ["T-036", "T-055"],
+      "decision_date": "2026-05-21",
+      "note": "Daily Agenda + Mission Control surfaces — Phase 1 (T-036..T-039) shipped, Phases 2–5 in flight."
+    },
+    {
+      "slug": "notion-as-source-migration",
+      "name": "Notion-as-source migration",
+      "ticket_id_range": ["T-023", "T-027"],
+      "decision_date": "2026-05-03",
+      "note": "5-phase migration — Phase 5 (T-027) is the final irreversible gate to drop SQLite tickets table."
+    },
+    {
+      "slug": "solopreneur-os-etsy-sku",
+      "name": "Solopreneur OS — Etsy SKU",
+      "ticket_ids": ["PS-057", "PS-058", "PS-059"],
+      "decision_date": "2026-05-17",
+      "note": "$59 Etsy template — PS-058 (75-prompt master library, Michele-only) is the go-live bottleneck."
+    }
+  ]
+}

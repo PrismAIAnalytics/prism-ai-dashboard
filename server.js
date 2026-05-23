@@ -16,6 +16,7 @@ const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
 const notionSync = require('./services/notionSync');
 const notionAdapter = require('./services/notionAdapter'); // T-023 — read-path adapter behind USE_NOTION_SOURCE
+const plansAggregator = require('./services/plansAggregator'); // T-057 — Plans panel data
 const inboxRouter = require('./services/inboxRouter'); // T-037 — Mission Control inbox capture/list/triage
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const readinessScoring = require('./lib/readiness-scoring');
@@ -5030,6 +5031,26 @@ app.get('/api/mission-control/today', requireAuth, async (req, res) => {
     });
   } catch (e) {
     console.error('[mission-control/today] failed:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-057: Plans panel. Returns active multi-ticket roadmaps with live ship
+// progress from Notion. Manifest lives in data/active-roadmaps.json; aggregator
+// in services/plansAggregator.js. Degrades gracefully when Notion is unavailable
+// (returns the manifest entries with progress=null).
+app.get('/api/mission-control/plans', requireAuth, async (req, res) => {
+  try {
+    const result = await plansAggregator.getActiveRoadmaps(notionAdapter);
+    res.json({
+      ok: true,
+      active_roadmaps: result.active_roadmaps,
+      notion_available: result.notion_available,
+      manifest_present: result.manifest_present,
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[mission-control/plans] failed:', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });

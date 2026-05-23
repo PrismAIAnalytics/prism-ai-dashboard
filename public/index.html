@@ -1037,6 +1037,15 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div id="agenda-inbox-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
       </div>
 
+      <!-- Plans panel — T-057. Active multi-ticket roadmaps with live ship progress from Notion. -->
+      <div class="card" id="agenda-plans-card" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+          <h3 style="margin:0;font-size:14px;color:var(--text);letter-spacing:0.3px">Active Plans <span id="agenda-plans-count" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
+          <span id="agenda-plans-note" style="font-size:11px;color:var(--muted)"></span>
+        </div>
+        <div id="agenda-plans-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
+      </div>
+
       <!-- End of Day collapsible -->
       <details id="agenda-end-of-day" class="card" style="padding:0;overflow:hidden;margin-top:24px">
         <summary class="eod-summary" style="padding:16px 20px;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;list-style:none">
@@ -4567,6 +4576,70 @@ function setAgendaContextLine() {
 // above the fold. Top 10 is the primary view; Needs Michele open-by-default;
 // Carry-forward / Maturity / What Landed / Data Hygiene as closed collapsibles.
 
+// T-057: Plans panel renderer. Each active roadmap = card with progress bar,
+// status counts, and a "next: T-XXX" pointer to the lowest-numbered in-progress
+// ticket. Notion-unavailable fallback shows the roadmap shell with progress=unknown.
+function renderAgendaPlans(data) {
+  const body = document.getElementById('agenda-plans-body');
+  const count = document.getElementById('agenda-plans-count');
+  const note = document.getElementById('agenda-plans-note');
+  if (!body) return;
+
+  const roadmaps = (data && Array.isArray(data.active_roadmaps)) ? data.active_roadmaps : [];
+
+  if (count) count.textContent = roadmaps.length ? `(${roadmaps.length})` : '';
+  if (note) {
+    if (data && data.notion_available === false) {
+      note.textContent = 'Notion unavailable — progress unknown';
+      note.style.color = 'var(--amber, #C8A45A)';
+    } else {
+      note.textContent = '';
+    }
+  }
+
+  if (roadmaps.length === 0) {
+    body.innerHTML = `<div style="color:var(--muted)">No active roadmaps. Edit <code style="font-size:11px;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px">data/active-roadmaps.json</code> to add one.</div>`;
+    return;
+  }
+
+  body.innerHTML = roadmaps.map(r => {
+    const p = r.progress;
+    const specLabel = r.spec.kind === 'range'
+      ? `${escHtml(r.spec.from)} → ${escHtml(r.spec.to)}`
+      : (r.spec.ids || []).map(id => escHtml(id)).join(', ');
+
+    let progressHtml;
+    if (!p) {
+      progressHtml = `<div style="font-size:11px;color:var(--muted)">progress unknown</div>`;
+    } else {
+      const pct = p.total > 0 ? Math.round((p.shipped / p.total) * 100) : 0;
+      const headline = p.in_progress_headline
+        ? `<span style="color:var(--text)">${escHtml(p.in_progress_headline)} in progress</span>`
+        : (p.shipped === p.total ? `<span style="color:var(--green, #6FBF8A)">all shipped</span>` : '<span style="color:var(--muted)">no ticket in progress</span>');
+      progressHtml = `
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+          <div style="flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;min-width:80px">
+            <div style="height:100%;width:${pct}%;background:var(--brand-gold, #C8A45A);transition:width 0.3s"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap">${p.shipped} of ${p.total} shipped · ${pct}%</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${headline}${p.blocked > 0 ? ` · <span style="color:var(--red, #D87070)">${p.blocked} blocked</span>` : ''}</div>
+      `;
+    }
+
+    return `
+      <div style="padding:12px 0;border-bottom:1px dashed var(--border)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+          <div style="font-size:13px;color:var(--text);font-weight:500">${escHtml(r.name)}</div>
+          <div style="font-size:11px;color:var(--muted);font-family:monospace">${specLabel}</div>
+        </div>
+        ${r.note ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5">${escHtml(r.note)}</div>` : ''}
+        ${progressHtml}
+      </div>
+    `;
+  }).join('');
+}
+
 function renderAgendaBrief(brief) {
   const el = document.getElementById('agenda-brief');
   if (!el) return;
@@ -4697,6 +4770,14 @@ loaders['daily-agenda'] = async () => {
 
   // Inbox panel — T-037. Independent failure mode from Today aggregator.
   loadInboxPanel();
+
+  // Plans panel — T-057. Independent failure mode from other surfaces.
+  try {
+    const plans = await api('mission-control/plans');
+    renderAgendaPlans(plans);
+  } catch (e) {
+    renderAgendaPlans({ active_roadmaps: [], notion_available: false });
+  }
 
   // End of Day — preserves Daily Review behavior unchanged (load docs, load reviews).
   const docRes = await api('documents');
