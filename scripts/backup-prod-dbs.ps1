@@ -21,7 +21,7 @@
 [CmdletBinding()]
 param(
     [string] $BackupDir = (Join-Path $PSScriptRoot '..\backups'),
-    [string] $DabeUri   = 'https://portal.prismaianalytics.com/api/admin/backup-db',
+    [string] $DabeUri   = 'https://dashboard-api-production-dabe.up.railway.app/api/admin/backup-db',
     [string] $LegacyUri = 'https://web-production-7058a.up.railway.app/api/admin/backup-db'
 )
 

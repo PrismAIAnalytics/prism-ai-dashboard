@@ -28,7 +28,7 @@ try {
 } catch (e) { if (e.code !== 'ENOENT') console.warn('[.env]', e.message); }
 
 const APPLY = process.argv.includes('--apply');
-const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://portal.prismaianalytics.com';
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://dashboard-api-production-dabe.up.railway.app';
 const NOTION_API = 'https://api.notion.com/v1';
 const NOTION_VERSION = '2022-06-28';
 const TODAY = new Date().toISOString().slice(0, 10);

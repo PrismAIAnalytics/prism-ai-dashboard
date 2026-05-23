@@ -163,7 +163,7 @@ Environment: production
 **Smoke-test prod immediately:**
 
 ```powershell
-curl https://portal.prismaianalytics.com/health
+curl https://dashboard-api-production-dabe.up.railway.app/health
 ```
 
 Expect `{"status":"healthy",...}`. If you get anything else, ping the AI before doing anything else.
