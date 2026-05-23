@@ -133,6 +133,12 @@ function dashboardToNotionProperties(input) {
   if (input.source !== undefined && input.source) {
     props['Source'] = { rich_text: [{ text: { content: String(input.source) } }] };
   }
+  // T-057: optional "Captured By" attribution for Idea Vault captures. Property
+  // must exist in the Notion DB schema as rich_text; if absent, createTicket
+  // retries without it (see createTicket below) so missing-schema is safe.
+  if (input.captured_by !== undefined && input.captured_by !== null && input.captured_by !== '') {
+    props['Captured By'] = { rich_text: [{ text: { content: String(input.captured_by) } }] };
+  }
   if (input.dashboard_ticket_id !== undefined && input.dashboard_ticket_id) {
     props['Dashboard Ticket ID'] = { rich_text: [{ text: { content: String(input.dashboard_ticket_id) } }] };
   }
@@ -231,6 +237,9 @@ function notionPageToTicket(page) {
     sort_order: null,
     created_at: readProp(props, 'Created', 'created_time'),
     updated_at: lastEdited,
+    // T-057: Captured By attribution for Idea Vault items (null if property
+    // doesn't exist in the schema or wasn't set on the page).
+    captured_by: readProp(props, 'Captured By', 'rich_text'),
     // Approximation: Notion has no completed_date; Last Updated is the closest
     // proxy for done tickets and matches what the existing sync writes.
     completed_date: status === 'done' && lastEdited ? lastEdited.split('T')[0] : null,
@@ -521,9 +530,26 @@ function makeAdapter(getEnv = () => process.env) {
       e.status = 400;
       throw e;
     }
-    const page = await notionCreatePage({ apiKey, dbId, properties });
-    invalidate();
-    return notionPageToTicket(page);
+    try {
+      const page = await notionCreatePage({ apiKey, dbId, properties });
+      invalidate();
+      return notionPageToTicket(page);
+    } catch (e) {
+      // T-057 fallback: if the create failed because "Captured By" doesn't
+      // exist in the Notion schema yet, retry without it. Lets us ship the
+      // code before Michele adds the property in the Notion UI; once the
+      // property exists, attribution starts working automatically with no
+      // code change.
+      const msg = String(e.message || '');
+      if (properties['Captured By'] && e.status === 400 && /Captured By/.test(msg)) {
+        const { 'Captured By': _omit, ...rest } = properties;
+        console.warn('[notionAdapter] createTicket: "Captured By" property not in Notion schema; retrying without it. Add the property in Notion to enable user attribution.');
+        const page = await notionCreatePage({ apiKey, dbId, properties: rest });
+        invalidate();
+        return notionPageToTicket(page);
+      }
+      throw e;
+    }
   }
 
   async function updateTicket(pageId, updates) {

@@ -46,7 +46,7 @@ function validateCaptureText(text) {
 }
 
 function makeRouter(adapter = realNotionAdapter) {
-  async function createCapture(text) {
+  async function createCapture(text, capturedBy = null) {
     const err = validateCaptureText(text);
     if (err) {
       const e = new Error(err);
@@ -57,11 +57,16 @@ function makeRouter(adapter = realNotionAdapter) {
     const title = deriveTitle(trimmed);
     // Priority Medium / Status backlog (= Notion 'Not started') per leverage
     // brief. Category intentionally omitted — triage assigns it.
+    // capturedBy is the dashboard session username (null when not authenticated
+    // via a session token — e.g., raw API_KEY use). Adapter writes it to the
+    // optional "Captured By" Notion property; missing-property is safe (see
+    // notionAdapter.createTicket fallback).
     const ticket = await adapter.createTicket({
       title,
       status: 'backlog',
       priority: 'medium',
       source: SOURCE_PREFIX,
+      captured_by: capturedBy || null,
     });
     return ticket;
   }
@@ -153,7 +158,7 @@ function makeRouter(adapter = realNotionAdapter) {
 const _default = makeRouter();
 
 module.exports = {
-  createCapture: (text) => _default.createCapture(text),
+  createCapture: (text, capturedBy) => _default.createCapture(text, capturedBy),
   listCaptures: () => _default.listCaptures(),
   triage: (pageId, action, params) => _default.triage(pageId, action, params),
   // Factory + constants exposed for tests / route handlers.

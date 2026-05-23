@@ -5068,7 +5068,11 @@ app.post('/api/mission-control/inbox', requireAuth, [
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
   try {
-    const ticket = await inboxRouter.createCapture(req.body.text);
+    // T-057: attribute the capture to the session user. requireAuth populates
+    // req.user when the Bearer token is a session token; falls back to null
+    // for raw API_KEY use (no human attribution available there).
+    const capturedBy = req.user?.username || null;
+    const ticket = await inboxRouter.createCapture(req.body.text, capturedBy);
     res.set('X-Source', 'notion');
     return res.status(201).json({ ok: true, ticket });
   } catch (e) {
