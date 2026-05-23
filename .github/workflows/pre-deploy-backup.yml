@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      DABE_URL: https://dashboard-api-production-dabe.up.railway.app
+      DABE_URL: https://portal.prismaianalytics.com
     steps:
       - name: Verify ADMIN_KEY secret is configured
         run: |

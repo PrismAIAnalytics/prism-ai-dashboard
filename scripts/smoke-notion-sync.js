@@ -20,7 +20,7 @@ try {
   }
 } catch (e) { if (e.code !== 'ENOENT') console.warn('[.env]', e.message); }
 
-const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://dashboard-api-production-dabe.up.railway.app';
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://portal.prismaianalytics.com';
 const NOTION_KEY = process.env.NOTION_API_KEY;
 const NOTION_DB = process.env.NOTION_TICKETS_DB_ID;
 const SINCE = process.env.NOTION_SYNC_SINCE || undefined;

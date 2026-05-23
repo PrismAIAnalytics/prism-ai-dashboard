@@ -59,7 +59,7 @@ try {
 const USE_LOCAL = process.argv.includes('--local');
 const OUT_FLAG = process.argv.find(a => a.startsWith('--out='));
 const DASHBOARD_URL = USE_LOCAL ? 'http://localhost:3000'
-  : (process.env.DASHBOARD_URL || 'https://dashboard-api-production-dabe.up.railway.app');
+  : (process.env.DASHBOARD_URL || 'https://portal.prismaianalytics.com');
 const NOTION_API = 'https://api.notion.com/v1';
 const NOTION_VERSION = '2022-06-28';
 

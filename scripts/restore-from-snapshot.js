@@ -22,7 +22,7 @@
  *
  * Flags:
  *   --target <url>       base URL of target server
- *                        (default https://dashboard-api-production-dabe.up.railway.app)
+ *                        (default https://portal.prismaianalytics.com)
  *   --snapshot <path>    path to snapshot .db file
  *                        (default: latest backups/prism-7058a-*.db)
  *   --admin-key <key>    overrides $DABE_ADMIN_KEY
@@ -98,7 +98,7 @@ function printReport(report) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const target = args.target || 'https://dashboard-api-production-dabe.up.railway.app';
+  const target = args.target || 'https://portal.prismaianalytics.com';
   const adminKey = args.adminKey || process.env.DABE_ADMIN_KEY;
   if (!adminKey) {
     console.error('Missing admin key. Set $env:DABE_ADMIN_KEY or pass --admin-key.');
