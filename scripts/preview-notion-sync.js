@@ -24,7 +24,7 @@ try {
 } catch (e) { if (e.code !== 'ENOENT') console.warn('[.env]', e.message); }
 
 const SKIP_DONE = process.argv.includes('--skip-done');
-const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://portal.prismaianalytics.com';
+const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://dashboard-api-production-dabe.up.railway.app';
 const NOTION_KEY = process.env.NOTION_API_KEY;
 const NOTION_DB = process.env.NOTION_TICKETS_DB_ID;
 const DASH_KEY = process.env.API_KEY;

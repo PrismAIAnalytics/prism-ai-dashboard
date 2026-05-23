@@ -19,7 +19,7 @@ If In Progress in TASKS.md is non-empty and the owner isn't you, **stop and ask 
 
 ## Environments
 
-- **Production:** https://portal.prismaianalytics.com (Railway-hosted, custom domain on the dashboard-api service; the `dashboard-api-production-dabe.up.railway.app` Railway-generated URL remains active as an alias) — deploys from `main` on every merge
+- **Production:** https://dashboard-api-production-dabe.up.railway.app — deploys from `main` on every merge
 - **Staging:** `<set after T-008 Railway service is created — see STAGING_SETUP.md>` — deploys from `staging`, holds seed data only, used on-demand for risky changes per [WORKFLOW.md](WORKFLOW.md) §4.5
 - **Legacy:** https://web-production-7058a.up.railway.app — kept as a recovery source; not under active development
 

@@ -44,8 +44,8 @@ find "$DIST_DIR/portal" -name "desktop.ini" -delete 2>/dev/null || true
 
 # Create _redirects at root (overwrite any from dashboard)
 cat > "$DIST_DIR/_redirects" << 'EOF'
-/api/* https://portal.prismaianalytics.com/api/:splat 200!
-/health https://portal.prismaianalytics.com/health 200!
+/api/* https://dashboard-api-production-dabe.up.railway.app/api/:splat 200!
+/health https://dashboard-api-production-dabe.up.railway.app/health 200!
 EOF
 
 echo "Build complete: $DIST_DIR"
