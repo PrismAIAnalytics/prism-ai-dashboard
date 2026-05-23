@@ -4889,8 +4889,10 @@ function _renderInboxItem(c) {
   const id = _inboxEscapeHtml(c.id);
   const title = _inboxEscapeHtml(c.title || '(no title)');
   const ts = c.created_at ? new Date(c.created_at).toLocaleString() : '';
-  // T-057: surface "by <user>" when Captured By attribution is present.
-  const by = c.captured_by ? `by ${_inboxEscapeHtml(c.captured_by)} · ` : '';
+  // T-057: surface the captured-by user inline when present (no "by " prefix
+  // per Michele 2026-05-23 — the username and timestamp on the same line are
+  // self-explanatory).
+  const by = c.captured_by ? `${_inboxEscapeHtml(c.captured_by)} · ` : '';
   const meta = `${by}${_inboxEscapeHtml(ts)}`;
   const btnStyle = 'background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit';
   return `
