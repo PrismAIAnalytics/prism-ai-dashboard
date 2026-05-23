@@ -243,7 +243,7 @@ Runs in-process via `services/notionSync.js`. Match key = `tickets.notion_page_i
 
 ```bash
 curl -X POST -H "Authorization: Bearer $API_KEY" \
-  https://dashboard-api-production-dabe.up.railway.app/api/sync/notion
+  https://portal.prismaianalytics.com/api/sync/notion
 ```
 
 **Local smoke test (read-only against prod data):**

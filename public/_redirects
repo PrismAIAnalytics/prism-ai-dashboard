@@ -1,2 +1,2 @@
-/api/* https://dashboard-api-production-dabe.up.railway.app/api/:splat 200!
-/health https://dashboard-api-production-dabe.up.railway.app/health 200!
+/api/* https://portal.prismaianalytics.com/api/:splat 200!
+/health https://portal.prismaianalytics.com/health 200!
