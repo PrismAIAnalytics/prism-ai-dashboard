@@ -16,6 +16,7 @@ const qboService = require('./services/quickbooksService');
 const cacheService = require('./services/cacheService');
 const notionSync = require('./services/notionSync');
 const notionAdapter = require('./services/notionAdapter'); // T-023 — read-path adapter behind USE_NOTION_SOURCE
+const plansAggregator = require('./services/plansAggregator'); // T-057 — Plans panel data
 const inboxRouter = require('./services/inboxRouter'); // T-037 — Mission Control inbox capture/list/triage
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const readinessScoring = require('./lib/readiness-scoring');
@@ -5034,6 +5035,26 @@ app.get('/api/mission-control/today', requireAuth, async (req, res) => {
   }
 });
 
+// T-057: Plans panel. Returns active multi-ticket roadmaps with live ship
+// progress from Notion. Manifest lives in data/active-roadmaps.json; aggregator
+// in services/plansAggregator.js. Degrades gracefully when Notion is unavailable
+// (returns the manifest entries with progress=null).
+app.get('/api/mission-control/plans', requireAuth, async (req, res) => {
+  try {
+    const result = await plansAggregator.getActiveRoadmaps(notionAdapter);
+    res.json({
+      ok: true,
+      active_roadmaps: result.active_roadmaps,
+      notion_available: result.notion_available,
+      manifest_present: result.manifest_present,
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[mission-control/plans] failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ─── Mission Control Inbox API (T-037) ──────────────────────────────────────
 // Sticky capture from every Dashboard page lands here. Captures are Notion
 // tickets with source='cowork:inbox'; Daily Agenda lists open captures and
@@ -5047,7 +5068,11 @@ app.post('/api/mission-control/inbox', requireAuth, [
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
   try {
-    const ticket = await inboxRouter.createCapture(req.body.text);
+    // T-057: attribute the capture to the session user. requireAuth populates
+    // req.user when the Bearer token is a session token; falls back to null
+    // for raw API_KEY use (no human attribution available there).
+    const capturedBy = req.user?.username || null;
+    const ticket = await inboxRouter.createCapture(req.body.text, capturedBy);
     res.set('X-Source', 'notion');
     return res.status(201).json({ ok: true, ticket });
   } catch (e) {
