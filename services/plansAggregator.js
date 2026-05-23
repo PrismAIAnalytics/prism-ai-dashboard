@@ -24,7 +24,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const MANIFEST_PATH = path.resolve(path.join(__dirname, '..', 'data', 'active-roadmaps.json'));
+// Manifest path: config/ rather than data/ because Railway mounts a persistent
+// volume at /app/data for the SQLite WAL file, which would overlay any files
+// COPY'd into data/ at build time. The config/ directory is safe to COPY +
+// serve from at runtime.
+const MANIFEST_PATH = path.resolve(path.join(__dirname, '..', 'config', 'active-roadmaps.json'));
 
 function readManifest() {
   try {
