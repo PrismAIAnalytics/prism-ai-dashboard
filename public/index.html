@@ -331,9 +331,25 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 .ticket-views button:hover { color: var(--text); border-color: var(--royal); }
 .ticket-views button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
-.ticket-kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
-@media (max-width: 1200px) { .ticket-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 700px) { .ticket-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+/* 7 KPI tiles after Phase C added To Do/Target — single-row layout on desktop. */
+.ticket-kpi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px; }
+@media (max-width: 1400px) { .ticket-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 900px) { .ticket-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+/* KPI trend layer (2026-05-24): delta chip + 14-day sparkline per tile */
+.kpi-trend { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.kpi-trend:empty { display: none; }
+.kpi-delta { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 6px; display: inline-block; width: fit-content; font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
+.kpi-delta-good     { background: rgba(74,222,128,0.15);   color: var(--green); }
+.kpi-delta-bad      { background: rgba(248,113,113,0.15);  color: var(--red); }
+.kpi-delta-neutral  { background: rgba(148,163,184,0.12);  color: var(--muted); }
+.kpi-delta-flat     { background: rgba(148,163,184,0.08);  color: var(--muted); }
+.kpi-delta-baseline { background: rgba(196,159,90,0.08);   color: var(--amber, #C8A45A); font-weight: 400; font-style: italic; font-size: 10px; }
+.kpi-sparkline { display: block; max-width: 100%; height: 24px; }
+/* Kanban due-date filter chips */
+.ticket-due-filter { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ticket-due-filter input[type="date"] { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 5px 8px; font-size: 11px; font-family: inherit; }
+.ticket-due-custom { display: none; align-items: center; gap: 6px; }
+.ticket-due-custom.active { display: inline-flex; }
 .kanban-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; min-height: 400px; }
 .kanban-board::-webkit-scrollbar { height: 6px; }
 .kanban-board::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -376,6 +392,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .ticket-card .ticket-due.overdue { color: var(--red); font-weight: 600; }
 .ticket-card .ticket-assignee { font-size: 10px; color: var(--muted); margin-top: 6px; }
 .ticket-card .ticket-client-tag { font-size: 10px; color: var(--sky); margin-top: 4px; }
+/* Phase E — recency pill bottom-right of each Kanban card */
+.ticket-card { position: relative; }
+.ticket-card .ticket-recency { position: absolute; right: 8px; bottom: 6px; font-size: 9px; color: var(--muted); opacity: 0.7; font-variant-numeric: tabular-nums; }
+.ticket-card:hover .ticket-recency { opacity: 1; }
+/* Phase F — clickable ticket IDs across surfaces */
+.ticket-link { color: var(--royal); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+.ticket-link:hover { text-decoration: underline solid; }
+.ticket-link:focus { outline: 2px solid var(--royal); outline-offset: 2px; border-radius: 2px; }
 /* Ticket detail modal */
 .ticket-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; display: flex; align-items: center; justify-content: center; }
 .ticket-modal {
@@ -392,6 +416,81 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .ticket-modal textarea { min-height: 80px; resize: vertical; }
 .ticket-modal .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ticket-modal .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+/* Phase E — top strip (Last Updated · Status · Priority) */
+.ticket-modal .td-top-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 12px 14px; background: rgba(74,109,181,0.06); border: 1px solid var(--border); border-radius: 10px; }
+.ticket-modal .td-top-cell { display: flex; flex-direction: column; gap: 4px; }
+.ticket-modal .td-top-cell .td-top-label { font-size: 10px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; margin: 0; }
+.ticket-modal .td-top-cell .td-top-val { font-size: 13px; color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; padding-top: 2px; }
+.ticket-modal .td-top-cell select { font-size: 13px; padding: 6px 8px; }
+/* Phase E — provenance row (Source · T-ID · Dashboard Ticket ID) */
+.ticket-modal .td-provenance { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.ticket-modal .td-prov-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ticket-modal .td-prov-cell .td-prov-label { font-size: 10px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+.ticket-modal .td-prov-cell .td-prov-val { font-size: 12px; color: var(--text); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Phase E — local-fields accordion */
+.ticket-modal .td-local-fields { margin-top: 16px; border: 1px dashed var(--border); border-radius: 8px; padding: 0 12px; }
+.ticket-modal .td-local-fields summary { padding: 10px 0; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
+.ticket-modal .td-local-fields[open] summary { border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.ticket-modal .td-local-fields > *:not(summary) { padding-bottom: 12px; }
+/* Phase D1 — Reply & Resume composer (Review-status only) */
+.td-reply-resume { margin-top: 14px; padding: 14px; background: rgba(196,159,90,0.07); border: 1px solid rgba(196,159,90,0.30); border-radius: 10px; }
+.td-reply-resume-label { font-size: 12px; font-weight: 600; color: var(--amber, #C8A45A); margin-bottom: 8px; letter-spacing: 0.3px; }
+.td-reply-resume textarea { width: 100%; min-height: 70px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 12px; font-size: 13px; font-family: inherit; resize: vertical; }
+.td-reply-resume textarea:focus { outline: none; border-color: var(--amber, #C8A45A); }
+.td-reply-resume button.btn-primary { background: var(--amber, #C8A45A); border-color: var(--amber, #C8A45A); padding: 8px 16px; font-size: 12px; }
+.td-reply-resume button.btn-primary:hover { filter: brightness(1.1); }
+/* Phase D1 — Needs-Decision tile on Daily Agenda + red nav badge on Tickets link */
+.needs-decision-tile { cursor: pointer; padding: 10px 16px; background: rgba(248,113,113,0.10); border: 1px solid rgba(248,113,113,0.40); border-radius: 12px; min-width: 110px; text-align: center; transition: transform 0.12s, background 0.12s; user-select: none; }
+.needs-decision-tile:hover { background: rgba(248,113,113,0.18); transform: translateY(-1px); }
+.needs-decision-tile .needs-decision-count { font-size: 28px; font-weight: 700; color: var(--red); line-height: 1; font-variant-numeric: tabular-nums; }
+.needs-decision-tile .needs-decision-label { font-size: 10px; text-transform: uppercase; color: var(--red); letter-spacing: 0.5px; margin-top: 4px; opacity: 0.85; }
+.nav-badge-red { display: inline-block; min-width: 16px; height: 16px; padding: 0 5px; margin-left: 6px; background: var(--red); color: white; font-size: 10px; font-weight: 700; border-radius: 8px; line-height: 16px; text-align: center; vertical-align: middle; font-variant-numeric: tabular-nums; }
+/* Daily Agenda collapsible panels — Idea Vault, Active Plans, Pending Plans,
+   Recommended for To Do, Past-due Backlog. Native <details> with localStorage
+   persistence keyed by data-persist-key. */
+.agenda-collapsible { padding: 0; overflow: hidden; }
+.agenda-collapsible > .agenda-collapsible-summary {
+  padding: 14px 18px; cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 12px;
+  list-style: none;
+}
+.agenda-collapsible > .agenda-collapsible-summary::-webkit-details-marker { display: none; }
+.agenda-collapsible > .agenda-collapsible-summary::marker { display: none; }
+.agenda-collapsible > .agenda-collapsible-summary:hover { background: rgba(255,255,255,0.02); }
+.agenda-collapsible-chevron {
+  font-size: 11px; color: var(--muted);
+  transition: transform 0.2s ease; display: inline-block; flex-shrink: 0; width: 12px;
+}
+.agenda-collapsible[open] > .agenda-collapsible-summary > .agenda-collapsible-chevron { transform: rotate(90deg); }
+/* Specificity bump (>body.prism-themed h3) so the agenda collapsible title
+   doesn't inherit the 18px h3 default. 15px makes a clean hierarchy: title
+   15 > body 14 > meta 12. */
+.agenda-collapsible > .agenda-collapsible-summary > .agenda-collapsible-title { margin: 0; font-size: 15px; color: var(--text); letter-spacing: 0.3px; flex: 1; min-width: 0; font-weight: 600; }
+.agenda-collapsible-count { font-size: 12px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+.agenda-collapsible-count-red { color: var(--red); font-weight: 600; }
+.agenda-collapsible-action { font-size: 12px; padding: 7px 14px; flex-shrink: 0; }
+.agenda-collapsible-body { padding: 0 18px 18px; }
+/* Phase B — Past-due Backlog panel rows */
+.pastdue-row { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; gap: 6px 12px; padding: 12px 12px; border-bottom: 1px solid var(--border); align-items: center; }
+.pastdue-row:last-child { border-bottom: none; }
+.pastdue-row-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; grid-column: 1; grid-row: 1; }
+.pastdue-row-title { font-size: 14px; color: var(--text); grid-column: 1; grid-row: 2; line-height: 1.55; }
+.pastdue-row-actions { display: flex; gap: 6px; grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.pastdue-row-actions .btn-sm { font-size: 11px; padding: 6px 10px; white-space: nowrap; }
+.pastdue-days { font-size: 11px; padding: 2px 7px; border-radius: 8px; font-weight: 600; }
+.pastdue-days.overdue-recent { background: rgba(248,113,113,0.15); color: var(--red); }
+.pastdue-days.overdue-deep { background: rgba(248,113,113,0.30); color: var(--red); }
+/* Phase C — Recommended for To Do panel rows */
+.recommended-row { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; gap: 6px 12px; padding: 12px 12px; border-bottom: 1px solid var(--border); align-items: center; }
+.recommended-row:last-child { border-bottom: none; }
+.recommended-row-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; grid-column: 1; grid-row: 1; }
+.recommended-row-title { font-size: 14px; color: var(--text); grid-column: 1; grid-row: 2; line-height: 1.55; }
+.recommended-row-actions { display: flex; gap: 6px; grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.recommended-row-actions .btn-sm { font-size: 11px; padding: 6px 12px; white-space: nowrap; }
+.recommended-due { font-size: 11px; color: var(--muted); padding: 2px 7px; border-radius: 8px; background: rgba(255,255,255,0.04); }
+/* Phase B — stale Backlog card warning pill on the Kanban */
+.ticket-card.stale-backlog { border-left: 3px solid var(--red); }
+.ticket-card .ticket-stale-warn { font-size: 10px; color: var(--red); font-weight: 600; margin-top: 6px; padding: 3px 7px; background: rgba(248,113,113,0.12); border-radius: 6px; display: inline-block; }
 .ticket-comments { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
 .ticket-comments .comment { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .ticket-comments .comment:last-child { border-bottom: none; }
@@ -687,7 +786,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     </div>
     <div class="nav-section">Daily</div>
     <a href="javascript:void(0)" class="active" data-page="daily-agenda" onclick="showPage('daily-agenda', this)">Daily Agenda</a>
-    <a href="javascript:void(0)" data-page="tickets" onclick="showPage('tickets', this)">Tickets</a>
+    <a href="javascript:void(0)" data-page="tickets" onclick="showPage('tickets', this)">Tickets<span id="nav-tickets-needs-decision" class="nav-badge-red" style="display:none"></span></a>
     <a href="javascript:void(0)" data-page="prism-studio" onclick="showPage('prism-studio', this)">Prism Studio</a>
     <div class="nav-section">Clients &amp; Sales</div>
     <a href="javascript:void(0)" data-page="clients" onclick="showPage('clients', this)">Clients</a>
@@ -896,16 +995,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <div id="page-tickets" class="page">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
         <div><h2>Tickets</h2><p>Task management — track client and internal work items</p></div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <div class="ticket-views" id="ticket-view-toggle">
-            <button class="active" onclick="ticketSetView('kanban', this)">&#9635; Board</button>
-            <button onclick="ticketSetView('list', this)">&#9776; List</button>
-          </div>
-          <button class="btn-primary" onclick="ticketShowCreateModal()">+ New Ticket</button>
-        </div>
+        <button class="btn-primary" onclick="ticketShowCreateModal()">+ New Ticket</button>
       </div>
       <div id="ticket-kpis" class="ticket-kpi-grid"></div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <!-- Filters apply to the Kanban (the only view per Michele's edits 2026-05-24).
+           Within-column ordering uses ticketSortList default (updated_desc).
+           Category chips are populated dynamically from /api/tickets/summary's
+           byCategory so the list always reflects what's actually in the data. -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <div class="ticket-status-pills" id="ticket-type-filters">
           <button class="active" onclick="ticketFilterType('all', this)">All</button>
           <button onclick="ticketFilterType('client', this)">Client</button>
@@ -913,21 +1010,26 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
         <div class="ticket-status-pills" id="ticket-cat-filters">
           <button class="active" onclick="ticketFilterCat('all', this)">All Categories</button>
-          <button onclick="ticketFilterCat('action', this)">Action Items</button>
-          <button onclick="ticketFilterCat('training', this)">Training</button>
-          <button onclick="ticketFilterCat('delivery', this)">Delivery</button>
-          <button onclick="ticketFilterCat('general', this)">General</button>
+          <!-- Per-category chips injected by populateCategoryFilters() -->
         </div>
-        <select id="ticket-sort" onchange="ticketSetSort(this.value)" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--fg);font-size:13px;cursor:pointer">
-          <option value="created_desc">Newest First</option>
-          <option value="created_asc">Oldest First</option>
-          <option value="due_asc">Due Date (Soonest)</option>
-          <option value="due_desc">Due Date (Latest)</option>
-          <option value="priority">Priority (High → Low)</option>
-        </select>
+      </div>
+      <!-- Date filter on its own row so it doesn't cram against type+category. -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <div class="ticket-status-pills ticket-due-filter" id="ticket-due-filters">
+          <button class="active" data-due="all" onclick="ticketFilterDue('all', this)">All Dates</button>
+          <button data-due="week" onclick="ticketFilterDue('week', this)">Due This Week</button>
+          <button data-due="14d" onclick="ticketFilterDue('14d', this)">Due Next 14d</button>
+          <button data-due="overdue" onclick="ticketFilterDue('overdue', this)">Overdue</button>
+          <button data-due="nodate" onclick="ticketFilterDue('nodate', this)">No Date</button>
+          <button data-due="custom" onclick="ticketFilterDue('custom', this)">Custom…</button>
+          <span class="ticket-due-custom" id="ticket-due-custom-inputs">
+            <input type="date" id="ticket-due-start" onchange="ticketRender()">
+            <span style="color:var(--muted);font-size:11px">to</span>
+            <input type="date" id="ticket-due-end" onchange="ticketRender()">
+          </span>
+        </div>
       </div>
       <div id="tickets-kanban" class="kanban-board"></div>
-      <div id="tickets-list" class="card" style="display:none"><div id="tickets-list-table" class="scroll-y" style="max-height:600px"></div></div>
     </div>
 
     <!-- SECURITY COMPLIANCE -->
@@ -1017,51 +1119,98 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
     <!-- DAILY REVIEW + DOCUMENT LIBRARY -->
     <div id="page-daily-agenda" class="page active">
-      <div class="page-header">
-        <h2>Daily Agenda</h2>
-        <p id="agenda-context-line">Loading today's view…</p>
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div>
+          <h2>Daily Agenda</h2>
+          <p id="agenda-context-line">Loading today's view…</p>
+        </div>
+        <!-- Phase D1 Needs-Decision tile — shows count of Review-status tickets
+             awaiting your reply. Click jumps to the Tickets page filtered to Review. -->
+        <div id="agenda-needs-decision-tile" class="needs-decision-tile" style="display:none" onclick="needsDecisionTileClick()" title="Click to view Review-status tickets">
+          <div class="needs-decision-count">0</div>
+          <div class="needs-decision-label">Needs decision</div>
+        </div>
       </div>
 
       <!-- Idea Vault + Active Plans + Pending Plans (three-column above-the-fold operations row).
            T-037 Idea Vault, T-057 Active Plans, T-065 Pending Plans. Grid uses auto-fit minmax so
-           it collapses to two columns then one column on narrower viewports. -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:20px;align-items:stretch">
+           it collapses to two columns then one column on narrower viewports.
+           Each card is a <details data-persist-key="..."> — collapse state persists via localStorage. -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:20px;align-items:start">
 
         <!-- Inbox panel — T-037. Lists open cowork:inbox captures with triage actions. -->
-        <div class="card" id="agenda-inbox-card" style="margin-bottom:0">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:14px;color:var(--text);letter-spacing:0.3px">Idea Vault <span id="agenda-inbox-count" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
-            <span id="agenda-inbox-sla" style="font-size:11px;color:var(--amber, #C8A45A);display:none">Idea Vault over 20 — Chloe will flag in morning brief.</span>
+        <details class="card agenda-collapsible" id="agenda-inbox-card" data-persist-key="agenda.inbox" style="margin-bottom:0">
+          <summary class="agenda-collapsible-summary">
+            <span class="agenda-collapsible-chevron">&#9654;</span>
+            <h3 class="agenda-collapsible-title">Idea Vault <span id="agenda-inbox-count" class="agenda-collapsible-count"></span></h3>
+            <span id="agenda-inbox-sla" style="font-size:11px;color:var(--amber, #C8A45A);display:none">over 20 — Chloe will flag</span>
+          </summary>
+          <div class="agenda-collapsible-body">
+            <div id="agenda-inbox-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
           </div>
-          <div id="agenda-inbox-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
-        </div>
+        </details>
 
         <!-- Active Plans panel — T-057. Active multi-ticket roadmaps with live ship progress from Notion. -->
-        <div class="card" id="agenda-plans-card" style="margin-bottom:0">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:14px;color:var(--text);letter-spacing:0.3px">Active Plans <span id="agenda-plans-count" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
+        <details class="card agenda-collapsible" id="agenda-plans-card" data-persist-key="agenda.active-plans" style="margin-bottom:0">
+          <summary class="agenda-collapsible-summary">
+            <span class="agenda-collapsible-chevron">&#9654;</span>
+            <h3 class="agenda-collapsible-title">Active Plans <span id="agenda-plans-count" class="agenda-collapsible-count"></span></h3>
             <span id="agenda-plans-note" style="font-size:11px;color:var(--muted)"></span>
+          </summary>
+          <div class="agenda-collapsible-body">
+            <div id="agenda-plans-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
           </div>
-          <div id="agenda-plans-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
-        </div>
+        </details>
 
         <!-- Pending Plans panel — T-065. Plans awaiting Michele's review (hand-curated manifest +
              auto-suggested entries scanned from ~/.claude/plans/ for explicit review markers). -->
-        <div class="card" id="agenda-pending-plans-card" style="margin-bottom:0">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:12px;flex-wrap:wrap">
-            <h3 style="margin:0;font-size:14px;color:var(--text);letter-spacing:0.3px">Pending Plans <span id="agenda-pending-plans-count" style="font-size:11px;color:var(--muted);font-weight:400"></span></h3>
+        <details class="card agenda-collapsible" id="agenda-pending-plans-card" data-persist-key="agenda.pending-plans" style="margin-bottom:0">
+          <summary class="agenda-collapsible-summary">
+            <span class="agenda-collapsible-chevron">&#9654;</span>
+            <h3 class="agenda-collapsible-title">Pending Plans <span id="agenda-pending-plans-count" class="agenda-collapsible-count"></span></h3>
             <span id="agenda-pending-plans-note" style="font-size:11px;color:var(--muted)"></span>
+          </summary>
+          <div class="agenda-collapsible-body">
+            <div id="agenda-pending-plans-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
           </div>
-          <div id="agenda-pending-plans-body" style="font-size:13px;color:var(--text-muted, var(--muted));line-height:1.6">Loading…</div>
-        </div>
+        </details>
 
       </div>
 
       <!-- Morning Brief surface (T-036e) — parsed from reports/cos-morning-brief-YYYY-MM-DD.md.
-           Top 10 above the fold; Needs Michele / Carry-forward / Maturity / What Landed / Data Hygiene below as collapsibles. -->
+           Top 10 above the fold; Needs Michele / Carry-forward / Maturity / What Landed / Data Hygiene below as collapsibles.
+           Brief intentionally NOT collapsible — it's the lead-in for the day. -->
       <div id="agenda-brief" class="brief-card">
         <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
       </div>
+
+      <!-- Recommended for To Do panel (Phase C, 2026-05-24) — top-N backlog candidates ranked by
+           (priority, due-date asc, last-updated desc). Past-due excluded (those go to Phase B's panel).
+           Moved below the brief per Michele's edits 2026-05-24 — operational panels sit below the
+           reading-pane brief. -->
+      <details class="card agenda-collapsible" id="agenda-recommended-todo-card" data-persist-key="agenda.recommended-todo" style="margin-top:20px;margin-bottom:20px;display:none">
+        <summary class="agenda-collapsible-summary">
+          <span class="agenda-collapsible-chevron">&#9654;</span>
+          <h3 class="agenda-collapsible-title">Recommended for To Do <span id="agenda-recommended-count" class="agenda-collapsible-count"></span></h3>
+          <button id="agenda-recommended-approve-all" class="btn-sm agenda-collapsible-action" onclick="event.stopPropagation();recommendedApproveAll()">Approve all visible → To Do</button>
+        </summary>
+        <div class="agenda-collapsible-body">
+          <div id="agenda-recommended-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
+        </div>
+      </details>
+
+      <!-- Past-due Backlog panel (Phase B, 2026-05-24) — tickets stuck in Backlog past their due_date.
+           Moved below the brief per Michele's edits 2026-05-24. -->
+      <details class="card agenda-collapsible" id="agenda-pastdue-backlog-card" data-persist-key="agenda.pastdue-backlog" style="margin-bottom:20px;display:none">
+        <summary class="agenda-collapsible-summary">
+          <span class="agenda-collapsible-chevron">&#9654;</span>
+          <h3 class="agenda-collapsible-title">Past-due in Backlog <span id="agenda-pastdue-count" class="agenda-collapsible-count agenda-collapsible-count-red"></span></h3>
+          <button id="agenda-pastdue-promote-all" class="btn-sm agenda-collapsible-action" onclick="event.stopPropagation();pastDuePromoteAll()">Promote all visible → To Do</button>
+        </summary>
+        <div class="agenda-collapsible-body">
+          <div id="agenda-pastdue-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
+        </div>
+      </details>
 
       <!-- End of Day collapsible -->
       <details id="agenda-end-of-day" class="card" style="padding:0;overflow:hidden;margin-top:24px">
@@ -1286,6 +1435,22 @@ const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const fmt = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n);
 const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+// Phase E — short relative-time formatter for the ticket detail "Last Updated"
+// strip, list column, and Kanban card recency pill. Input is an ISO timestamp
+// (e.g. "2026-05-24T15:52:10.501Z" from updated_at). Falls back to fmtDate
+// for anything older than ~30 days so old tickets don't show "200d ago".
+function fmtRelative(iso) {
+  if (!iso) return '—';
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '—';
+  const deltaSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (deltaSec < 45) return 'just now';
+  if (deltaSec < 3600) return Math.floor(deltaSec / 60) + 'm ago';
+  if (deltaSec < 86400) return Math.floor(deltaSec / 3600) + 'h ago';
+  if (deltaSec < 7 * 86400) return Math.floor(deltaSec / 86400) + 'd ago';
+  if (deltaSec < 30 * 86400) return Math.floor(deltaSec / (7 * 86400)) + 'w ago';
+  return fmtDate(iso.split('T')[0]);
+}
 
 function showPage(id, el) {
   // Clean up financials interval when navigating away
@@ -2483,35 +2648,181 @@ async function crmSubmitEdit(id) {
 // ═══════════════════════════════════════════════════════════════
 
 // --- TICKETS ---
-let ticketView = 'kanban';
+// ticketView removed 2026-05-24 — Tickets page is Kanban-only per Michele's edits.
 let ticketTypeFilter = 'all';
 let ticketCatFilter = 'all';
-let ticketSortKey = 'created_desc';
+// Phase E — default to Last Updated newest. Persisted across reloads via
+// localStorage so user choice survives page refresh.
+let ticketSortKey = (function() {
+  try { return localStorage.getItem('prism.tickets.sortKey') || 'updated_desc'; }
+  catch (e) { return 'updated_desc'; }
+})();
 let allTickets = [];
 
+// Trend state cached across renders — populated by loaders.tickets.
+let _trendDelta = { available: false, current: null, delta: null, comparison_date: null, days: 7 };
+let _trendSeries = { available_days: 0, days: 14, series: null };
+
+// Tile direction semantics — drives delta-chip color.
+//   lower-is-better:  up=red (bad)    down=green (good)
+//   higher-is-better: up=green (good) down=red (bad)
+//   neutral:          both grey (informational only)
+const _TILE_DIRECTION = {
+  total:               'neutral',
+  open:                'lower-is-better',
+  overdue:             'lower-is-better',
+  completed_this_week: 'higher-is-better',
+  todo:                'neutral',
+  client_tasks:        'neutral',
+  internal_tasks:      'neutral',
+};
+
 loaders.tickets = async () => {
-  const [ticketRes, summaryRes] = await Promise.all([api('tickets'), api('tickets/summary')]);
+  const [ticketRes, summaryRes, trendRes, seriesRes] = await Promise.all([
+    api('tickets'),
+    api('tickets/summary'),
+    api('tickets/trends?days=7').catch(() => ({ ok: false })),
+    api('tickets/trends/series?days=14').catch(() => ({ ok: false })),
+  ]);
   // Hide dev-insight tickets from the Tickets page — they get their own surface in T-020.
   allTickets = (ticketRes.tickets || []).filter(t => t.category !== 'dev-insight');
   const s = summaryRes;
+  _trendDelta  = trendRes && trendRes.ok ? trendRes : _trendDelta;
+  _trendSeries = seriesRes && seriesRes.ok ? seriesRes : _trendSeries;
 
-  // KPIs
-  $('#ticket-kpis').innerHTML = `
-    <div class="kpi"><div class="label">Total Tickets</div><div class="value">${s.total || 0}</div></div>
-    <div class="kpi"><div class="label">Open</div><div class="value" style="color:var(--blue)">${s.open || 0}</div></div>
-    <div class="kpi"><div class="label">Overdue</div><div class="value text-red">${s.overdue || 0}</div></div>
-    <div class="kpi"><div class="label">Done This Week</div><div class="value text-green">${s.completedThisWeek || 0}</div></div>
-    <div class="kpi"><div class="label">Client Tasks</div><div class="value" style="color:var(--green)">${(s.byType || []).find(t => t.ticket_type === 'client')?.count || 0}</div></div>
-    <div class="kpi"><div class="label">Internal Tasks</div><div class="value" style="color:var(--purple)">${(s.byType || []).find(t => t.ticket_type === 'internal')?.count || 0}</div></div>
-  `;
+  // KPIs — Phase C added the "To Do current/target" tile (color-coded vs target).
+  // Trend layer (2026-05-24): each tile carries a delta chip + 14-day sparkline,
+  // hidden when there's no historical snapshot to compare against.
+  const initialTodoCount = allTickets.filter(t => t.status === 'todo').length;
+  const tileHtml = (metricKey, opts) => {
+    const { label, value, valueColor, tileId } = opts;
+    const idAttr = tileId ? ` id="${tileId}"` : '';
+    const titleAttr = opts.title ? ` title="${escapeHtml(opts.title)}"` : '';
+    return `<div class="kpi"${idAttr}${titleAttr} data-metric="${metricKey}">
+      <div class="label">${label}</div>
+      <div class="value"${valueColor ? ` style="color:${valueColor}"` : ''}>${value}</div>
+      <div class="kpi-trend"></div>
+    </div>`;
+  };
+  $('#ticket-kpis').innerHTML = [
+    tileHtml('total',               { label: 'Total Tickets',   value: s.total || 0 }),
+    tileHtml('open',                { label: 'Open',            value: s.open || 0, valueColor: 'var(--blue)' }),
+    tileHtml('todo',                { label: 'To Do / Target',  value: initialTodoCount + ' / ' + _RECOMMENDED_TODO_TARGET, tileId: 'ticket-kpi-todo', title: "Approve backlog into To Do from the Daily Agenda 'Recommended for To Do' panel" }),
+    tileHtml('overdue',             { label: 'Overdue',         value: s.overdue || 0, valueColor: 'var(--red)' }),
+    tileHtml('completed_this_week', { label: 'Done This Week',  value: s.completedThisWeek || 0, valueColor: 'var(--green)' }),
+    tileHtml('client_tasks',        { label: 'Client Tasks',    value: (s.byType || []).find(t => t.ticket_type === 'client')?.count || 0, valueColor: 'var(--green)' }),
+    tileHtml('internal_tasks',      { label: 'Internal Tasks',  value: (s.byType || []).find(t => t.ticket_type === 'internal')?.count || 0, valueColor: 'var(--purple)' }),
+  ].join('');
+  // Color the To Do tile based on initial seed; the daily-agenda loader will
+  // refresh it again when recommended-todo resolves with the canonical count.
+  _recommendedState.todo_count = initialTodoCount;
+  updateTodoKpiTile();
+  renderTileTrends();
+  populateCategoryFilters(s.byCategory || []);
 
   ticketRender();
 };
 
+// Build category filter chips dynamically from the summary's byCategory data.
+// Sorted by count desc so the highest-volume category shows first.
+const _CATEGORY_LABELS = {
+  action: 'Action Items', admin: 'Admin', content: 'Content', delivery: 'Delivery',
+  engineering: 'Engineering', finance: 'Finance', general: 'General', marketing: 'Marketing',
+  prism_studio: 'Prism Studio', sales: 'Sales', training: 'Training',
+};
+function populateCategoryFilters(byCategory) {
+  const container = document.getElementById('ticket-cat-filters');
+  if (!container) return;
+  // Keep the "All Categories" button (first child); rebuild the rest.
+  const allBtn = container.querySelector('button[onclick*="\'all\'"]');
+  const wasActive = ticketCatFilter;
+  container.innerHTML = '';
+  if (allBtn) container.appendChild(allBtn); else {
+    const b = document.createElement('button');
+    b.className = wasActive === 'all' ? 'active' : '';
+    b.textContent = 'All Categories';
+    b.onclick = function() { ticketFilterCat('all', this); };
+    container.appendChild(b);
+  }
+  const sorted = [...byCategory].sort((a, b) => (b.count || 0) - (a.count || 0));
+  for (const row of sorted) {
+    const cat = row.category;
+    if (!cat || cat === 'dev_insight' || cat === 'dev-insight') continue;
+    const label = _CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
+    const b = document.createElement('button');
+    if (wasActive === cat) b.classList.add('active');
+    b.textContent = `${label} (${row.count})`;
+    b.onclick = function() { ticketFilterCat(cat, this); };
+    container.appendChild(b);
+  }
+}
+
+// Render delta chips + sparklines into the .kpi-trend slot on each tile.
+// Idempotent — safe to call repeatedly (e.g., after updateTodoKpiTile).
+function renderTileTrends() {
+  const tiles = document.querySelectorAll('#ticket-kpis .kpi[data-metric]');
+  tiles.forEach(tile => {
+    const metric = tile.dataset.metric;
+    const slot = tile.querySelector('.kpi-trend');
+    if (!slot) return;
+    const parts = [];
+    // Delta chip
+    if (_trendDelta && _trendDelta.available && _trendDelta.delta && typeof _trendDelta.delta[metric] === 'number') {
+      const d = _trendDelta.delta[metric];
+      const direction = _TILE_DIRECTION[metric] || 'neutral';
+      let cls = 'kpi-delta';
+      if (d === 0) { cls += ' kpi-delta-flat'; }
+      else if (direction === 'lower-is-better')  cls += d > 0 ? ' kpi-delta-bad' : ' kpi-delta-good';
+      else if (direction === 'higher-is-better') cls += d > 0 ? ' kpi-delta-good' : ' kpi-delta-bad';
+      else                                       cls += ' kpi-delta-neutral';
+      const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '·');
+      const sign = d > 0 ? '+' : '';
+      const days = _trendDelta.days || 7;
+      parts.push(`<span class="${cls}" title="vs ${_trendDelta.comparison_date} (${days}d ago)">${arrow} ${sign}${d}</span>`);
+    }
+    // Per Michele's edit 2026-05-24: when there's no comparison data yet, render
+    // nothing rather than repeating "collecting baseline" on all 7 tiles. The
+    // chip simply appears once history accumulates.
+    // Sparkline
+    if (_trendSeries && _trendSeries.available_days >= 3 && _trendSeries.series && _trendSeries.series[metric]) {
+      parts.push(_sparklineSvg(_trendSeries.series[metric], metric));
+    }
+    slot.innerHTML = parts.join('');
+  });
+}
+
+// Build an inline SVG sparkline path from a metric's time-series. Width 120 ×
+// height 24, stroke color depends on the tile's direction semantic.
+function _sparklineSvg(points, metric) {
+  if (!points || points.length < 2) return '';
+  const vals = points.map(p => p.value);
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min || 1; // avoid divide-by-zero on a flat line
+  const w = 120, h = 24, padY = 3;
+  const stepX = w / (vals.length - 1);
+  const path = vals.map((v, i) => {
+    const x = (i * stepX).toFixed(1);
+    const y = (padY + (h - 2 * padY) * (1 - (v - min) / range)).toFixed(1);
+    return (i === 0 ? 'M' : 'L') + x + ',' + y;
+  }).join(' ');
+  const direction = _TILE_DIRECTION[metric] || 'neutral';
+  const latest = vals[vals.length - 1];
+  const first  = vals[0];
+  let stroke = 'rgba(148, 163, 184, 0.7)'; // neutral grey
+  if (direction === 'lower-is-better')  stroke = latest <= first ? 'rgba(74, 222, 128, 0.8)' : 'rgba(248, 113, 113, 0.8)';
+  else if (direction === 'higher-is-better') stroke = latest >= first ? 'rgba(74, 222, 128, 0.8)' : 'rgba(248, 113, 113, 0.8)';
+  const lastX = ((vals.length - 1) * stepX).toFixed(1);
+  const lastY = (padY + (h - 2 * padY) * (1 - (latest - min) / range)).toFixed(1);
+  return `<svg class="kpi-sparkline" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-label="${vals.length}-day trend"><path d="${path}" fill="none" stroke="${stroke}" stroke-width="1.5"/><circle cx="${lastX}" cy="${lastY}" r="2" fill="${stroke}"/></svg>`;
+}
+
 function ticketSortList(arr) {
-  const PRIO_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+  const PRIO_ORDER = { critical: 0, urgent: 0, high: 1, medium: 2, low: 3 };
   return [...arr].sort((a, b) => {
     switch (ticketSortKey) {
+      case 'updated_asc': return (a.updated_at || '').localeCompare(b.updated_at || '');
+      case 'updated_desc': return (b.updated_at || '').localeCompare(a.updated_at || '');
       case 'created_asc': return (a.created_at || '').localeCompare(b.created_at || '');
       case 'created_desc': return (b.created_at || '').localeCompare(a.created_at || '');
       case 'due_asc': return (a.due_date || '9999').localeCompare(b.due_date || '9999');
@@ -2524,29 +2835,71 @@ function ticketSortList(arr) {
 
 function ticketSetSort(val) {
   ticketSortKey = val;
+  try { localStorage.setItem('prism.tickets.sortKey', val); } catch (e) { /* private browsing — ignore */ }
   ticketRender();
 }
 
 function ticketRender() {
+  // Kanban-only per Michele's edits 2026-05-24. Filters still apply.
+  // Within-column ordering uses ticketSortList default (updated_desc).
+  // Reflect persisted due filter in chip group on first render after load.
+  const dueButtons = document.querySelectorAll('#ticket-due-filters > button');
+  if (dueButtons.length && !document.querySelector('#ticket-due-filters > button.active[data-due="' + ticketDueFilter + '"]')) {
+    dueButtons.forEach(b => b.classList.toggle('active', b.dataset.due === ticketDueFilter));
+    const custom = document.getElementById('ticket-due-custom-inputs');
+    if (custom) custom.classList.toggle('active', ticketDueFilter === 'custom');
+  }
   let filtered = ticketTypeFilter === 'all' ? allTickets : allTickets.filter(t => t.ticket_type === ticketTypeFilter);
   if (ticketCatFilter !== 'all') filtered = filtered.filter(t => t.category === ticketCatFilter);
+  filtered = _applyDueFilter(filtered);
   filtered = ticketSortList(filtered);
-  if (ticketView === 'kanban') {
-    $('#tickets-kanban').style.display = 'flex';
-    $('#tickets-list').style.display = 'none';
-    ticketRenderKanban(filtered);
-  } else {
-    $('#tickets-kanban').style.display = 'none';
-    $('#tickets-list').style.display = 'block';
-    ticketRenderList(filtered);
-  }
+  ticketRenderKanban(filtered);
 }
 
-function ticketSetView(view, el) {
-  ticketView = view;
-  $$('#ticket-view-toggle button').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+// Date-range filter on due_date. Presets resolve to a [start, end] window
+// (ISO YYYY-MM-DD strings). 'nodate' is its own case (due_date IS NULL/empty).
+// 'custom' reads the two <input type="date"> values; missing inputs = open-ended.
+let ticketDueFilter = (function() {
+  try { return localStorage.getItem('prism.tickets.dueFilter') || 'all'; }
+  catch (e) { return 'all'; }
+})();
+function ticketFilterDue(preset, el) {
+  ticketDueFilter = preset;
+  $$('#ticket-due-filters > button').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  // Show/hide the custom date inputs
+  const custom = document.getElementById('ticket-due-custom-inputs');
+  if (custom) custom.classList.toggle('active', preset === 'custom');
+  try { localStorage.setItem('prism.tickets.dueFilter', preset); } catch (e) {}
   ticketRender();
+}
+
+function _applyDueFilter(tickets) {
+  if (ticketDueFilter === 'all') return tickets;
+  const today = new Date().toISOString().slice(0, 10);
+  if (ticketDueFilter === 'nodate') return tickets.filter(t => !t.due_date);
+  if (ticketDueFilter === 'overdue') return tickets.filter(t => t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled');
+  if (ticketDueFilter === 'week') {
+    const end = new Date(Date.now() + 7 * 86400 * 1000).toISOString().slice(0, 10);
+    return tickets.filter(t => t.due_date && t.due_date >= today && t.due_date <= end);
+  }
+  if (ticketDueFilter === '14d') {
+    const end = new Date(Date.now() + 14 * 86400 * 1000).toISOString().slice(0, 10);
+    return tickets.filter(t => t.due_date && t.due_date >= today && t.due_date <= end);
+  }
+  if (ticketDueFilter === 'custom') {
+    const startEl = document.getElementById('ticket-due-start');
+    const endEl = document.getElementById('ticket-due-end');
+    const start = startEl?.value || '';
+    const end = endEl?.value || '';
+    return tickets.filter(t => {
+      if (!t.due_date) return false;
+      if (start && t.due_date < start) return false;
+      if (end && t.due_date > end) return false;
+      return true;
+    });
+  }
+  return tickets;
 }
 
 function ticketFilterType(type, el) {
@@ -2591,6 +2944,92 @@ function ticketKeyPill(key) {
   return `<span class="tag" style="background:rgba(255,255,255,0.06);color:var(--muted);font-family:monospace;font-size:10px">${key}</span>`;
 }
 
+// Phase F — clickable ticket IDs across surfaces (Daily Agenda, Morning Brief,
+// Plans, Inbox, End of Day, comment bodies).
+//
+// CONTRACT: linkifyTickets() input MUST already be escapeHtml'd by the caller.
+// This wraps matches in spans that the document-level click delegator picks up.
+// No inline onclick handlers, no $1 interpolation into JS strings — the $1 only
+// flows into a data-attribute (alphanumeric + hyphen only per the capture group),
+// so there is no XSS surface.
+//
+// Regex hardening:
+//   - Negative lookbehind/lookahead (?<![\w-])…(?![\w-]) avoid matching inside
+//     larger tokens (PS-2-revised, foo-T-027).
+//   - Minimum digit counts prevent T-1/PS-2 from matching short numbers in prose.
+//   - PRISM- intentionally omitted (it's a page name like PRISM-Vault, not a ticket).
+//   - NTN-[a-f0-9]{8} matches the deterministic derivation in notionAdapter.js:202.
+const TICKET_KEY_RE = /(?<![\w-])(T-\d{2,}[a-z]?|PS-\d{3,}[a-z]?|NTN-[a-f0-9]{8}|TKT-\d{3,}|CMAI-\d{3,}|ACT-\d{3,}|BR-\d{3,}|BS-\d{3,}|LL-\d{3,}|SOC-\d{3,}|DS-\d{3,}|PM-\d{3,}|AN-\d{3,}|CW-\d{3,}|IM-\d{3,}|DA-\d{3,}|TRN-\d{3,}|ADM-\d{3,})(?![\w-])/g;
+function linkifyTickets(html) {
+  if (html == null) return '';
+  return String(html).replace(TICKET_KEY_RE, '<span class="ticket-link" data-ticket-key="$1" tabindex="0" role="link">$1</span>');
+}
+
+// One document-level click + keyboard delegator handles every .ticket-link on
+// the page. Idempotent via the install-flag — safe to re-load this script.
+if (!window._ticketLinkDelegatorInstalled) {
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('[data-ticket-key]');
+    if (link) { e.preventDefault(); e.stopPropagation(); openTicketByKey(link.dataset.ticketKey); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const link = e.target.closest('[data-ticket-key]');
+    if (link) { e.preventDefault(); openTicketByKey(link.dataset.ticketKey); }
+  });
+  window._ticketLinkDelegatorInstalled = true;
+}
+
+// Resolver — find a ticket by its semantic key and open the detail modal.
+// Many Cowork-MCP-created tickets store the human-readable identifier (T-043,
+// PS-018, etc.) in the title only, while ticket_key derives to NTN-####.
+// Match order:
+//   1. Exact ticket_key match — Notion-source mode where T-ID was set
+//   2. Tag match — TASKS.md-style "task-md,T-043,src:manual" tag patterns
+//   3. Title prefix — "T-043:" / "T-043 " / "T-043\n" (Cowork MCP convention)
+async function openTicketByKey(key) {
+  if (!key) return;
+  if (!allTickets || allTickets.length === 0) {
+    try {
+      const r = await fetch('/api/tickets', {
+        headers: SESSION_TOKEN ? { Authorization: 'Bearer ' + SESSION_TOKEN } : {},
+      });
+      const j = await r.json();
+      allTickets = (j.tickets || []).filter(t => t.category !== 'dev-insight');
+    } catch (e) { /* fall through to not-found toast */ }
+  }
+  // 1. Exact ticket_key
+  let match = allTickets.find(t => t.ticket_key === key);
+  // 2. Tag membership — match ",KEY," or "^KEY," or ",KEY$" or "^KEY$"
+  if (!match) {
+    const tagRe = new RegExp('(?:^|,)' + key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '(?:,|$)');
+    match = allTickets.find(t => t.tags && tagRe.test(t.tags));
+  }
+  // 3. Title prefix — "KEY:" / "KEY " / "KEY\n"
+  if (!match) {
+    const prefix1 = key + ':';
+    const prefix2 = key + ' ';
+    match = allTickets.find(t => {
+      const title = t.title || '';
+      return title.startsWith(prefix1) || title.startsWith(prefix2);
+    });
+  }
+  // 4. NTN-<8hex> → match by notion_page_id containing those 8 hex chars.
+  //    Production (USE_NOTION_SOURCE=true) derives ticket_key as NTN-<last8-uuid>
+  //    on the fly; local SQLite uses sequential NTN-#### counters. The brief
+  //    renders the uuid-derived form, so demo mode needs this fallback.
+  if (!match) {
+    const ntnHex = key.match(/^NTN-([a-f0-9]{8})$/);
+    if (ntnHex) {
+      const hex = ntnHex[1];
+      match = allTickets.find(t => t.notion_page_id && t.notion_page_id.replace(/-/g, '').endsWith(hex));
+    }
+  }
+  if (match) { ticketShowDetail(match.id); return; }
+  toast('Ticket ' + key + ' not found in current view.', true);
+}
+window.openTicketByKey = openTicketByKey;
+
 // T-019 — upstream-sourced tickets are view-only in the CRM. Edits happen in
 // Notion (PRISM-### / TKT-#### / NTN-####) or in TASKS.md (T-###). The dashboard
 // is a read-only mirror for these.
@@ -2622,7 +3061,10 @@ function lockBadge(t) {
 function ticketCard(t) {
   const today = new Date().toISOString().split('T')[0];
   const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
-  return `<div class="ticket-card" onclick="ticketShowDetail('${t.id}')">
+  // Phase B — flag past-due cards sitting in Backlog so the visual surface
+  // matches the Daily Agenda "Past-due in Backlog" panel. Doesn't block clicks.
+  const isStaleBacklog = isOverdue && t.status === 'backlog';
+  return `<div class="ticket-card${isStaleBacklog ? ' stale-backlog' : ''}" onclick="ticketShowDetail('${t.id}')">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px">
       <div style="display:flex;gap:6px;align-items:center">${ticketKeyPill(t.ticket_key)}${sourceBadge(t.source)}</div>
       ${lockBadge(t)}
@@ -2634,8 +3076,10 @@ function ticketCard(t) {
       ${t.category && t.category !== 'general' ? catBadge(t.category) : ''}
       ${t.due_date ? `<span class="ticket-due ${isOverdue ? 'overdue' : ''}">${isOverdue ? '⚠ ' : ''}${fmtDate(t.due_date)}</span>` : ''}
     </div>
+    ${isStaleBacklog ? `<div class="ticket-stale-warn">Past due — needs status change</div>` : ''}
     ${t.client_name ? `<div class="ticket-client-tag">↳ ${t.client_name}${t.project_name ? ' / ' + t.project_name : ''}</div>` : ''}
     ${t.assignee_name ? `<div class="ticket-assignee">→ ${t.assignee_name}</div>` : ''}
+    ${t.updated_at ? `<div class="ticket-recency" title="Last updated ${escapeHtml(t.updated_at)}">${fmtRelative(t.updated_at)}</div>` : ''}
   </div>`;
 }
 
@@ -2661,35 +3105,8 @@ function ticketRenderKanban(tickets) {
   $('#tickets-kanban').innerHTML = html;
 }
 
-function ticketRenderList(tickets) {
-  if (!tickets.length) { $('#tickets-list-table').innerHTML = '<p style="color:var(--muted);padding:20px">No tickets yet — create your first one.</p>'; return; }
-  const today = new Date().toISOString().split('T')[0];
-  let html = `<table><thead><tr><th>Key</th><th>Source</th><th>Title</th><th>Category</th><th>Type</th><th>Status</th><th>Priority</th><th>Assignee</th><th>Due</th><th></th></tr></thead><tbody>`;
-  for (const t of tickets) {
-    const isOverdue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
-    const upstream = isUpstreamSourced(t);
-    const link = upstream ? upstreamLink(t) : null;
-    const actionCell = upstream
-      ? (link
-          ? `<a href="${link}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="btn-sm" title="${upstreamLabel(t)} ↗" style="text-decoration:none;display:inline-block">↗</a>`
-          : `<span title="View-only" style="color:var(--muted)">🔒</span>`)
-      : `<button class="btn-sm btn-danger" onclick="event.stopPropagation();ticketDelete('${t.id}')">✕</button>`;
-    html += `<tr style="cursor:pointer" onclick="ticketShowDetail('${t.id}')">
-      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${t.ticket_key || '—'} ${lockBadge(t)}</td>
-      <td>${sourceBadge(t.source)}</td>
-      <td style="font-weight:600">${t.title}</td>
-      <td>${catBadge(t.category || 'general')}</td>
-      <td><span class="tag tag-${t.ticket_type}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.ticket_type}</span></td>
-      <td>${badge(t.status)}</td>
-      <td><span class="tag tag-${t.priority}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.priority}</span></td>
-      <td style="color:var(--muted)">${t.assignee_name || '—'}</td>
-      <td class="${isOverdue ? 'text-red' : ''}">${t.due_date ? fmtDate(t.due_date) : '—'}</td>
-      <td>${actionCell}</td>
-    </tr>`;
-  }
-  html += '</tbody></table>';
-  $('#tickets-list-table').innerHTML = html;
-}
+// ticketRenderList removed 2026-05-24 — Kanban-only per Michele's edits. Phase E's
+// Last Updated column logic moved into the Kanban card recency pill.
 
 async function ticketDrop(event, newStatus) {
   event.preventDefault();
@@ -2699,6 +3116,17 @@ async function ticketDrop(event, newStatus) {
   if (t && isUpstreamSourced(t)) {
     toast(`${t.ticket_key} is upstream-sourced — change status in ${t.notion_page_id ? 'Notion' : 'TASKS.md'}`, true);
     return;
+  }
+  // Phase B — reject drops INTO Backlog for past-due tickets. Forces the user
+  // to either resolve the due date or pick a different lane. If a true demotion
+  // is needed, clear the due_date in the detail modal first, then drop.
+  if (t && newStatus === 'backlog') {
+    const today = new Date().toISOString().split('T')[0];
+    const isPastDue = t.due_date && t.due_date < today && t.status !== 'done' && t.status !== 'cancelled';
+    if (isPastDue) {
+      toast(`${t.ticket_key} is past due — clear or update Due Date first, then move to Backlog.`, true);
+      return;
+    }
   }
   const res = await fetch('/api/tickets/' + id, {
     method: 'PATCH',
@@ -2824,51 +3252,98 @@ async function ticketShowDetail(id) {
   modal.id = 'ticket-detail-modal';
   modal.className = 'ticket-modal-overlay';
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  // Phase E — provenance values surfaced read-only in the new "Source / T-ID /
+  // Dashboard Ticket ID" row. source_raw is the raw Notion Source property
+  // (e.g. "cowork:tickets-v2"); source is the derived categorical fallback.
+  const sourceDisplay = ticket.source_raw || ticket.source || '—';
+  const tIdDisplay = (ticket.ticket_key && /^T-\d/.test(ticket.ticket_key)) ? ticket.ticket_key : '—';
+  const dashIdDisplay = ticket.ticket_key || '—';
+  const provCell = (label, val) => `<div class="td-prov-cell"><div class="td-prov-label">${label}</div><div class="td-prov-val" title="${esc(val)}">${esc(val)}</div></div>`;
+
   modal.innerHTML = `<div class="ticket-modal">
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px">
-      ${ticketKeyPill(ticket.ticket_key)}
-      ${sourceBadge(ticket.source)}
-      ${ticket.source ? `<span style="color:var(--muted);font-size:11px">created from ${ticket.source.replace(/-/g,' ')}</span>` : ''}
+    <!-- Phase E top strip: Last Updated · Status · Priority -->
+    <div class="td-top-strip">
+      <div class="td-top-cell">
+        <div class="td-top-label">Last Updated</div>
+        <div class="td-top-val" title="${esc(ticket.updated_at || '')}">${fmtRelative(ticket.updated_at)}</div>
+      </div>
+      <div class="td-top-cell">
+        <div class="td-top-label">Status</div>
+        <select id="td-status" onchange="ticketQuickUpdate('${id}','status',this.value)">${statuses.map(s => `<option value="${s}" ${s === ticket.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}</select>
+      </div>
+      <div class="td-top-cell">
+        <div class="td-top-label">Priority</div>
+        <select id="td-priority" onchange="ticketQuickUpdate('${id}','priority',this.value)">${priorities.map(p => `<option value="${p}" ${p === ticket.priority ? 'selected' : ''}>${p}</option>`).join('')}</select>
+      </div>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+
+    <!-- Title (inline-edit) + Delete -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-top:14px">
       <input id="td-title" value="${esc(ticket.title)}" style="flex:1;font-size:18px;font-weight:700;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);padding:6px 8px;font-family:inherit"
         onfocus="this.style.borderColor='var(--border)';this.style.background='var(--bg)'"
         onblur="this.style.borderColor='transparent';this.style.background='transparent';ticketQuickUpdate('${id}','title',this.value)">
       <button class="btn-sm btn-danger" onclick="ticketDelete('${id}');document.getElementById('ticket-detail-modal')?.remove()">Delete</button>
     </div>
+
+    <!-- Category · Due Date / Assignee · Client (2x2 grid, matches Notion property order) -->
+    <div class="modal-row" style="margin-top:10px">
+      <div><label>Category</label><select id="td-cat" onchange="ticketQuickUpdate('${id}','category',this.value)">${categories.map(c => `<option value="${c}" ${c === ticket.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label>Due Date</label><input id="td-due" type="date" value="${esc(ticket.due_date || '')}" onchange="ticketQuickUpdate('${id}','due_date',this.value || null)"></div>
+    </div>
+    <div class="modal-row" style="margin-top:10px">
+      <div><label>Assigned To</label><select id="td-assign" onchange="ticketQuickUpdate('${id}','assigned_to',this.value || null)"><option value="">— Unassigned —</option>${teamMembers.map(m => `<option value="${m.id}" ${m.id === ticket.assigned_to ? 'selected' : ''}>${m.first_name} ${m.last_name}</option>`).join('')}</select></div>
+      <div><label>Client</label><select id="td-client" onchange="ticketQuickUpdate('${id}','client_id',this.value || null)"><option value="">— None —</option>${clients.map(c => `<option value="${c.id}" ${c.id === ticket.client_id ? 'selected' : ''}>${c.company_name || c.crm_contact_name || c.id}</option>`).join('')}</select></div>
+    </div>
+
+    <!-- Source · T-ID · Dashboard Ticket ID (read-only provenance row) -->
+    <div class="td-provenance">
+      ${provCell('Source', sourceDisplay)}
+      ${provCell('T-ID', tIdDisplay)}
+      ${provCell('Dashboard Ticket ID', dashIdDisplay)}
+    </div>
+
+    <!-- Created (single line, read-only) -->
+    <div style="margin-top:10px;font-size:11px;color:var(--muted)">Created ${fmtDate(ticket.created_at?.split('T')[0])}${ticket.created_by ? ' by ' + ticket.created_by : ''}</div>
+
+    <!-- Description -->
     <label style="margin-top:10px">Description</label>
     <textarea id="td-desc" placeholder="Details, context, acceptance criteria..." style="min-height:80px"
       onblur="ticketQuickUpdate('${id}','description',this.value || null)">${esc(ticket.description)}</textarea>
-    <div class="modal-row" style="margin-top:10px">
-      <div><label>Status</label><select id="td-status" onchange="ticketQuickUpdate('${id}','status',this.value)">${statuses.map(s => `<option value="${s}" ${s === ticket.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}</select></div>
-      <div><label>Priority</label><select id="td-priority" onchange="ticketQuickUpdate('${id}','priority',this.value)">${priorities.map(p => `<option value="${p}" ${p === ticket.priority ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
-    </div>
-    <div class="modal-row" style="margin-top:10px">
-      <div><label>Type</label><select id="td-type" onchange="ticketQuickUpdate('${id}','ticket_type',this.value)">${types.map(t => `<option value="${t}" ${t === ticket.ticket_type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
-      <div><label>Category</label><select id="td-cat" onchange="ticketQuickUpdate('${id}','category',this.value)">${categories.map(c => `<option value="${c}" ${c === ticket.category ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
-    </div>
-    <div class="modal-row" style="margin-top:10px">
-      <div><label>Due Date</label><input id="td-due" type="date" value="${esc(ticket.due_date || '')}" onchange="ticketQuickUpdate('${id}','due_date',this.value || null)"></div>
-      <div><label>Assigned To</label><select id="td-assign" onchange="ticketQuickUpdate('${id}','assigned_to',this.value || null)"><option value="">— Unassigned —</option>${teamMembers.map(m => `<option value="${m.id}" ${m.id === ticket.assigned_to ? 'selected' : ''}>${m.first_name} ${m.last_name}</option>`).join('')}</select></div>
-    </div>
-    <div class="modal-row" style="margin-top:10px">
-      <div><label>Client</label><select id="td-client" onchange="ticketQuickUpdate('${id}','client_id',this.value || null)"><option value="">— None —</option>${clients.map(c => `<option value="${c.id}" ${c.id === ticket.client_id ? 'selected' : ''}>${c.company_name || c.crm_contact_name || c.id}</option>`).join('')}</select></div>
-      <div><label>Project</label><select id="td-project" onchange="ticketQuickUpdate('${id}','project_id',this.value || null)"><option value="">— None —</option>${projects.map(p => `<option value="${p.id}" ${p.id === ticket.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div>
-    </div>
-    <label style="margin-top:10px">Tags (comma-separated)</label>
-    <input id="td-tags" value="${esc(ticket.tags || '')}" placeholder="e.g. urgent, sprint-3, onboarding" onblur="ticketQuickUpdate('${id}','tags',this.value || null)">
-    <div style="margin-top:10px;font-size:11px;color:var(--muted)">Created ${fmtDate(ticket.created_at?.split('T')[0])}${ticket.created_by ? ' by ' + ticket.created_by : ''}</div>
 
+    <!-- Comments -->
     <div class="ticket-comments">
       <h3 style="font-size:13px;margin-bottom:10px">Comments</h3>
       <div id="td-comments">
-        ${comments.length ? comments.map(c => `<div class="comment"><div class="comment-meta">${c.author || 'system'} · ${fmtDate(c.created_at?.split('T')[0])}</div>${c.comment}</div>`).join('') : '<p style="color:var(--muted);font-size:12px">No comments yet</p>'}
+        ${comments.length ? comments.map(c => `<div class="comment"><div class="comment-meta">${escapeHtml(c.author || 'system')} · ${fmtDate(c.created_at?.split('T')[0])}</div>${linkifyTickets(escapeHtml(c.comment))}</div>`).join('') : '<p style="color:var(--muted);font-size:12px">No comments yet</p>'}
       </div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <input id="td-new-comment" placeholder="Add a comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit">
-        <button class="btn-primary" style="padding:8px 16px;font-size:12px" onclick="ticketAddComment('${id}')">Post</button>
-      </div>
+      ${ticket.status === 'review' ? `
+        <!-- Phase D1 Reply & Resume — Review tickets are agent questions awaiting
+             your answer. Submitting flips status review → in_progress in one call. -->
+        <div class="td-reply-resume">
+          <div class="td-reply-resume-label">Reply & Resume <span style="font-weight:400;color:var(--muted);font-size:11px">(posts your reply AND moves to In Progress)</span></div>
+          <textarea id="td-reply-resume-text" placeholder="Your decision or direction here..."></textarea>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+            <button class="btn-primary" onclick="ticketReplyAndResume('${id}')">Reply &amp; Resume → In Progress</button>
+          </div>
+        </div>
+      ` : `
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <input id="td-new-comment" placeholder="Add a comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit">
+          <button class="btn-primary" style="padding:8px 16px;font-size:12px" onclick="ticketAddComment('${id}')">Post</button>
+        </div>
+      `}
     </div>
+
+    <!-- Local fields accordion — dashboard-only fields not mirrored to Notion -->
+    <details class="td-local-fields">
+      <summary>Local fields (dashboard-only)</summary>
+      <div class="modal-row" style="margin-top:10px">
+        <div><label>Type</label><select id="td-type" onchange="ticketQuickUpdate('${id}','ticket_type',this.value)">${types.map(t => `<option value="${t}" ${t === ticket.ticket_type ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+        <div><label>Project</label><select id="td-project" onchange="ticketQuickUpdate('${id}','project_id',this.value || null)"><option value="">— None —</option>${projects.map(p => `<option value="${p.id}" ${p.id === ticket.project_id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div>
+      </div>
+      <label style="margin-top:10px">Tags (comma-separated)</label>
+      <input id="td-tags" value="${esc(ticket.tags || '')}" placeholder="e.g. urgent, sprint-3, onboarding" onblur="ticketQuickUpdate('${id}','tags',this.value || null)">
+    </details>
 
     <div class="modal-actions">
       <button class="btn-sm" style="padding:9px 18px;font-size:13px" onclick="document.getElementById('ticket-detail-modal').remove()">Close</button>
@@ -2931,13 +3406,23 @@ function ticketShowDetailReadOnly(ticket, comments, esc) {
     <div class="ticket-comments">
       <h3 style="font-size:13px;margin-bottom:10px">Comments</h3>
       <div id="td-comments">
-        ${comments.length ? comments.map(c => `<div class="comment"><div class="comment-meta">${c.author || 'system'} · ${fmtDate(c.created_at?.split('T')[0])}</div>${c.comment}</div>`).join('') : '<p style="color:var(--muted);font-size:12px">No comments yet</p>'}
+        ${comments.length ? comments.map(c => `<div class="comment"><div class="comment-meta">${escapeHtml(c.author || 'system')} · ${fmtDate(c.created_at?.split('T')[0])}</div>${linkifyTickets(escapeHtml(c.comment))}</div>`).join('') : '<p style="color:var(--muted);font-size:12px">No comments yet</p>'}
       </div>
       <p style="color:var(--muted);font-size:11px;margin-top:8px">Comments are local to the dashboard. For discussion that should travel with the ticket, use ${upstreamWhere}.</p>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <input id="td-new-comment" placeholder="Add a local comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit">
-        <button class="btn-primary" style="padding:8px 16px;font-size:12px" onclick="ticketAddComment('${ticket.id}')">Post</button>
-      </div>
+      ${ticket.status === 'review' ? `
+        <div class="td-reply-resume">
+          <div class="td-reply-resume-label">Reply & Resume <span style="font-weight:400;color:var(--muted);font-size:11px">(posts your reply AND moves to In Progress)</span></div>
+          <textarea id="td-reply-resume-text" placeholder="Your decision or direction here..."></textarea>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+            <button class="btn-primary" onclick="ticketReplyAndResume('${ticket.id}')">Reply &amp; Resume → In Progress</button>
+          </div>
+        </div>
+      ` : `
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <input id="td-new-comment" placeholder="Add a local comment..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;font-family:inherit">
+          <button class="btn-primary" style="padding:8px 16px;font-size:12px" onclick="ticketAddComment('${ticket.id}')">Post</button>
+        </div>
+      `}
     </div>
 
     <div class="modal-actions">
@@ -2945,6 +3430,47 @@ function ticketShowDetailReadOnly(ticket, comments, esc) {
     </div>
   </div>`;
   document.body.appendChild(modal);
+}
+
+// Phase D1 — Reply & Resume. Posts a comment and flips status review → in_progress
+// in one round-trip via the extended POST /api/tickets/:id/comments endpoint
+// (which accepts an optional `status` field per Phase D1 server work).
+async function ticketReplyAndResume(id) {
+  const textarea = document.getElementById('td-reply-resume-text');
+  if (!textarea) return;
+  const comment = (textarea.value || '').trim();
+  if (!comment) { toast('Reply text is required', true); return; }
+  const btn = document.querySelector('.td-reply-resume button.btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Posting…'; }
+  try {
+    const res = await fetch(`/api/tickets/${id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SESSION_TOKEN}` },
+      body: JSON.stringify({ comment, status: 'in_progress' }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      toast('Replied and resumed → In Progress');
+      // Refresh badges/tile + the modal itself so the user sees the new state.
+      refreshNeedsDecisionCount();
+      const modal = document.getElementById('ticket-detail-modal');
+      if (modal) modal.remove();
+      // If we're on the tickets page, refresh the list/Kanban so the column moves.
+      if (typeof allTickets !== 'undefined' && Array.isArray(allTickets)) {
+        const t = allTickets.find(x => x.id === id);
+        if (t) { t.status = 'in_progress'; if (typeof ticketRender === 'function') ticketRender(); }
+      }
+    } else {
+      const msg = data.partial
+        ? 'Comment posted, but status flip failed: ' + (data.error || 'unknown')
+        : (data.error || 'Reply failed');
+      toast(msg, true);
+    }
+  } catch (e) {
+    toast('Reply failed: ' + e.message, true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Reply & Resume → In Progress'; }
+  }
 }
 
 async function ticketAddComment(id) {
@@ -2959,7 +3485,7 @@ async function ticketAddComment(id) {
   const data = await res.json();
   if (data.ok) {
     input.value = '';
-    const commentsHtml = (data.comments || []).map(c => `<div class="comment"><div class="comment-meta">${c.author || 'system'} · ${fmtDate(c.created_at?.split('T')[0])}</div>${c.comment}</div>`).join('');
+    const commentsHtml = (data.comments || []).map(c => `<div class="comment"><div class="comment-meta">${escapeHtml(c.author || 'system')} · ${fmtDate(c.created_at?.split('T')[0])}</div>${linkifyTickets(escapeHtml(c.comment))}</div>`).join('');
     document.getElementById('td-comments').innerHTML = commentsHtml || '<p style="color:var(--muted);font-size:12px">No comments yet</p>';
     toast('Comment posted');
   }
@@ -4035,11 +4561,16 @@ function parseMiniMarkdown(text) {
 
 // Inline markdown — handles `**bold**`, `*italic*`, `` `code` ``.
 // Order matters: bold (**) before italic (*) so we don't eat the bold markers.
+// Phase F: also linkify ticket IDs so they're clickable everywhere inlineMd
+// renders (renderTopTen, parseMiniMarkdown headings/list-items/paragraphs,
+// renderBriefTopTen, renderBriefCollapsible). Input is already escapeHtml'd
+// by callers (parseMiniMarkdown + renderTopTen escape before calling inlineMd).
 function inlineMd(text) {
-  return text
+  const html = text
     .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>')
     .replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+  return linkifyTickets(html);
 }
 
 // ─── Top 10 extraction + render (T-036c) ────────────────────────────────────
@@ -4451,6 +4982,22 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('prism_nav_more_open', navMore.open ? '1' : '0');
     });
   }
+
+  // Persist Daily Agenda collapsible panels (Idea Vault, Active Plans, Pending
+  // Plans, Recommended for To Do, Past-due Backlog) — each <details> carries
+  // data-persist-key, state is saved under 'prism.collapse.<key>'.
+  document.querySelectorAll('details[data-persist-key]').forEach(d => {
+    const key = 'prism.collapse.' + d.dataset.persistKey;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved === 'closed') d.open = false;
+      else if (saved === 'open') d.open = true;
+      // else: leave HTML default
+    } catch (e) { /* private browsing */ }
+    d.addEventListener('toggle', () => {
+      try { localStorage.setItem(key, d.open ? 'open' : 'closed'); } catch (e) {}
+    });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -4835,8 +5382,51 @@ function parseBucketChips(md) {
   return chips.join('');
 }
 
+// Phase D1 — refresh the Needs-Decision count (Daily Agenda tile + Tickets nav badge).
+// Reads tiles.needs_decision from /api/mission-control/today (already wired per
+// the workspace CLAUDE.md auto-load). Updates both UI surfaces in one pass.
+async function refreshNeedsDecisionCount() {
+  let count = 0;
+  try {
+    const r = await api('mission-control/today');
+    count = Number(r?.tiles?.needs_decision || 0);
+  } catch (e) { /* tile stays hidden on failure */ }
+  const tile = document.getElementById('agenda-needs-decision-tile');
+  if (tile) {
+    if (count > 0) {
+      tile.style.display = '';
+      tile.querySelector('.needs-decision-count').textContent = String(count);
+      tile.querySelector('.needs-decision-label').textContent = count === 1 ? 'Ticket needs decision' : 'Tickets need decision';
+    } else {
+      tile.style.display = 'none';
+    }
+  }
+  const navBadge = document.getElementById('nav-tickets-needs-decision');
+  if (navBadge) {
+    if (count > 0) { navBadge.style.display = ''; navBadge.textContent = String(count); }
+    else { navBadge.style.display = 'none'; navBadge.textContent = ''; }
+  }
+}
+
+// Tickets-nav badge click handler — Phase D1. Navigates to the Tickets page
+// and filters to status=review so Michele sees only the decisions she owes.
+function needsDecisionTileClick() {
+  const link = document.querySelector('a[data-page="tickets"]');
+  if (link) {
+    showPage('tickets', link);
+    // Defer to next frame so the page has mounted before we touch the sort/filter
+    setTimeout(() => {
+      // Switch list view so the Review tickets are visible as a sorted list,
+      // Tickets page is Kanban-only — scroll the Review column into view.
+      const kanbanReviewCol = document.querySelector('.col-review');
+      if (kanbanReviewCol) kanbanReviewCol.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }
+}
+
 loaders['daily-agenda'] = async () => {
   setAgendaContextLine();
+  refreshNeedsDecisionCount();
 
   // T-062: Recent Decisions card removed (read PRISM-Vault on local FS, always empty on prod).
   // The /api/mission-control/today endpoint still exists for Chloe's auto-load (tiles.needs_decision).
@@ -4859,6 +5449,12 @@ loaders['daily-agenda'] = async () => {
   } catch (e) {
     renderAgendaPlans({ active_roadmaps: [], notion_available: false });
   }
+
+  // Recommended for To Do panel — Phase C (2026-05-24). Independent failure mode.
+  loadRecommendedTodo();
+
+  // Past-due Backlog panel — Phase B (2026-05-24). Independent failure mode.
+  loadPastDueBacklog();
 
   // Pending Plans panel — T-065. Independent failure mode from other surfaces.
   try {
@@ -4940,6 +5536,256 @@ async function submitInboxCapture() {
   } finally {
     btn.disabled = false;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// --- Phase C: Recommended for To Do panel ---
+// Top-N backlog candidates Michele can promote to To Do with one click.
+// Past-due tickets are excluded — those have their own panel (Phase B).
+// Ranked by (priority bucket, due_date asc nulls-last, updated_at desc).
+
+const _RECOMMENDED_TODO_TARGET = 10;
+let _recommendedState = { recommendations: [], todo_count: 0, target: _RECOMMENDED_TODO_TARGET };
+
+async function loadRecommendedTodo() {
+  const card = document.getElementById('agenda-recommended-todo-card');
+  const body = document.getElementById('agenda-recommended-body');
+  const countEl = document.getElementById('agenda-recommended-count');
+  if (!card || !body) return;
+  try {
+    const r = await api('tickets/recommended-todo?n=' + _RECOMMENDED_TODO_TARGET);
+    if (!r || !r.ok) throw new Error(r?.error || 'load failed');
+    _recommendedState = {
+      recommendations: Array.isArray(r.recommendations) ? r.recommendations : [],
+      todo_count:      Number(r.todo_count || 0),
+      target:          Number(r.target || _RECOMMENDED_TODO_TARGET),
+      backlog_total:   Number(r.backlog_total || 0),
+    };
+    if (_recommendedState.recommendations.length === 0) {
+      // Hide the panel when there's nothing to recommend (e.g., backlog empty)
+      card.style.display = 'none';
+      // Still update KPI tile if the tickets page is rendered
+      updateTodoKpiTile();
+      return;
+    }
+    card.style.display = '';
+    renderRecommendedTodo();
+    updateTodoKpiTile();
+  } catch (e) {
+    card.style.display = '';
+    body.innerHTML = '<em style="color:var(--muted)">Recommended To Do temporarily unavailable.</em>';
+    if (countEl) countEl.textContent = '';
+  }
+}
+
+function renderRecommendedTodo() {
+  const body = document.getElementById('agenda-recommended-body');
+  const countEl = document.getElementById('agenda-recommended-count');
+  if (!body) return;
+  const list = _recommendedState.recommendations;
+  if (countEl) {
+    const gap = Math.max(0, _recommendedState.target - _recommendedState.todo_count);
+    countEl.textContent = list.length > 0
+      ? `(${list.length} of ${_recommendedState.backlog_total} backlog · To Do ${_recommendedState.todo_count}/${_recommendedState.target}${gap > 0 ? ` · ${gap} below target` : ''})`
+      : '';
+  }
+  if (list.length === 0) {
+    body.innerHTML = '<em style="color:var(--muted)">No backlog candidates ready for promotion.</em>';
+    return;
+  }
+  const rows = list.map(t => {
+    const titleSafe = escapeHtml(t.title || '');
+    const dueLabel = t.due_date ? `due ${fmtDate(t.due_date)}` : 'no due date';
+    return `<div class="recommended-row" data-ticket-id="${escapeHtml(t.ticket_id || '')}">
+      <div class="recommended-row-meta">
+        <span class="ticket-link" data-ticket-key="${escapeHtml(t.ticket_key || '')}" tabindex="0" role="link">${escapeHtml(t.ticket_key || '?')}</span>
+        <span class="tag tag-${escapeHtml(t.priority || 'medium')}" style="font-size:10px;padding:1px 7px">${escapeHtml(t.priority || 'medium')}</span>
+        <span class="recommended-due" title="${escapeHtml(t.due_date || '')}">${dueLabel}</span>
+      </div>
+      <div class="recommended-row-title">${linkifyTickets(titleSafe)}</div>
+      <div class="recommended-row-actions">
+        <button class="btn-sm btn-primary" onclick="recommendedApprove('${escapeHtml(t.ticket_id)}')" title="Move to To Do">Approve → To Do</button>
+      </div>
+    </div>`;
+  }).join('');
+  body.innerHTML = rows;
+}
+
+function _recommendedRemove(ticketId) {
+  _recommendedState.recommendations = _recommendedState.recommendations.filter(t => t.ticket_id !== ticketId);
+  _recommendedState.todo_count = Number(_recommendedState.todo_count || 0) + 1;
+  renderRecommendedTodo();
+  updateTodoKpiTile();
+  if (_recommendedState.recommendations.length === 0) {
+    const card = document.getElementById('agenda-recommended-todo-card');
+    if (card) card.style.display = 'none';
+  }
+}
+
+async function recommendedApprove(ticketId) {
+  const t = _recommendedState.recommendations.find(x => x.ticket_id === ticketId);
+  if (!t) return;
+  const r = await _patchTicket(ticketId, { status: 'todo' });
+  if (r && r.ok) { toast(t.ticket_key + ' → To Do'); _recommendedRemove(ticketId); }
+  else { toast('Failed to approve ' + (t.ticket_key || ''), true); }
+}
+
+async function recommendedApproveAll() {
+  const list = _recommendedState.recommendations.slice(0, 25); // per-batch cap
+  if (list.length === 0) return;
+  if (!confirm('Approve ' + list.length + ' ticket' + (list.length === 1 ? '' : 's') + ' into To Do?')) return;
+  const btn = document.getElementById('agenda-recommended-approve-all');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approving…'; }
+  let ok = 0, fail = 0;
+  for (let i = 0; i < list.length; i++) {
+    const t = list[i];
+    const r = await _patchTicket(t.ticket_id, { status: 'todo' });
+    if (r && r.ok) ok++; else fail++;
+    if (i < list.length - 1) await new Promise(r => setTimeout(r, 400));
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Approve all visible → To Do'; }
+  toast(ok + ' approved' + (fail ? ', ' + fail + ' failed' : ''), fail > 0);
+  loadRecommendedTodo(); // refresh from API
+}
+
+// KPI tile updater — keeps the To Do tile on the tickets page in sync with
+// the approve actions on the Daily Agenda panel. Idempotent and a no-op when
+// the tile isn't mounted (user hasn't opened the Tickets page yet).
+function updateTodoKpiTile() {
+  const tile = document.getElementById('ticket-kpi-todo');
+  if (!tile) return;
+  const cur = _recommendedState.todo_count || 0;
+  const target = _recommendedState.target || _RECOMMENDED_TODO_TARGET;
+  const gap = target - cur;
+  let color = 'var(--green)';
+  if (cur === 0) color = 'var(--red)';
+  else if (gap >= 3) color = 'var(--amber, #C8A45A)';
+  tile.querySelector('.value').style.color = color;
+  tile.querySelector('.value').textContent = cur + ' / ' + target;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// --- Phase B: Past-due Backlog panel ---
+// Surface tickets stuck in Backlog past their due_date with per-row
+// Promote/Close/Snooze + batch Promote-all actions. Write path is the
+// existing PATCH /api/tickets/:id (same code path as Kanban drag).
+
+let _pastDueState = { tickets: [] };
+
+async function loadPastDueBacklog() {
+  const card = document.getElementById('agenda-pastdue-backlog-card');
+  const body = document.getElementById('agenda-pastdue-body');
+  const countEl = document.getElementById('agenda-pastdue-count');
+  if (!card || !body) return;
+  try {
+    const r = await api('tickets/past-due-backlog');
+    if (!r || !r.ok) throw new Error(r?.error || 'load failed');
+    _pastDueState.tickets = Array.isArray(r.tickets) ? r.tickets : [];
+    if (_pastDueState.tickets.length === 0) {
+      card.style.display = 'none'; // hide the panel entirely on empty
+      return;
+    }
+    card.style.display = '';
+    if (countEl) countEl.textContent = '(' + _pastDueState.tickets.length + ')';
+    renderPastDueBacklog();
+  } catch (e) {
+    card.style.display = '';
+    body.innerHTML = '<em style="color:var(--muted)">Past-due Backlog temporarily unavailable.</em>';
+    if (countEl) countEl.textContent = '';
+  }
+}
+
+function renderPastDueBacklog() {
+  const body = document.getElementById('agenda-pastdue-body');
+  const countEl = document.getElementById('agenda-pastdue-count');
+  if (!body) return;
+  const list = _pastDueState.tickets;
+  if (countEl) countEl.textContent = list.length > 0 ? '(' + list.length + ')' : '';
+  if (list.length === 0) {
+    body.innerHTML = '<em style="color:var(--muted)">No past-due tickets in Backlog. Nice work.</em>';
+    return;
+  }
+  const rows = list.map(t => {
+    const dueClass = t.days_overdue >= 14 ? 'overdue-deep' : 'overdue-recent';
+    const titleSafe = escapeHtml(t.title || '');
+    return `<div class="pastdue-row" data-ticket-id="${escapeHtml(t.ticket_id || '')}">
+      <div class="pastdue-row-meta">
+        <span class="ticket-link" data-ticket-key="${escapeHtml(t.ticket_key || '')}" tabindex="0" role="link">${escapeHtml(t.ticket_key || '?')}</span>
+        <span class="tag tag-${escapeHtml(t.priority || 'medium')}" style="font-size:10px;padding:1px 7px">${escapeHtml(t.priority || 'medium')}</span>
+        <span class="pastdue-days ${dueClass}" title="Due ${escapeHtml(t.due_date)}">${t.days_overdue}d overdue</span>
+      </div>
+      <div class="pastdue-row-title">${linkifyTickets(titleSafe)}</div>
+      <div class="pastdue-row-actions">
+        <button class="btn-sm" onclick="pastDuePromote('${escapeHtml(t.ticket_id)}')" title="Move to To Do">Promote</button>
+        <button class="btn-sm" onclick="pastDueClose('${escapeHtml(t.ticket_id)}')" title="Mark Done">Close</button>
+        <button class="btn-sm" onclick="pastDueSnooze('${escapeHtml(t.ticket_id)}')" title="Push due date 7 days">Snooze 7d</button>
+      </div>
+    </div>`;
+  }).join('');
+  body.innerHTML = rows;
+}
+
+async function _patchTicket(ticketId, patch) {
+  const r = await fetch('/api/tickets/' + ticketId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SESSION_TOKEN },
+    body: JSON.stringify(patch),
+  });
+  return r.json();
+}
+
+function _pastDueRemove(ticketId) {
+  _pastDueState.tickets = _pastDueState.tickets.filter(t => t.ticket_id !== ticketId);
+  renderPastDueBacklog();
+  // Hide the card entirely if empty
+  if (_pastDueState.tickets.length === 0) {
+    const card = document.getElementById('agenda-pastdue-backlog-card');
+    if (card) card.style.display = 'none';
+  }
+}
+
+async function pastDuePromote(ticketId) {
+  const t = _pastDueState.tickets.find(x => x.ticket_id === ticketId);
+  if (!t) return;
+  const r = await _patchTicket(ticketId, { status: 'todo' });
+  if (r && r.ok) { toast(t.ticket_key + ' → To Do'); _pastDueRemove(ticketId); }
+  else { toast('Failed to promote ' + (t.ticket_key || ''), true); }
+}
+
+async function pastDueClose(ticketId) {
+  const t = _pastDueState.tickets.find(x => x.ticket_id === ticketId);
+  if (!t) return;
+  if (!confirm('Mark ' + (t.ticket_key || 'this ticket') + ' as Done?')) return;
+  const r = await _patchTicket(ticketId, { status: 'done' });
+  if (r && r.ok) { toast(t.ticket_key + ' → Done'); _pastDueRemove(ticketId); }
+  else { toast('Failed to close ' + (t.ticket_key || ''), true); }
+}
+
+async function pastDueSnooze(ticketId) {
+  const t = _pastDueState.tickets.find(x => x.ticket_id === ticketId);
+  if (!t) return;
+  const newDue = new Date(Date.now() + 7 * 86400 * 1000).toISOString().slice(0, 10);
+  const r = await _patchTicket(ticketId, { due_date: newDue });
+  if (r && r.ok) { toast(t.ticket_key + ' snoozed to ' + newDue); _pastDueRemove(ticketId); }
+  else { toast('Failed to snooze ' + (t.ticket_key || ''), true); }
+}
+
+async function pastDuePromoteAll() {
+  const list = _pastDueState.tickets.slice(0, 25); // per-batch cap
+  if (list.length === 0) return;
+  if (!confirm('Promote ' + list.length + ' past-due ticket' + (list.length === 1 ? '' : 's') + ' to To Do?')) return;
+  const btn = document.getElementById('agenda-pastdue-promote-all');
+  if (btn) { btn.disabled = true; btn.textContent = 'Promoting…'; }
+  let ok = 0, fail = 0;
+  for (let i = 0; i < list.length; i++) {
+    const t = list[i];
+    const r = await _patchTicket(t.ticket_id, { status: 'todo' });
+    if (r && r.ok) { ok++; } else { fail++; }
+    if (i < list.length - 1) await new Promise(r => setTimeout(r, 400)); // rate-limit
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Promote all visible → To Do'; }
+  toast(ok + ' promoted' + (fail ? ', ' + fail + ' failed' : ''), fail > 0);
+  loadPastDueBacklog(); // refresh from API to reflect server-side state
 }
 
 async function loadInboxPanel() {

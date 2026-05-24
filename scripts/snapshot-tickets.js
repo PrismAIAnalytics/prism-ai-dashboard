@@ -214,7 +214,79 @@ async function main() {
   console.log('');
   console.log(`Wrote ${size} bytes to ${path.relative(path.join(__dirname, '..'), outPath)}`);
   summaryLine.push(`written ${size}B`);
+
+  // Phase B (2026-05-24) — write past-due-backlog report for the Daily Agenda
+  // panel. Separate file so consumers can read just the rows without parsing
+  // the full snapshot. Failure here doesn't fail the summary snapshot job.
+  try {
+    const pdbCount = await writePastDueBacklog(date);
+    summaryLine.push(`past-due-backlog ${pdbCount}`);
+  } catch (e) {
+    console.error(`[past-due-backlog] WARN: ${e.message}`);
+    summaryLine.push(`past-due-backlog FAIL`);
+  }
+
   console.log(summaryLine.join(' · '));
+}
+
+// ─── Phase B: past-due Backlog report ───────────────────────────────────────
+async function writePastDueBacklog(date) {
+  const outPath = path.join(REPORTS_DIR, `past-due-backlog-${date}.json`);
+  process.stdout.write('Fetching /api/tickets for past-due Backlog set... ');
+  const t0 = Date.now();
+  const r = await fetch(`${DASHBOARD_URL}/api/tickets`, {
+    headers: { 'Authorization': `Bearer ${process.env.API_KEY || ''}` },
+  });
+  const elapsed = Date.now() - t0;
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`fetch failed (${r.status}) ${elapsed}ms: ${body.slice(0, 200)}`);
+  }
+  const j = await r.json();
+  if (!j || j.ok !== true || !Array.isArray(j.tickets)) {
+    throw new Error('bad tickets response: ' + JSON.stringify(j).slice(0, 200));
+  }
+  console.log(`OK (${elapsed}ms, ${j.tickets.length} tickets)`);
+
+  const today = date; // 'YYYY-MM-DD'
+  const PRIO_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const rows = j.tickets
+    .filter(t => t.status === 'backlog' && t.due_date && t.due_date < today && t.category !== 'dev_insight')
+    .map(t => ({
+      ticket_key:     t.ticket_key,
+      title:          t.title,
+      due_date:       t.due_date,
+      days_overdue:   Math.max(0, Math.floor((Date.parse(today) - Date.parse(t.due_date)) / 86400000)),
+      priority:       t.priority || 'medium',
+      notion_page_id: t.notion_page_id || null,
+      ticket_id:      t.id,
+    }))
+    .sort((a, b) => {
+      const pa = PRIO_ORDER[a.priority] ?? 9;
+      const pb = PRIO_ORDER[b.priority] ?? 9;
+      if (pa !== pb) return pa - pb;
+      return b.days_overdue - a.days_overdue; // older overdue first within priority
+    });
+
+  const report = {
+    schema_version: 1,
+    date,
+    captured_at: new Date().toISOString(),
+    count: rows.length,
+    tickets: rows,
+  };
+
+  if (DRY_RUN) {
+    console.log(`  past-due Backlog: ${rows.length} ticket${rows.length === 1 ? '' : 's'} (dry-run, no file written)`);
+    return rows.length;
+  }
+
+  const tmp = `${outPath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(report, null, 2) + '\n', 'utf8');
+  fs.renameSync(tmp, outPath);
+  const size = fs.statSync(outPath).size;
+  console.log(`  Wrote ${size}B past-due-backlog (${rows.length} tickets) to ${path.relative(path.join(__dirname, '..'), outPath)}`);
+  return rows.length;
 }
 
 main().catch(e => {
