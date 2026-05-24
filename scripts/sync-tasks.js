@@ -62,15 +62,18 @@ const NOTION_VERSION = '2022-06-28';
 const MAX_NOTION_TEXT = 1900; // Notion rich_text per-block limit is 2000; leave headroom
 
 // ─── Status mapping (TASKS.md section header → dashboard / Notion) ─────────
+// "Up Next" maps to To Do (approved-and-ready-to-work) rather than Backlog,
+// since TASKS.md only lists work that's already been sanctioned via WIP=1.
+// "Blocked" maps to dashboard 'blocked' now that the dashboard supports it.
 const STATUS_TO_DASH = {
   'In Progress':    'in_progress',
-  'Up Next':        'backlog',
+  'Up Next':        'todo',
   'Done This Week': 'done',
-  'Blocked':        'in_progress', // dashboard has no Blocked status; tagged separately
+  'Blocked':        'blocked',
 };
 const STATUS_TO_NOTION = {
   'In Progress':    'In progress',
-  'Up Next':        'Not started',
+  'Up Next':        'To Do',
   'Done This Week': 'Done',
   'Blocked':        'Blocked',
 };
