@@ -8,7 +8,7 @@
     "start": "node server.js",
     "import:crm": "node import-excel-crm.js",
     "snapshot:tickets": "node scripts/snapshot-tickets.js",
-    "test": "node --test test/notionAdapter.contract.test.js"
+    "test": "node --test test/notionAdapter.contract.test.js test/notionAdapter.comments.test.js"
   },
   "engines": {
     "node": ">=18.0.0"

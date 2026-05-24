@@ -313,32 +313,23 @@ test('dashboardToNotionProperties maps title to Ticket title property', () => {
   assert.deepStrictEqual(p['Ticket'], { title: [{ text: { content: 'New ticket' } }] });
 });
 
-test('dashboardToNotionProperties maps backlog/in_progress/blocked/done to Notion status names', () => {
+test('dashboardToNotionProperties maps the 7-option status vocabulary to Notion status names', () => {
+  // Phase 2D schema close-out (2026-05-24) — the full 7-option Notion Status
+  // vocabulary round-trips losslessly. See STATUS_DASH_TO_NOTION at the top of
+  // notionAdapter.js for the canonical map.
   const cases = [
-    ['backlog', 'Not started'],
+    ['backlog', 'Backlog'],
+    ['todo', 'To Do'],
     ['in_progress', 'In progress'],
+    ['review', 'Review'],
     ['blocked', 'Blocked'],
     ['done', 'Done'],
+    ['cancelled', 'Done'], // 'cancelled' is the one dashboard status with no Notion equivalent — collapses to Done.
   ];
   for (const [dash, notion] of cases) {
     const p = dashboardToNotionProperties({ status: dash });
     assert.deepStrictEqual(p['Status'], { status: { name: notion } }, `status ${dash} → ${notion}`);
   }
-});
-
-test('dashboardToNotionProperties collapses SQLite-only statuses (todo/review/cancelled)', () => {
-  assert.deepStrictEqual(
-    dashboardToNotionProperties({ status: 'todo' })['Status'],
-    { status: { name: 'Not started' } },
-  );
-  assert.deepStrictEqual(
-    dashboardToNotionProperties({ status: 'review' })['Status'],
-    { status: { name: 'In progress' } },
-  );
-  assert.deepStrictEqual(
-    dashboardToNotionProperties({ status: 'cancelled' })['Status'],
-    { status: { name: 'Done' } },
-  );
 });
 
 test('dashboardToNotionProperties maps urgent/high/medium/low to Notion priority select', () => {

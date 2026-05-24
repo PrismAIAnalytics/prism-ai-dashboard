@@ -31,7 +31,10 @@ const _inflight = new Map();   // key → Promise (single-flight coalescing)
 
 const STATUS_NOTION_TO_DASH = {
   'Not started': 'backlog',
+  'Backlog': 'backlog',
+  'To Do': 'todo',
   'In progress': 'in_progress',
+  'Review': 'review',
   'Blocked': 'blocked',
   'Done': 'done',
 };
@@ -68,18 +71,30 @@ function categoryNotionToDash(notionCat) {
 }
 
 // ─── Write-direction maps (T-026 Phase 4) ──────────────────────────────────
-// Mirror the read-direction maps. SQLite-only statuses (`todo`, `review`,
-// `cancelled`) collapse to the closest Notion equivalent because the Notion
-// `Status` property doesn't have those values in the existing schema.
+// Mirror the read-direction maps. The Notion `Status` property now has the
+// full 7-option vocabulary (Phase 2D schema close-out, 2026-05-24), so the
+// dashboard's 5-column Kanban round-trips losslessly. `cancelled` still has
+// no Notion equivalent and collapses to `Done`.
 const STATUS_DASH_TO_NOTION = {
-  backlog: 'Not started',
-  todo: 'Not started',
+  backlog: 'Backlog',
+  todo: 'To Do',
   in_progress: 'In progress',
-  review: 'In progress',
+  review: 'Review',
   blocked: 'Blocked',
   done: 'Done',
   cancelled: 'Done',
 };
+
+// Phase 2D schema close-out (2026-05-24). The full 7-option vocabulary that
+// the dashboard's 5-column Kanban + cancelled bucket round-trips through.
+// `verifySchema()` runs once at boot and disables Status writes if any of
+// these go missing in the Notion UI (defends against a future tidy-up).
+const EXPECTED_STATUS_OPTIONS = [
+  'Not started', 'Backlog', 'To Do', 'In progress', 'Review', 'Blocked', 'Done',
+];
+
+let _schemaCheckPromise = null;
+let _statusWriteAllowed = true; // optimistic — flipped by verifySchema on drift
 const PRIORITY_DASH_TO_NOTION = {
   urgent: 'Urgent',
   high: 'High',
@@ -111,8 +126,12 @@ function dashboardToNotionProperties(input) {
     props['Ticket'] = { title: [{ text: { content: String(input.title) } }] };
   }
   if (input.status !== undefined) {
-    const v = STATUS_DASH_TO_NOTION[input.status];
-    if (v) props['Status'] = { status: { name: v } };
+    if (!_statusWriteAllowed) {
+      console.warn('[STATUS_SCHEMA_DRIFT] Skipping Status write — Notion Tickets DB is missing one or more expected options. Other fields will still be patched. Run the verify snippet from PRISM-Vault/Admin/CoS/decisions-log.md (2026-05-24 evening entry) to diagnose.');
+    } else {
+      const v = STATUS_DASH_TO_NOTION[input.status];
+      if (v) props['Status'] = { status: { name: v } };
+    }
   }
   if (input.priority !== undefined) {
     const v = PRIORITY_DASH_TO_NOTION[input.priority];
@@ -349,6 +368,124 @@ async function notionArchivePage({ apiKey, pageId }) {
   return r.json();
 }
 
+// ─── Comments (T-027b) ─────────────────────────────────────────────────────
+// Page-level Notion comments. The Notion Comments API attributes every
+// comment to the integration bot, so the original SQLite `author` value is
+// preserved by prefixing the body: "[michele] Original comment text".
+// notionCommentToCommentShape parses the prefix back out on read.
+
+async function notionListComments({ apiKey, pageId }) {
+  const url = `${NOTION_API}/comments?block_id=${encodeURIComponent(pageId)}&page_size=100`;
+  const r = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Notion-Version': NOTION_VERSION,
+    },
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`notion comments list failed: ${r.status} ${j.code || ''} ${j.message || ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+async function notionCreateComment({ apiKey, pageId, content }) {
+  const r = await fetch(`${NOTION_API}/comments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      parent: { page_id: pageId },
+      rich_text: [{ text: { content: String(content) } }],
+    }),
+  });
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const err = new Error(`notion comment create failed: ${r.status} ${j.code || ''} ${j.message || ''}`);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+// Compose the body string with the author-tag prefix strategy (Option A —
+// see plan file at ~/.claude/plans/please-create-plan-with-goofy-river.md).
+// "[<author>] <text>" preserves the SQLite author column across the Notion
+// boundary, since Notion's API attributes all comments to the integration.
+// 'system' is the SQLite fallback when req.user is missing — we drop the
+// tag in that case to avoid noise.
+function composeCommentBody(text, author) {
+  const tag = author && author !== 'system' ? `[${author}] ` : '';
+  return `${tag}${String(text || '')}`;
+}
+
+// Inverse of composeCommentBody — extracts the author from a tagged body.
+// Returns { author, comment } where author is null if no tag is present.
+function parseCommentBody(content) {
+  const m = /^\[([^\]\n]+)\]\s([\s\S]+)$/.exec(content || '');
+  if (m) return { author: m[1], comment: m[2] };
+  return { author: null, comment: content || '' };
+}
+
+// Concatenate all rich_text segments of a Notion comment into a plain string,
+// then parse out the author-tag prefix. Mirrors the SQLite ticket_comments
+// row shape so the frontend renders identically regardless of source.
+function notionCommentToCommentShape(notionComment, pageId) {
+  const fullText = (notionComment.rich_text || [])
+    .map(rt => rt.plain_text || rt.text?.content || '')
+    .join('');
+  const { author, comment } = parseCommentBody(fullText);
+  return {
+    id: notionComment.id,
+    ticket_id: pageId,
+    author: author || 'system',
+    comment,
+    created_at: notionComment.created_time || null,
+  };
+}
+
+// Phase 2D schema close-out guard. Runs once per process on first
+// _listAllPages call. Fetches the DB metadata, confirms all 7 expected
+// Status options are present. If any are missing, sets _statusWriteAllowed
+// to false so dashboardToNotionProperties drops the Status field rather
+// than 400-ing every Notion write. Reads remain unaffected.
+async function verifySchema({ apiKey, dbId }) {
+  if (_schemaCheckPromise) return _schemaCheckPromise;
+  _schemaCheckPromise = (async () => {
+    try {
+      const r = await fetch(`${NOTION_API}/databases/${dbId}`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Notion-Version': NOTION_VERSION,
+        },
+      });
+      if (!r.ok) {
+        console.warn(`[notion-schema] DB metadata fetch failed (${r.status}); leaving status writes enabled.`);
+        return;
+      }
+      const j = await r.json();
+      const options = j.properties?.Status?.status?.options || [];
+      const present = new Set(options.map(o => o.name));
+      const missing = EXPECTED_STATUS_OPTIONS.filter(n => !present.has(n));
+      if (missing.length > 0) {
+        _statusWriteAllowed = false;
+        console.error(`[STATUS_SCHEMA_DRIFT] Notion Tickets DB is missing Status options: ${missing.join(', ')}. Status writes are disabled until the schema is repaired. Reads continue to work.`);
+        return;
+      }
+      console.log(`[notion-schema] Status schema verified — all ${EXPECTED_STATUS_OPTIONS.length} options present.`);
+    } catch (err) {
+      console.warn('[notion-schema] verification error (status writes left enabled):', err.message);
+    }
+  })();
+  return _schemaCheckPromise;
+}
+
 async function fetchAllPages({ apiKey, dbId, pageCap = 50 }) {
   const out = [];
   let cursor;
@@ -432,6 +569,10 @@ function makeAdapter(getEnv = () => process.env) {
 
   async function _listAllPages() {
     const { apiKey, dbId } = ensureCreds();
+    // Fire-and-forget schema verification on first call. Subsequent calls
+    // hit the cached promise (no extra network). Failures here don't block
+    // reads — they only disable Status writes via _statusWriteAllowed.
+    verifySchema({ apiKey, dbId }).catch(() => {});
     return withCacheTolerant(`pages:${dbId}`, () => fetchAllPages({ apiKey, dbId }));
   }
 
@@ -626,10 +767,50 @@ function makeAdapter(getEnv = () => process.env) {
     return { ok: true, archived: true, page_id: pageId };
   }
 
+  // ─── Comments (T-027b) ───────────────────────────────────────────────────
+  // Separate cache namespace from the page list — comments mutate
+  // independently, and listing comments shouldn't bust the tickets list cache.
+
+  async function listComments(pageId) {
+    if (!pageId) {
+      const e = new Error('listComments: pageId is required');
+      e.status = 400;
+      throw e;
+    }
+    const { apiKey } = ensureCreds();
+    const { data, stale } = await withCacheTolerant(
+      `comments:${pageId}`,
+      () => notionListComments({ apiKey, pageId }),
+    );
+    const comments = (data.results || []).map(c => notionCommentToCommentShape(c, pageId));
+    return { comments, stale };
+  }
+
+  async function createComment(pageId, { text, author } = {}) {
+    if (!pageId) {
+      const e = new Error('createComment: pageId is required');
+      e.status = 400;
+      throw e;
+    }
+    if (!text || !String(text).trim()) {
+      const e = new Error('createComment: text is required');
+      e.status = 400;
+      throw e;
+    }
+    const { apiKey } = ensureCreds();
+    const body = composeCommentBody(text, author);
+    const notionComment = await notionCreateComment({ apiKey, pageId, content: body });
+    // Invalidate just this page's comments cache so the next listComments
+    // call sees the new entry. Don't bust the tickets list — unrelated.
+    _cache.delete(`comments:${pageId}`);
+    return notionCommentToCommentShape(notionComment, pageId);
+  }
+
   return {
     listTickets, listActionItems, getTicket, summary, invalidate,
     createTicket, updateTicket, archiveTicket,
     createActionItem, updateActionItem, archiveActionItem,
+    listComments, createComment,
   };
 }
 
@@ -651,9 +832,16 @@ module.exports = {
   updateActionItem: (pageId, updates) => _default.updateActionItem(pageId, updates),
   archiveActionItem: (pageId) => _default.archiveActionItem(pageId),
 
+  // Comments API (T-027b)
+  listComments: (pageId) => _default.listComments(pageId),
+  createComment: (pageId, input) => _default.createComment(pageId, input),
+
   // Factory + pure mappers exposed for tests with custom env / fixtures
   makeAdapter,
   notionPageToTicket,
   notionPageToActionItem,
+  notionCommentToCommentShape,
+  composeCommentBody,
+  parseCommentBody,
   dashboardToNotionProperties,
 };
