@@ -20,7 +20,10 @@ const NOTION_VERSION = '2022-06-28';
 
 const STATUS_NOTION_TO_DASH = {
   'Not started': 'backlog',
+  'Backlog': 'backlog',
+  'To Do': 'todo',
   'In progress': 'in_progress',
+  'Review': 'review',
   'Blocked': 'blocked',
   'Done': 'done',
 };
