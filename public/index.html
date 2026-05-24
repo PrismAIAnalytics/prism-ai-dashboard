@@ -3014,6 +3014,17 @@ async function openTicketByKey(key) {
       return title.startsWith(prefix1) || title.startsWith(prefix2);
     });
   }
+  // 4. NTN-<8hex> → match by notion_page_id containing those 8 hex chars.
+  //    Production (USE_NOTION_SOURCE=true) derives ticket_key as NTN-<last8-uuid>
+  //    on the fly; local SQLite uses sequential NTN-#### counters. The brief
+  //    renders the uuid-derived form, so demo mode needs this fallback.
+  if (!match) {
+    const ntnHex = key.match(/^NTN-([a-f0-9]{8})$/);
+    if (ntnHex) {
+      const hex = ntnHex[1];
+      match = allTickets.find(t => t.notion_page_id && t.notion_page_id.replace(/-/g, '').endsWith(hex));
+    }
+  }
   if (match) { ticketShowDetail(match.id); return; }
   toast('Ticket ' + key + ' not found in current view.', true);
 }
