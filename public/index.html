@@ -3391,10 +3391,7 @@ function ticketShowDetailReadOnly(ticket, comments, esc) {
       <span title="View-only — edit in ${upstreamWhere}" style="font-size:10px;color:var(--muted);user-select:none">🔒 view-only</span>
     </div>
     <div style="font-size:18px;font-weight:700;color:var(--text);padding:6px 0">${esc(ticket.title)}</div>
-    <div style="margin-top:6px;padding:10px 12px;background:rgba(74,109,181,0.08);border:1px solid rgba(74,109,181,0.25);border-radius:8px;font-size:12px;color:var(--muted)">
-      This ticket is mirrored from ${upstreamWhere}. The dashboard shows a read-only copy — edits, status changes, and deletes happen at the source.
-      ${link ? `<a href="${link}" target="_blank" rel="noopener" class="btn-primary" style="margin-left:10px;padding:6px 14px;font-size:12px;text-decoration:none;display:inline-block;vertical-align:middle">${upstreamLabel(ticket)} ↗</a>` : ''}
-    </div>
+    ${link ? `<div style="margin-top:6px"><a href="${link}" target="_blank" rel="noopener" class="btn-primary" style="padding:6px 14px;font-size:12px;text-decoration:none;display:inline-block">${upstreamLabel(ticket)} ↗</a></div>` : ''}
     ${ticket.description ? `<div style="margin-top:12px"><label>Description</label><div style="padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);white-space:pre-wrap">${esc(ticket.description)}</div></div>` : ''}
     <div class="modal-row" style="margin-top:10px">${fieldRow(fields[0][0], fields[0][1])}${fieldRow(fields[1][0], fields[1][1])}</div>
     <div class="modal-row" style="margin-top:10px">${fieldRow(fields[2][0], fields[2][1])}${fieldRow(fields[3][0], fields[3][1])}</div>
