@@ -2980,9 +2980,13 @@ if (!window._ticketLinkDelegatorInstalled) {
   window._ticketLinkDelegatorInstalled = true;
 }
 
-// Resolver — find a ticket by ticket_key and open the detail modal. Lazy-loads
-// the tickets list if it's empty (covers the case where a user clicks a ticket
-// link in the Daily Agenda before ever opening the Tickets page).
+// Resolver — find a ticket by its semantic key and open the detail modal.
+// Many Cowork-MCP-created tickets store the human-readable identifier (T-043,
+// PS-018, etc.) in the title only, while ticket_key derives to NTN-####.
+// Match order:
+//   1. Exact ticket_key match — Notion-source mode where T-ID was set
+//   2. Tag match — TASKS.md-style "task-md,T-043,src:manual" tag patterns
+//   3. Title prefix — "T-043:" / "T-043 " / "T-043\n" (Cowork MCP convention)
 async function openTicketByKey(key) {
   if (!key) return;
   if (!allTickets || allTickets.length === 0) {
@@ -2994,7 +2998,22 @@ async function openTicketByKey(key) {
       allTickets = (j.tickets || []).filter(t => t.category !== 'dev-insight');
     } catch (e) { /* fall through to not-found toast */ }
   }
-  const match = allTickets.find(t => t.ticket_key === key);
+  // 1. Exact ticket_key
+  let match = allTickets.find(t => t.ticket_key === key);
+  // 2. Tag membership — match ",KEY," or "^KEY," or ",KEY$" or "^KEY$"
+  if (!match) {
+    const tagRe = new RegExp('(?:^|,)' + key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '(?:,|$)');
+    match = allTickets.find(t => t.tags && tagRe.test(t.tags));
+  }
+  // 3. Title prefix — "KEY:" / "KEY " / "KEY\n"
+  if (!match) {
+    const prefix1 = key + ':';
+    const prefix2 = key + ' ';
+    match = allTickets.find(t => {
+      const title = t.title || '';
+      return title.startsWith(prefix1) || title.startsWith(prefix2);
+    });
+  }
   if (match) { ticketShowDetail(match.id); return; }
   toast('Ticket ' + key + ' not found in current view.', true);
 }
