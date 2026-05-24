@@ -4494,6 +4494,198 @@ app.get('/api/tickets/summary', requireAuth, async (req, res) => {
   }
 });
 
+// GET — KPI trends (delta + time-series). Reads daily snapshots written by
+// scripts/snapshot-tickets.js and reports/ticket-snapshot-YYYY-MM-DD.json.
+// Two endpoints share the same metric-extraction helper.
+function _trendsExtractMetrics(snap) {
+  if (!snap) return null;
+  const byStatus = Array.isArray(snap.byStatus) ? snap.byStatus : [];
+  const byType   = Array.isArray(snap.byType) ? snap.byType : [];
+  const findStatus = (k) => (byStatus.find(r => (r.status || r.name) === k)?.count) || 0;
+  const findType   = (k) => (byType.find(r => (r.ticket_type || r.name) === k)?.count) || 0;
+  return {
+    total:               Number(snap.counts?.total || 0),
+    open:                Number(snap.counts?.open || 0),
+    overdue:             Number(snap.counts?.overdue || 0),
+    completed_this_week: Number(snap.counts?.completed_this_week || 0),
+    todo:                findStatus('todo'),
+    client_tasks:        findType('client'),
+    internal_tasks:      findType('internal'),
+  };
+}
+
+function _trendsLoadSnapshot(date) {
+  const p = path.join(__dirname, 'reports', `ticket-snapshot-${date}.json`);
+  if (!fs.existsSync(p)) return null;
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
+  catch (e) { return null; }
+}
+
+function _trendsDateStr(daysAgo) {
+  return new Date(Date.now() - daysAgo * 86400 * 1000).toISOString().slice(0, 10);
+}
+
+// Single-point comparison: current vs N days ago. Powers the delta chip on
+// each KPI tile. If the prior snapshot doesn't exist (baseline period), returns
+// available:false so the frontend can render a "Collecting baseline" hint.
+app.get('/api/tickets/trends', requireAuth, (req, res) => {
+  const days = Math.max(1, Math.min(90, parseInt(req.query.days, 10) || 7));
+  const today = _trendsDateStr(0);
+  const prior = _trendsDateStr(days);
+  const todaySnap = _trendsLoadSnapshot(today);
+  const priorSnap = _trendsLoadSnapshot(prior);
+  const current = _trendsExtractMetrics(todaySnap);
+  const priorM  = _trendsExtractMetrics(priorSnap);
+  if (!current) {
+    return res.json({ ok: true, available: false, days, comparison_date: prior, current: null, reason: 'no snapshot for today (' + today + ')' });
+  }
+  if (!priorM) {
+    return res.json({ ok: true, available: false, days, comparison_date: prior, current, reason: 'no snapshot for ' + prior });
+  }
+  const delta = {};
+  for (const k of Object.keys(current)) delta[k] = current[k] - priorM[k];
+  res.json({ ok: true, available: true, days, comparison_date: prior, today_date: today, current, prior: priorM, delta });
+});
+
+// Multi-point time series: per-metric arrays over the last N days. Powers the
+// inline SVG sparkline on each KPI tile. Skips missing days rather than
+// faking values — the array length tells the frontend how much real data exists.
+app.get('/api/tickets/trends/series', requireAuth, (req, res) => {
+  const days = Math.max(2, Math.min(90, parseInt(req.query.days, 10) || 14));
+  const series = { total: [], open: [], overdue: [], completed_this_week: [], todo: [], client_tasks: [], internal_tasks: [] };
+  let availableDays = 0;
+  for (let i = days - 1; i >= 0; i--) {
+    const date = _trendsDateStr(i);
+    const snap = _trendsLoadSnapshot(date);
+    const m = _trendsExtractMetrics(snap);
+    if (!m) continue;
+    availableDays++;
+    for (const k of Object.keys(series)) series[k].push({ date, value: m[k] });
+  }
+  res.json({ ok: true, days, available_days: availableDays, series });
+});
+
+// GET — past-due Backlog (Phase B, 2026-05-24)
+// Daily Agenda surface that lists tickets stuck in Backlog past their due_date.
+// Reads the latest reports/past-due-backlog-YYYY-MM-DD.json if today's report
+// exists; otherwise computes on-demand from the live tickets list so the panel
+// works before the first cron run.
+app.get('/api/tickets/past-due-backlog', requireAuth, async (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const reportPath = path.join(__dirname, 'reports', `past-due-backlog-${today}.json`);
+  try {
+    if (fs.existsSync(reportPath)) {
+      const raw = fs.readFileSync(reportPath, 'utf8');
+      const report = JSON.parse(raw);
+      res.set('X-Source', 'report');
+      return res.json({ ok: true, date: report.date, count: report.count, tickets: report.tickets, source: 'report' });
+    }
+  } catch (e) {
+    console.warn('[past-due-backlog] report read failed, computing on-demand:', e.message);
+  }
+  // On-demand fallback — pull tickets and filter inline
+  try {
+    let tickets = [];
+    if (process.env.USE_NOTION_SOURCE === 'true') {
+      const { tickets: t } = await notionAdapter.listTickets({});
+      tickets = t;
+    } else {
+      tickets = db.prepare(`
+        SELECT id, ticket_key, title, due_date, priority, status, category, notion_page_id
+        FROM tickets
+        WHERE status = 'backlog'
+          AND due_date IS NOT NULL
+          AND due_date < ?
+          AND (category IS NULL OR category != 'dev_insight')
+      `).all(today);
+    }
+    const PRIO = { urgent: 0, high: 1, medium: 2, low: 3 };
+    const rows = tickets
+      .filter(t => t.status === 'backlog' && t.due_date && t.due_date < today && t.category !== 'dev_insight')
+      .map(t => ({
+        ticket_key:     t.ticket_key,
+        title:          t.title,
+        due_date:       t.due_date,
+        days_overdue:   Math.max(0, Math.floor((Date.parse(today) - Date.parse(t.due_date)) / 86400000)),
+        priority:       t.priority || 'medium',
+        notion_page_id: t.notion_page_id || null,
+        ticket_id:      t.id,
+      }))
+      .sort((a, b) => {
+        const pa = PRIO[a.priority] ?? 9;
+        const pb = PRIO[b.priority] ?? 9;
+        if (pa !== pb) return pa - pb;
+        return b.days_overdue - a.days_overdue;
+      });
+    res.set('X-Source', 'on-demand');
+    res.json({ ok: true, date: today, count: rows.length, tickets: rows, source: 'on-demand' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// GET — recommended-to-do (Phase C, 2026-05-24)
+// Daily Agenda surface that proposes the top-N backlog candidates Michele
+// should approve into To Do. Past-due tickets are excluded — those are
+// Phase B's surface. Ranked by (priority bucket, due_date asc nulls-last,
+// updated_at desc) so the soonest-due high-priority work surfaces first.
+// Also returns the current to-do count so the KPI tile can compare against
+// the target without a second API call.
+app.get('/api/tickets/recommended-todo', requireAuth, async (req, res) => {
+  const n = Math.max(1, Math.min(50, parseInt(req.query.n, 10) || 10));
+  const target = Math.max(1, Math.min(50, parseInt(req.query.target, 10) || 10));
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    let tickets = [];
+    if (process.env.USE_NOTION_SOURCE === 'true') {
+      const { tickets: t } = await notionAdapter.listTickets({});
+      tickets = t;
+    } else {
+      tickets = db.prepare(`
+        SELECT id, ticket_key, title, due_date, priority, status, category, updated_at, notion_page_id
+        FROM tickets
+        WHERE (category IS NULL OR category != 'dev_insight')
+      `).all();
+    }
+    const PRIO = { urgent: 0, high: 1, medium: 2, low: 3 };
+    const candidates = tickets
+      .filter(t => t.status === 'backlog' && t.category !== 'dev_insight')
+      // Exclude past-due — Phase B's panel owns that surface
+      .filter(t => !(t.due_date && t.due_date < today))
+      .map(t => ({
+        ticket_key:     t.ticket_key,
+        title:          t.title,
+        due_date:       t.due_date || null,
+        priority:       t.priority || 'medium',
+        updated_at:     t.updated_at || null,
+        notion_page_id: t.notion_page_id || null,
+        ticket_id:      t.id,
+      }))
+      .sort((a, b) => {
+        const pa = PRIO[a.priority] ?? 9;
+        const pb = PRIO[b.priority] ?? 9;
+        if (pa !== pb) return pa - pb;
+        // due_date asc, nulls last
+        const da = a.due_date || '9999-99-99';
+        const dbb = b.due_date || '9999-99-99';
+        if (da !== dbb) return da.localeCompare(dbb);
+        // updated_at desc
+        return (b.updated_at || '').localeCompare(a.updated_at || '');
+      });
+    const todoCount = tickets.filter(t => t.status === 'todo').length;
+    res.json({
+      ok: true,
+      n,
+      target,
+      todo_count: todoCount,
+      recommendations: candidates.slice(0, n),
+      backlog_total: candidates.length,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // POST — create ticket
 app.post('/api/tickets', requireAuth, [
   body('title').trim().notEmpty().withMessage('Title is required'),
@@ -4650,18 +4842,54 @@ app.get('/api/tickets/:id/comments', requireAuth, async (req, res) => {
 // composeCommentBody in notionAdapter.js. Falls through to SQLite on adapter
 // error, matching the GET pattern above.
 app.post('/api/tickets/:id/comments', requireAuth, [
-  body('comment').trim().notEmpty()
+  body('comment').trim().notEmpty(),
+  body('status').optional().isIn(['backlog', 'todo', 'in_progress', 'review', 'done', 'cancelled']),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
   const author = req.user?.username || req.body.author || 'system';
+  // Phase D1: optional in-request status patch — Reply & Resume composer
+  // posts a comment and flips status from review → in_progress in one round-trip.
+  // SQLite path: wrapped in db.transaction() so the comment+status change roll
+  // back atomically. Notion path can't be truly atomic across two API calls;
+  // we run comment first, then status. If status fails, the comment is already
+  // posted — caller sees the error and can retry the status flip.
+  //
+  // Phase D2: [NEEDS-DECISION] magic-string convention. If the comment body
+  // contains the literal token "[NEEDS-DECISION]" (case-sensitive) AND no
+  // explicit status was passed, auto-set status='review'. Explicit status from
+  // D1's Reply & Resume always wins — Michele's reply must not get clobbered
+  // by an agent's [NEEDS-DECISION] tag in the same comment.
+  let statusPatch = req.body.status;
+  let statusReason = statusPatch ? 'explicit' : null;
+  if (!statusPatch && typeof req.body.comment === 'string' && req.body.comment.includes('[NEEDS-DECISION]')) {
+    statusPatch = 'review';
+    statusReason = 'needs-decision-tag';
+  }
+
   if (process.env.USE_NOTION_SOURCE === 'true') {
     try {
       await notionAdapter.createComment(req.params.id, { text: req.body.comment, author });
+      if (statusPatch) {
+        try {
+          await notionAdapter.updateTicket(req.params.id, { status: statusPatch });
+        } catch (statusErr) {
+          // Comment landed but status didn't — surface partial failure clearly.
+          const { comments, stale } = await notionAdapter.listComments(req.params.id);
+          res.set('X-Source', 'notion');
+          if (stale) res.set('X-Notion-Stale', 'true');
+          return res.status(500).json({
+            ok: false,
+            error: 'comment posted but status patch failed: ' + statusErr.message,
+            partial: true,
+            comments,
+          });
+        }
+      }
       const { comments, stale } = await notionAdapter.listComments(req.params.id);
       res.set('X-Source', 'notion');
       if (stale) res.set('X-Notion-Stale', 'true');
-      return res.json({ ok: true, comments });
+      return res.json({ ok: true, comments, status_patched: statusPatch || null, status_reason: statusReason });
     } catch (e) {
       console.warn('[notion-adapter] POST /api/tickets/:id/comments fallback to SQLite:', e.message);
       res.set('X-Source', 'sqlite-fallback');
@@ -4670,11 +4898,18 @@ app.post('/api/tickets/:id/comments', requireAuth, [
   try {
     const ticket = db.prepare('SELECT id FROM tickets WHERE id = ?').get(req.params.id);
     if (!ticket) return res.status(404).json({ ok: false, error: 'Ticket not found' });
-    db.prepare('INSERT INTO ticket_comments (ticket_id, author, comment) VALUES (?, ?, ?)').run(
-      req.params.id, author, req.body.comment
-    );
+    // Atomic in SQLite: better-sqlite3 transactions throw on inner failure and
+    // roll back the comment insert if the status update fails.
+    const writeBoth = db.transaction((id, body, statusVal) => {
+      db.prepare('INSERT INTO ticket_comments (ticket_id, author, comment) VALUES (?, ?, ?)').run(id, author, body);
+      if (statusVal) {
+        const completedClause = statusVal === 'done' ? ", completed_date = date('now')" : '';
+        db.prepare(`UPDATE tickets SET status = ?, updated_at = datetime('now')${completedClause} WHERE id = ?`).run(statusVal, id);
+      }
+    });
+    writeBoth(req.params.id, req.body.comment, statusPatch);
     const comments = db.prepare('SELECT * FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC').all(req.params.id);
-    res.json({ ok: true, comments });
+    res.json({ ok: true, comments, status_patched: statusPatch || null, status_reason: statusReason });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -5124,6 +5359,37 @@ app.get('/api/mission-control/today', requireAuth, async (req, res) => {
         tiles.needs_decision = active.filter(t => t.status === 'review').length;
       } catch (e) {
         console.warn('[mission-control/today] notion path failed:', e.message);
+      }
+    } else {
+      // SQLite fallback — mirrors the Notion-path computation. Without this
+      // the tiles always read 0 in demo / non-Notion mode, which silently
+      // broke Phase D1's needs_decision tile + nav badge.
+      try {
+        const active = db.prepare(`
+          SELECT id, status, priority, due_date, assigned_to, assignee_name, category
+          FROM (
+            SELECT t.*, (tm.first_name || ' ' || tm.last_name) AS assignee_name
+            FROM tickets t
+            LEFT JOIN team_members tm ON t.assigned_to = tm.id
+          )
+          WHERE status NOT IN ('done','cancelled') AND (category IS NULL OR category != 'dev_insight')
+        `).all();
+        tiles.urgent_due_today = active.filter(t => t.priority === 'urgent' && t.due_date === today).length;
+        tiles.overdue = active.filter(t => t.due_date && t.due_date < today).length;
+        const inProgress = active.filter(t => t.status === 'in_progress');
+        tiles.in_progress_count = inProgress.length;
+        const groups = {};
+        for (const t of inProgress) {
+          const a = (t.assignee_name || t.assigned_to || 'Unassigned').toString().trim() || 'Unassigned';
+          groups[a] = (groups[a] || 0) + 1;
+        }
+        tiles.in_progress_breakdown = Object.entries(groups)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, n]) => `${name.charAt(0).toUpperCase()} ${n}`)
+          .join(' · ');
+        tiles.needs_decision = active.filter(t => t.status === 'review').length;
+      } catch (e) {
+        console.warn('[mission-control/today] sqlite path failed:', e.message);
       }
     }
 
