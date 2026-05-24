@@ -4620,7 +4620,22 @@ app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
 });
 
 // GET — ticket comments
-app.get('/api/tickets/:id/comments', requireAuth, (req, res) => {
+// T-027b: when USE_NOTION_SOURCE='true', answer from Notion via the adapter.
+// :id is the Notion page UUID in that mode (matches the ticket id returned by
+// /api/tickets). On adapter error, fall through to SQLite so a Notion outage
+// doesn't 5xx existing comment views.
+app.get('/api/tickets/:id/comments', requireAuth, async (req, res) => {
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      const { comments, stale } = await notionAdapter.listComments(req.params.id);
+      res.set('X-Source', 'notion');
+      if (stale) res.set('X-Notion-Stale', 'true');
+      return res.json({ ok: true, comments });
+    } catch (e) {
+      console.warn('[notion-adapter] GET /api/tickets/:id/comments fallback to SQLite:', e.message);
+      res.set('X-Source', 'sqlite-fallback');
+    }
+  }
   try {
     const comments = db.prepare('SELECT * FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC').all(req.params.id);
     res.json({ ok: true, comments });
@@ -4630,16 +4645,33 @@ app.get('/api/tickets/:id/comments', requireAuth, (req, res) => {
 });
 
 // POST — add comment
+// T-027b: when USE_NOTION_SOURCE='true', post the comment to Notion.
+// Author tag is preserved by prefixing the body with "[<username>] " — see
+// composeCommentBody in notionAdapter.js. Falls through to SQLite on adapter
+// error, matching the GET pattern above.
 app.post('/api/tickets/:id/comments', requireAuth, [
   body('comment').trim().notEmpty()
-], (req, res) => {
+], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  const author = req.user?.username || req.body.author || 'system';
+  if (process.env.USE_NOTION_SOURCE === 'true') {
+    try {
+      await notionAdapter.createComment(req.params.id, { text: req.body.comment, author });
+      const { comments, stale } = await notionAdapter.listComments(req.params.id);
+      res.set('X-Source', 'notion');
+      if (stale) res.set('X-Notion-Stale', 'true');
+      return res.json({ ok: true, comments });
+    } catch (e) {
+      console.warn('[notion-adapter] POST /api/tickets/:id/comments fallback to SQLite:', e.message);
+      res.set('X-Source', 'sqlite-fallback');
+    }
+  }
   try {
     const ticket = db.prepare('SELECT id FROM tickets WHERE id = ?').get(req.params.id);
     if (!ticket) return res.status(404).json({ ok: false, error: 'Ticket not found' });
     db.prepare('INSERT INTO ticket_comments (ticket_id, author, comment) VALUES (?, ?, ?)').run(
-      req.params.id, req.user?.username || req.body.author || 'system', req.body.comment
+      req.params.id, author, req.body.comment
     );
     const comments = db.prepare('SELECT * FROM ticket_comments WHERE ticket_id = ? ORDER BY created_at ASC').all(req.params.id);
     res.json({ ok: true, comments });
