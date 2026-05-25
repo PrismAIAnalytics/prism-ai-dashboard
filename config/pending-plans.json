@@ -24,6 +24,14 @@
       "created_date": "2026-05-23",
       "review_date": "2026-05-23",
       "summary": "6-phase plan (F → E → B → C → D1 → D2) to fix Tickets page workflow: clickable ticket IDs, recency-first detail modal, past-due-in-backlog promotion, recommended-for-todo panel, visible Review surface, [NEEDS-DECISION] enforcement. Blocked on Phase A prerequisite — Michele adds 3 status options to Notion DB (Backlog, To Do, Review, ~3 min in UI)."
+    },
+    {
+      "slug": "demo-dashboard-seeded",
+      "name": "Demo Dashboard — Identical to live, seeded data, nightly reset",
+      "plan_file": "~/.claude/plans/i-have-a-demo-peppy-falcon.md",
+      "created_date": "2026-05-24",
+      "review_date": "2026-05-24",
+      "summary": "Second Railway service deploying the same dashboard codebase at `demo.prismaianalytics.com`, gated by `APP_ENV=demo`. Existing `seed-demo.js` (8 fictional clients / 5 projects / 5 invoices / `demo / demo2026` login) populates the DB; Stripe + QB + Notion stubbed via demo-mode fallbacks in `services/` so financial tiles look populated without real keys; in-process `node-cron` reseeds nightly at 03:00 UTC. Three small code touches (`GET /api/config` + demo banner, cron block, service-layer demo-mode branches in stripeService.js / quickbooksService.js + new `services/demoData.js`), plus a `DEMO_SETUP.md` runbook mirroring `STAGING_SETUP.md`. Implementation must wait on the T-027b WIP lock clearing and a fresh ticket dispatch (proposed `T-demo-env`)."
     }
   ]
 }
