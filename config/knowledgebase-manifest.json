@@ -1,0 +1,531 @@
+{
+  "generated_at": "2026-05-25T17:46:23.979Z",
+  "website_root": "C:\\Users\\miche\\Prism AI\\PRISM AI Analytics\\prism_website_project",
+  "counts": {
+    "total": 40,
+    "by_topic": {
+      "Configuration Management": 11,
+      "AI Readiness": 7,
+      "Data & Analytics": 5,
+      "Advisory & Practice": 4,
+      "Compliance & Regulation": 4,
+      "General": 7,
+      "Architecture & Platform": 2
+    },
+    "by_content_type": {
+      "blog": 17,
+      "service-page": 1,
+      "assessment": 1,
+      "podcast-index": 1,
+      "page": 1,
+      "download": 1,
+      "infographic": 18
+    }
+  },
+  "topics": [
+    {
+      "topic": "Configuration Management",
+      "count": 11,
+      "items": [
+        {
+          "id": "blog/configuration-management-and-the-aigp-body-of-knowledge",
+          "slug": "configuration-management-and-the-aigp-body-of-knowledge",
+          "title": "Configuration Management and the AIGP Body of Knowledge: The Operational Layer the Curriculum Implies",
+          "url": "/blog/configuration-management-and-the-aigp-body-of-knowledge/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "6 of 6",
+          "date": "2026-06-25",
+          "read_time": "11 min",
+          "author": "Michele Fisher",
+          "description": "This is the closing post in the main thread of a six-part series on configuration management for AI agents. The preceding posts staked out the latency gap in agentic AI governance, introduced a four-d..."
+        },
+        {
+          "id": "blog/inside-the-prism-cm-ai-control-plane",
+          "slug": "inside-the-prism-cm-ai-control-plane",
+          "title": "Inside the Prism Dashboard: A CM Control Plane in Production",
+          "url": "/blog/inside-the-prism-cm-ai-control-plane/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "5 of 6",
+          "date": "2026-06-25",
+          "read_time": "12 min",
+          "author": "Michele Fisher",
+          "description": "The framework I have been describing across this series — Baseline, Change Control, Drift Detection, Audit & Remediation, layered with a Key Risk Indicator tier model — is not theoretical. It is opera..."
+        },
+        {
+          "id": "blog/microsoft-agent-governance-toolkit-and-the-cm-layer-above-it",
+          "slug": "microsoft-agent-governance-toolkit-and-the-cm-layer-above-it",
+          "title": "Microsoft's Agent Governance Toolkit Is the Kernel. Configuration Management Is the Layer Above It.",
+          "url": "/blog/microsoft-agent-governance-toolkit-and-the-cm-layer-above-it/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "Bonus",
+          "date": "2026-06-18",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "Microsoft [launched the Agent Governance Toolkit on April 2, 2026](https://opensource.microsoft.com/blog/2026/04/02/introducing-the-agent-governance-toolkit-open-source-runtime-security-for-ai-agents/..."
+        },
+        {
+          "id": "blog/nist-ai-rmf-meets-configuration-management",
+          "slug": "nist-ai-rmf-meets-configuration-management",
+          "title": "Mapping NIST AI RMF to Configuration Management: A Crosswalk for Compliance Teams",
+          "url": "/blog/nist-ai-rmf-meets-configuration-management/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "4 of 6",
+          "date": "2026-06-11",
+          "read_time": "11 min",
+          "author": "Michele Fisher",
+          "description": "This post is the fourth in a series on configuration management for AI agents. The first three posts made the case that AI governance, as currently practiced, has an operational gap — a latency gap be..."
+        },
+        {
+          "id": "blog/kri-vs-kpi-for-ai-agents",
+          "slug": "kri-vs-kpi-for-ai-agents",
+          "title": "KRIs vs KPIs for Autonomous Agents: Borrowing 30 Years of Discipline from Financial Services",
+          "url": "/blog/kri-vs-kpi-for-ai-agents/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "3 of 6",
+          "date": "2026-06-04",
+          "read_time": "12 min",
+          "author": "Michele Fisher",
+          "description": "The most common failure mode I see in production AI deployments is treating a Key Performance Indicator as if it were a Key Risk Indicator. The two are not the same. They answer different questions, t..."
+        },
+        {
+          "id": "blog/configuration-management-for-ai-agents",
+          "slug": "configuration-management-for-ai-agents",
+          "title": "Configuration Management for AI Agents: The Missing Twin of Agentic Governance",
+          "url": "/blog/configuration-management-for-ai-agents/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "2 of 6",
+          "date": "2026-05-28",
+          "read_time": "11 min",
+          "author": "Michele Fisher",
+          "description": "![The missing mechanic is a 30-year-old operational discipline](/assets/img/blog/cm-ai-deck/image6.png)"
+        },
+        {
+          "id": "blog/observability-isnt-governance",
+          "slug": "observability-isnt-governance",
+          "title": "Observability Isn't Governance: The Latency Gap in Agentic AI",
+          "url": "/blog/observability-isnt-governance/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "1 of 6",
+          "date": "2026-05-21",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "![Closing the latency gap in agentic AI governance](/assets/img/blog/cm-ai-deck/image1.png)"
+        },
+        {
+          "id": "blog/a-hallucination-on-our-own-stack",
+          "slug": "a-hallucination-on-our-own-stack",
+          "title": "A Hallucination on Our Own Stack: What Configuration Management Would Have Caught",
+          "url": "/blog/a-hallucination-on-our-own-stack/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "Bonus · CM-AI Framework",
+          "date": "2026-05-15",
+          "read_time": "8 min",
+          "author": "Michele Fisher",
+          "description": "This is a bonus use case in the series, not a numbered entry. I had an agent hallucination on my own stack this morning. I am writing about it because it is exactly the failure mode the rest of this s..."
+        },
+        {
+          "id": "blog/what-is-ai-agent-governance",
+          "slug": "what-is-ai-agent-governance",
+          "title": "What Is AI Agent Governance? A Practitioner's Glossary for the Prism CM-AI Framework",
+          "url": "/blog/what-is-ai-agent-governance/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "0 of 6",
+          "date": "2026-05-14",
+          "read_time": "10 min",
+          "author": "Michele Fisher",
+          "description": "The phrase *AI agent governance* means different things in different conversations. A CISO at a financial-services firm hears \"perimeter and identity.\" A compliance officer hears \"policy and audit.\" A..."
+        },
+        {
+          "id": "dashboard/prism-config-drift",
+          "slug": "prism-config-drift",
+          "title": "Configuration Drift",
+          "url": "/prism-config-drift.html",
+          "content_type": "infographic",
+          "topic": "Configuration Management",
+          "description": ""
+        },
+        {
+          "id": "blog/configuration-drift-the-silent-security-risk",
+          "slug": "configuration-drift-the-silent-security-risk",
+          "title": "Configuration Drift: The Silent Security Risk Most Businesses Ignore",
+          "url": "/blog/configuration-drift-the-silent-security-risk/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Configuration drift quietly undermines your security posture. Learn what it is, why it matters, and how small businesses can detect and prevent compliance gaps."
+        }
+      ]
+    },
+    {
+      "topic": "AI Readiness",
+      "count": 7,
+      "items": [
+        {
+          "id": "dashboard/prism-5-signs-ai-ready",
+          "slug": "prism-5-signs-ai-ready",
+          "title": "5 Signs You're Ready for AI",
+          "url": "/prism-5-signs-ai-ready.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "blog/five-signs-your-business-is-ready-for-ai",
+          "slug": "five-signs-your-business-is-ready-for-ai",
+          "title": "5 Signs Your Small Business Is Ready for AI",
+          "url": "/blog/five-signs-your-business-is-ready-for-ai/",
+          "content_type": "blog",
+          "topic": "AI Readiness",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Not sure if your business is ready to adopt AI? Here are five clear signals that your organization is primed to benefit from artificial intelligence."
+        },
+        {
+          "id": "site/ai-readiness",
+          "slug": "ai-readiness",
+          "title": "AI Readiness Assessment",
+          "url": "/ai-readiness/",
+          "content_type": "assessment",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-ai-readiness-infographic",
+          "slug": "prism-ai-readiness-infographic",
+          "title": "AI Readiness Assessment",
+          "url": "/prism-ai-readiness-infographic.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-ai-readiness-assessment",
+          "slug": "prism-ai-readiness-assessment",
+          "title": "AI Readiness Assessment — PRISM AI Analytics",
+          "url": "/prism-ai-readiness-assessment.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-data-catch-up-roadmap",
+          "slug": "prism-data-catch-up-roadmap",
+          "title": "Data Catch-Up Roadmap",
+          "url": "/prism-data-catch-up-roadmap.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "blog/what-is-an-ai-readiness-assessment",
+          "slug": "what-is-an-ai-readiness-assessment",
+          "title": "What Is an AI Readiness Assessment — And Why Your Business Needs One",
+          "url": "/blog/what-is-an-ai-readiness-assessment/",
+          "content_type": "blog",
+          "topic": "AI Readiness",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Learn what an AI readiness assessment covers, why it matters for small businesses, and how to determine if your organization is prepared to adopt AI successfully."
+        }
+      ]
+    },
+    {
+      "topic": "General",
+      "count": 7,
+      "items": [
+        {
+          "id": "site/about",
+          "slug": "about",
+          "title": "About Prism AI",
+          "url": "/about/",
+          "content_type": "page",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-stats-counter",
+          "slug": "prism-stats-counter",
+          "title": "Animated Stats",
+          "url": "/prism-stats-counter.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-client-journey",
+          "slug": "prism-client-journey",
+          "title": "Client Journey",
+          "url": "/prism-client-journey.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-data-vs-gut",
+          "slug": "prism-data-vs-gut",
+          "title": "Data vs Gut Decisions",
+          "url": "/prism-data-vs-gut.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "site/podcast",
+          "slug": "podcast",
+          "title": "Podcast",
+          "url": "/podcast/",
+          "content_type": "podcast-index",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-revenue-streams",
+          "slug": "prism-revenue-streams",
+          "title": "Revenue Streams",
+          "url": "/prism-revenue-streams.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-floating-cards",
+          "slug": "prism-floating-cards",
+          "title": "Service Offerings",
+          "url": "/prism-floating-cards.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "topic": "Data & Analytics",
+      "count": 5,
+      "items": [
+        {
+          "id": "dashboard/prism-data-silos",
+          "slug": "prism-data-silos",
+          "title": "Break Down Data Silos",
+          "url": "/prism-data-silos.html",
+          "content_type": "infographic",
+          "topic": "Data & Analytics",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-spreadsheets-to-dashboards",
+          "slug": "prism-spreadsheets-to-dashboards",
+          "title": "From Spreadsheets to Dashboards",
+          "url": "/prism-spreadsheets-to-dashboards.html",
+          "content_type": "infographic",
+          "topic": "Data & Analytics",
+          "description": ""
+        },
+        {
+          "id": "blog/from-spreadsheets-to-dashboards",
+          "slug": "from-spreadsheets-to-dashboards",
+          "title": "From Spreadsheets to Dashboards — Modernizing Your Business Reporting",
+          "url": "/blog/from-spreadsheets-to-dashboards/",
+          "content_type": "blog",
+          "topic": "Data & Analytics",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Still relying on spreadsheets for business reporting? Learn how to transition to interactive dashboards that save time and improve decision-making."
+        },
+        {
+          "id": "dashboard/prism-architecture-animated",
+          "slug": "prism-architecture-animated",
+          "title": "PRISM AI Analytics — Service Architecture",
+          "url": "/prism-architecture-animated.html",
+          "content_type": "infographic",
+          "topic": "Data & Analytics",
+          "description": ""
+        },
+        {
+          "id": "blog/why-most-small-businesses-are-behind-on-data",
+          "slug": "why-most-small-businesses-are-behind-on-data",
+          "title": "Why Most Small Businesses Are Behind on Data — And How to Catch Up",
+          "url": "/blog/why-most-small-businesses-are-behind-on-data/",
+          "content_type": "blog",
+          "topic": "Data & Analytics",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Most small businesses know data matters but struggle to use it effectively. Learn the common barriers and practical steps to build a strong data foundation."
+        }
+      ]
+    },
+    {
+      "topic": "Advisory & Practice",
+      "count": 4,
+      "items": [
+        {
+          "id": "dashboard/prism-fractional-ai-advisor",
+          "slug": "prism-fractional-ai-advisor",
+          "title": "Fractional AI Advisor",
+          "url": "/prism-fractional-ai-advisor.html",
+          "content_type": "infographic",
+          "topic": "Advisory & Practice",
+          "description": ""
+        },
+        {
+          "id": "blog/how-a-fractional-ai-advisor-can-transform-your-business",
+          "slug": "how-a-fractional-ai-advisor-can-transform-your-business",
+          "title": "How a Fractional AI Advisor Can Transform Your Business",
+          "url": "/blog/how-a-fractional-ai-advisor-can-transform-your-business/",
+          "content_type": "blog",
+          "topic": "Advisory & Practice",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Discover how a fractional AI advisor gives small businesses access to enterprise-level AI strategy and implementation without the full-time cost."
+        },
+        {
+          "id": "site/services",
+          "slug": "services",
+          "title": "Services",
+          "url": "/services/",
+          "content_type": "service-page",
+          "topic": "Advisory & Practice",
+          "description": ""
+        },
+        {
+          "id": "blog/why-im-pursuing-the-claude-certified-architect",
+          "slug": "why-im-pursuing-the-claude-certified-architect",
+          "title": "Why I’m Pursuing the Claude Certified Architect Credential — And Why It Matters for Small Business",
+          "url": "/blog/why-im-pursuing-the-claude-certified-architect/",
+          "content_type": "blog",
+          "topic": "Advisory & Practice",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "A look at the new Claude Certified Architect – Foundations certification, what it covers, and why credentialed Claude expertise is about to matter for every business buying AI services."
+        }
+      ]
+    },
+    {
+      "topic": "Compliance & Regulation",
+      "count": 4,
+      "items": [
+        {
+          "id": "dashboard/prism-compliance-checks",
+          "slug": "prism-compliance-checks",
+          "title": "20 Compliance Automation Checks",
+          "url": "/prism-compliance-checks.html",
+          "content_type": "infographic",
+          "topic": "Compliance & Regulation",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-compliance-engine",
+          "slug": "prism-compliance-engine",
+          "title": "Compliance Engine",
+          "url": "/prism-compliance-engine.html",
+          "content_type": "infographic",
+          "topic": "Compliance & Regulation",
+          "description": ""
+        },
+        {
+          "id": "download/Prism-Field-Note-Hallucination-On-Our-Own-Stack-2026-05-15.docx",
+          "slug": "Prism-Field-Note-Hallucination-On-Our-Own-Stack-2026-05-15.docx",
+          "title": "Prism Field Note Hallucination On Our Own Stack 2026 05 15",
+          "url": "/downloads/Prism-Field-Note-Hallucination-On-Our-Own-Stack-2026-05-15.docx",
+          "content_type": "download",
+          "topic": "Compliance & Regulation",
+          "description": ""
+        },
+        {
+          "id": "blog/the-2026-ai-regulation-clock-is-ticking",
+          "slug": "the-2026-ai-regulation-clock-is-ticking",
+          "title": "The 2026 AI Regulation Clock Is Ticking — What Small Businesses Need to Know Right Now",
+          "url": "/blog/the-2026-ai-regulation-clock-is-ticking/",
+          "content_type": "blog",
+          "topic": "Compliance & Regulation",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "The EU AI Act, state AI laws, and new governance standards all have concrete 2026 deadlines. Here's the timeline every small business using AI should have on their calendar."
+        }
+      ]
+    },
+    {
+      "topic": "Architecture & Platform",
+      "count": 2,
+      "items": [
+        {
+          "id": "dashboard/prism-3-layer-delivery",
+          "slug": "prism-3-layer-delivery",
+          "title": "3-Layer Delivery Model",
+          "url": "/prism-3-layer-delivery.html",
+          "content_type": "infographic",
+          "topic": "Architecture & Platform",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-self-drawing",
+          "slug": "prism-self-drawing",
+          "title": "Self-Drawing Architecture",
+          "url": "/prism-self-drawing.html",
+          "content_type": "infographic",
+          "topic": "Architecture & Platform",
+          "description": ""
+        }
+      ]
+    }
+  ]
+}

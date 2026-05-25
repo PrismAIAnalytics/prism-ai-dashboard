@@ -813,6 +813,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <summary class="nav-section nav-more-toggle">More <span class="nav-more-chevron">&#9656;</span></summary>
       <a href="javascript:void(0)" data-page="tools" onclick="showPage('tools', this)">Tools Inventory</a>
       <a href="javascript:void(0)" data-page="drive" onclick="showPage('drive', this)">Prism Shared Drive</a>
+      <a href="javascript:void(0)" data-page="knowledgebase" onclick="showPage('knowledgebase', this)">Knowledgebase</a>
       <a href="javascript:void(0)" data-page="training" onclick="showPage('training', this)">Training</a>
       <a href="javascript:void(0)" data-page="compliance" onclick="showPage('compliance', this)">Security Baselines</a>
       <a href="javascript:void(0)" data-page="health" onclick="showPage('health', this)">Business Health</a>
@@ -1439,6 +1440,63 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
         <div class="swot-grid" id="swot-grid" style="margin-top:10px"></div>
       </div>
+    </div>
+
+    <!-- KNOWLEDGEBASE — T-076 -->
+    <div id="page-knowledgebase" class="page">
+      <style>
+        .kb-meta-strip{font-size:12px;color:var(--text-muted);margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+        .kb-meta-strip strong{color:var(--white);font-weight:700}
+        .kb-meta-strip .kb-meta-public{color:#4FB48A;font-weight:700}
+        .kb-meta-strip .kb-meta-nonpublic{color:var(--text-muted);font-weight:700}
+        .kb-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+        .kb-view-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:18px;font-size:11px;color:var(--text-muted)}
+        .kb-view-row .kb-view-label{text-transform:uppercase;letter-spacing:0.12em;margin-right:4px}
+        .kb-chip{background:transparent;border:1px solid var(--border);color:var(--text-muted);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:600;letter-spacing:0.02em;cursor:pointer;transition:all 0.18s ease;text-transform:capitalize;font-family:inherit}
+        .kb-chip:hover{border-color:var(--border-strong);color:var(--white)}
+        .kb-chip.active{background:var(--grad-chrome);color:var(--navy);border-color:transparent}
+        .kb-chip .ct{margin-left:5px;font-weight:700;opacity:0.7;font-size:10.5px}
+        .kb-view-chip{padding:4px 10px;font-size:10.5px;letter-spacing:0.06em;text-transform:uppercase}
+        .kb-search{flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 11px;color:var(--text);font-size:12.5px;font-family:inherit}
+        .kb-search:focus{outline:none;border-color:var(--gold)}
+        .kb-topic{margin-bottom:6px;padding:0;border:none;background:transparent}
+        .kb-topic > summary{list-style:none;cursor:pointer;padding:8px 4px 6px;display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--border)}
+        .kb-topic > summary::-webkit-details-marker{display:none}
+        .kb-topic-chev{font-size:10px;color:var(--text-muted);transition:transform 0.2s ease;width:10px;display:inline-block}
+        .kb-topic[open] .kb-topic-chev{transform:rotate(90deg)}
+        .kb-topic-title{font-size:14px;font-weight:700;color:var(--white);letter-spacing:0.01em;flex:1}
+        .kb-topic-dot{width:8px;height:8px;border-radius:2px;background:var(--accent,var(--royal));display:inline-block;flex-shrink:0;align-self:center}
+        .kb-topic-count{font-size:11px;font-weight:600;color:var(--text-muted);font-variant-numeric:tabular-nums}
+        .kb-list{list-style:none;margin:6px 0 14px 26px;padding:0}
+        .kb-item{padding:3px 0;display:flex;align-items:baseline;gap:8px;line-height:1.5}
+        .kb-item-vis{flex-shrink:0;background:transparent;border:1px solid var(--border);color:var(--text-muted);width:20px;height:20px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:all 0.15s ease;align-self:center}
+        .kb-item-vis:hover{border-color:var(--gold);color:var(--gold)}
+        .kb-item-vis.is-public{background:#4FB48A;border-color:#4FB48A;color:#06150E}
+        .kb-item-vis.is-public:hover{background:#3F9C76;border-color:#3F9C76;color:#06150E}
+        .kb-item-vis:disabled{opacity:0.4;cursor:wait}
+        .kb-item-type{display:inline-block;flex-shrink:0;width:78px;font-size:10px;font-weight:700;color:var(--accent,var(--text-muted));letter-spacing:0.1em;text-transform:uppercase;font-variant-numeric:tabular-nums}
+        body.prism-themed .kb-item a{color:var(--white);text-decoration:none;font-size:13px;font-weight:500;border-bottom:1px solid transparent;transition:border-color 0.15s,color 0.15s}
+        body.prism-themed .kb-item a:hover{color:var(--gold);border-bottom-color:var(--gold)}
+        .kb-item.is-non-public{opacity:0.55}
+        .kb-item.is-non-public .kb-item-type{color:var(--text-dim)}
+        body.prism-themed .kb-item.is-non-public a{color:var(--text-muted)}
+        .kb-item-tag{font-size:9.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin-left:4px}
+        .kb-item-meta{font-size:11px;color:var(--text-dim);margin-left:auto;flex-shrink:0;font-variant-numeric:tabular-nums}
+        .kb-item-series{font-size:10.5px;color:var(--gold);margin-left:6px;letter-spacing:0.05em}
+        .kb-empty{padding:32px 20px;text-align:center;color:var(--text-muted);border:1px dashed var(--border);border-radius:8px}
+        .kb-empty strong{display:block;color:var(--white);font-size:14px;margin-bottom:6px}
+        .kb-unavailable{padding:18px;border:1px solid var(--danger);border-radius:10px;background:rgba(217,106,106,0.08);color:var(--text)}
+        .kb-unavailable code{background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:12px}
+        @media(max-width:700px){.kb-item{flex-wrap:wrap}.kb-item-type{width:auto}.kb-item-meta{margin-left:0;width:100%;padding-left:30px}}
+      </style>
+      <div class="page-header" style="margin-bottom:10px">
+        <h2>PRISM AI Knowledgebase</h2>
+        <p>Every published artifact across the website, infographic library, and downloads — indexed by topic.</p>
+      </div>
+      <div id="kb-meta-strip" class="kb-meta-strip">Loading manifest&hellip;</div>
+      <div id="kb-controls" class="kb-controls" style="display:none"></div>
+      <div id="kb-view-row" class="kb-view-row" style="display:none"></div>
+      <div id="kb-body"></div>
     </div>
 
   </main>
@@ -6854,6 +6912,251 @@ async function sendChatMessage() {
   sendBtn.disabled = false;
   messagesEl.scrollTop = messagesEl.scrollHeight;
   input.focus();
+}
+
+// ─── Knowledgebase (T-076) ──────────────────────────────────────────────────
+// Hyperlink outline indexed by topic — content fed by
+// config/knowledgebase-manifest.json (rebuilt locally via
+// `npm run knowledgebase:rebuild`).
+
+const KB_TOPIC_ACCENT = {
+  'Configuration Management':  '#C8A45A',
+  'AI Agent Governance':       '#9C8FE0',
+  'Compliance & Regulation':   '#D96A6A',
+  'AI Readiness':              '#4FB48A',
+  'Advisory & Practice':       '#4A6DB5',
+  'Data & Analytics':          '#38BDF8',
+  'Architecture & Platform':   '#3A5998',
+  'General':                   '#5A6B91',
+};
+const KB_TYPE_LABEL = {
+  blog: 'Blog',
+  article: 'Article',
+  infographic: 'Infographic',
+  'service-page': 'Service',
+  assessment: 'Assessment',
+  download: 'Download',
+  image: 'Image',
+  'podcast-index': 'Podcast',
+  page: 'Page',
+};
+
+let kbManifest = null;
+let kbActiveType = 'all';
+let kbSearchTerm = '';
+let kbViewMode = 'all'; // 'all' | 'public' | 'non-public'
+
+const KB_VIEW_MODES = [
+  { id: 'all', label: 'All' },
+  { id: 'public', label: 'Public only' },
+  { id: 'non-public', label: 'Non-public only' },
+];
+
+loaders.knowledgebase = async () => {
+  const metaEl = document.getElementById('kb-meta-strip');
+  const controlsEl = document.getElementById('kb-controls');
+  const viewRowEl = document.getElementById('kb-view-row');
+  const bodyEl = document.getElementById('kb-body');
+  metaEl.textContent = 'Loading manifest…';
+  controlsEl.style.display = 'none';
+  viewRowEl.style.display = 'none';
+  bodyEl.innerHTML = '';
+
+  const res = await api('knowledgebase');
+  if (!res || res.ok === false || res.available === false) {
+    const reason = (res && (res.reason || res.error)) || 'manifest-missing';
+    bodyEl.innerHTML = `
+      <div class="kb-unavailable">
+        <strong style="display:block;font-size:14px;margin-bottom:6px">Knowledgebase manifest unavailable</strong>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">Reason: <code>${esc(reason)}</code></div>
+        <div style="font-size:12px;color:var(--text-muted)">Run <code>npm run knowledgebase:rebuild</code> locally and commit <code>config/knowledgebase-manifest.json</code> to populate the catalog.</div>
+      </div>`;
+    metaEl.textContent = 'No manifest';
+    return;
+  }
+  kbManifest = res;
+  kbActiveType = 'all';
+  kbSearchTerm = '';
+  // Preserve kbViewMode across reloads so a toggle doesn't jump back to "all".
+  renderKnowledgebaseMeta();
+  renderKnowledgebaseControls();
+  renderKnowledgebaseViewRow();
+  renderKnowledgebaseBody();
+};
+
+function renderKnowledgebaseMeta() {
+  const m = kbManifest;
+  const total = (m.counts && m.counts.total) || 0;
+  const topics = (m.topics || []).length;
+  const vis = m.visibility_counts || { public: 0, 'non-public': total };
+  const generated = m.generated_at
+    ? new Date(m.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '—';
+  document.getElementById('kb-meta-strip').innerHTML = `
+    <span><strong>${total}</strong> items</span>
+    <span><strong>${topics}</strong> topics</span>
+    <span><span class="kb-meta-public">${vis.public}</span> public · <span class="kb-meta-nonpublic">${vis['non-public']}</span> non-public</span>
+    <span>updated <strong>${esc(generated)}</strong></span>
+  `;
+}
+
+function renderKnowledgebaseViewRow() {
+  const m = kbManifest;
+  const vis = m.visibility_counts || { public: 0, 'non-public': 0 };
+  const total = (m.counts && m.counts.total) || 0;
+  const counts = { all: total, public: vis.public, 'non-public': vis['non-public'] };
+  const viewRowEl = document.getElementById('kb-view-row');
+  viewRowEl.style.display = 'flex';
+  viewRowEl.innerHTML = `
+    <span class="kb-view-label">View</span>
+    ${KB_VIEW_MODES.map(v => {
+      const active = v.id === kbViewMode ? 'active' : '';
+      return `<button type="button" class="kb-chip kb-view-chip ${active}" data-kb-view="${esc(v.id)}" onclick="kbSetViewMode('${esc(v.id)}')">${esc(v.label)}<span class="ct">${counts[v.id]}</span></button>`;
+    }).join('')}
+  `;
+}
+
+function kbSetViewMode(mode) {
+  kbViewMode = mode;
+  document.querySelectorAll('#kb-view-row .kb-view-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.kbView === mode);
+  });
+  renderKnowledgebaseBody();
+}
+
+function renderKnowledgebaseControls() {
+  const m = kbManifest;
+  const controlsEl = document.getElementById('kb-controls');
+  controlsEl.style.display = 'flex';
+  const byType = (m.counts && m.counts.by_content_type) || {};
+  const total = (m.counts && m.counts.total) || 0;
+  const types = ['all', ...Object.keys(byType).sort((a, b) => (byType[b] || 0) - (byType[a] || 0))];
+
+  controlsEl.innerHTML = `
+    ${types.map(t => {
+      const count = t === 'all' ? total : (byType[t] || 0);
+      const label = t === 'all' ? 'All' : (KB_TYPE_LABEL[t] || t);
+      const active = t === kbActiveType ? 'active' : '';
+      return `<button type="button" class="kb-chip ${active}" data-kb-type="${esc(t)}" onclick="kbFilterByType('${esc(t)}')">${esc(label)}<span class="ct">${count}</span></button>`;
+    }).join('')}
+    <input type="search" class="kb-search" placeholder="Search titles and descriptions…" oninput="kbSetSearch(this.value)" value="${esc(kbSearchTerm)}">
+  `;
+}
+
+function kbFilterByType(type) {
+  kbActiveType = type;
+  document.querySelectorAll('#kb-controls .kb-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.kbType === type);
+  });
+  renderKnowledgebaseBody();
+}
+
+function kbSetSearch(value) {
+  kbSearchTerm = (value || '').trim().toLowerCase();
+  renderKnowledgebaseBody();
+}
+
+function renderKnowledgebaseBody() {
+  const m = kbManifest;
+  const bodyEl = document.getElementById('kb-body');
+  const topics = m.topics || [];
+  const term = kbSearchTerm;
+  const typeFilter = kbActiveType;
+  const viewMode = kbViewMode;
+
+  const filteredTopics = topics.map(topic => {
+    const visibleItems = (topic.items || []).filter(item => {
+      if (viewMode === 'public' && item.visibility !== 'public') return false;
+      if (viewMode === 'non-public' && item.visibility !== 'non-public') return false;
+      if (typeFilter !== 'all' && item.content_type !== typeFilter) return false;
+      if (!term) return true;
+      const hay = (item.title + ' ' + (item.description || '') + ' ' + (item.series || '')).toLowerCase();
+      return hay.includes(term);
+    });
+    return { ...topic, items: visibleItems };
+  }).filter(t => t.items.length > 0);
+
+  if (filteredTopics.length === 0) {
+    bodyEl.innerHTML = `
+      <div class="kb-empty">
+        <strong>No matches</strong>
+        <div>Adjust the view, type filter, or search term to see content.</div>
+      </div>`;
+    return;
+  }
+
+  bodyEl.innerHTML = filteredTopics.map(topic => {
+    const accent = KB_TOPIC_ACCENT[topic.topic] || '#5A6B91';
+    const items = topic.items.map(item => renderKnowledgebaseItem(item, accent)).join('');
+    return `
+      <details class="kb-topic" open style="--accent:${accent}">
+        <summary>
+          <span class="kb-topic-chev">▸</span>
+          <span class="kb-topic-dot"></span>
+          <span class="kb-topic-title">${esc(topic.topic)}</span>
+          <span class="kb-topic-count">${topic.items.length}</span>
+        </summary>
+        <ul class="kb-list">${items}</ul>
+      </details>
+    `;
+  }).join('');
+}
+
+function renderKnowledgebaseItem(item, accent) {
+  const typeLabel = KB_TYPE_LABEL[item.content_type] || item.content_type;
+  const dateStr = item.date ? fmtDateShort(item.date) : null;
+  const metaBits = [dateStr, item.read_time].filter(Boolean).join(' · ');
+  const series = item.series ? `<span class="kb-item-series">↳ ${esc(item.series)}${item.series_part ? ' · ' + esc(item.series_part) : ''}</span>` : '';
+  const externalUrl = item.content_type === 'blog' || item.content_type === 'service-page' || item.content_type === 'assessment' || item.content_type === 'podcast-index' || item.content_type === 'page'
+    ? `https://prismaianalytics.com${item.url}`
+    : item.url;
+  const isPublic = item.visibility === 'public';
+  const visBtnClass = isPublic ? 'kb-item-vis is-public' : 'kb-item-vis';
+  const visGlyph = isPublic ? '●' : '○';
+  const visTitle = isPublic ? 'Public — click to hide' : 'Non-public — click to publish';
+  const tag = isPublic ? '' : '<span class="kb-item-tag">Non-public</span>';
+  const itemClass = 'kb-item' + (isPublic ? '' : ' is-non-public');
+  return `
+    <li class="${itemClass}" data-kb-item-id="${esc(item.id)}" style="--accent:${accent}">
+      <button type="button" class="${visBtnClass}" title="${esc(visTitle)}" aria-label="${esc(visTitle)}" onclick="kbToggleVisibility('${esc(item.id)}', this)">${visGlyph}</button>
+      <span class="kb-item-type">${esc(typeLabel)}</span>
+      <a href="${esc(externalUrl)}" target="_blank" rel="noopener">${esc(item.title)}</a>
+      ${tag}
+      ${series}
+      ${metaBits ? `<span class="kb-item-meta">${esc(metaBits)}</span>` : ''}
+    </li>
+  `;
+}
+
+async function kbToggleVisibility(itemId, btnEl) {
+  if (!kbManifest) return;
+  // Find item in local manifest
+  let target = null;
+  for (const topic of (kbManifest.topics || [])) {
+    target = (topic.items || []).find(i => i.id === itemId);
+    if (target) break;
+  }
+  if (!target) return;
+  const nextVisibility = target.visibility === 'public' ? 'non-public' : 'public';
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
+  const res = await apiWrite('knowledgebase/visibility', 'POST', { item_id: itemId, visibility: nextVisibility });
+  if (!res || res.ok === false) {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = target.visibility === 'public' ? '●' : '○'; }
+    alert((res && res.error) || 'Visibility update failed');
+    return;
+  }
+  // Update local state, recalc counts, re-render
+  target.visibility = nextVisibility;
+  const counts = { public: 0, 'non-public': 0 };
+  for (const topic of (kbManifest.topics || [])) {
+    for (const item of (topic.items || [])) {
+      counts[item.visibility] = (counts[item.visibility] || 0) + 1;
+    }
+  }
+  kbManifest.visibility_counts = counts;
+  renderKnowledgebaseMeta();
+  renderKnowledgebaseViewRow();
+  renderKnowledgebaseBody();
 }
 
 </script>
