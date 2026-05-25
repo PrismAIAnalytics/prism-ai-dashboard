@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<!--
+workflow-diagram:
+  name: prism_dashboard_workflow
+  source: prism-agents/
+  source_hash: 23145c6cb31c628dc7ca07fa90a482f251e958595391c02e1a83d5962667be2b
+  created: 2026-05-25
+  last_verified: 2026-05-25
+  mermaid_blocks: 3
+  status: active
+  regenerated_by: /diagram-from-source
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="Interactive diagram of the Prism ops dashboard workflow — Chief of Staff orchestration across seven specialist sub-agents (delivery, sales, finance, marketing, research, engineering, admin). Four views: Overview, Swim-Lane, Procedural, Specialist Reference. Source: prism-agents plugin.">
+<title>Prism Ops Dashboard — Workflow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root {
+    /* Prism brand palette */
+    --prism-navy: #17135C;
+    --prism-royal: #3A5998;
+    --prism-blue: #4A6DB5;
+    --prism-sky: #BDC9DD;
+    --prism-gold: #C8A45A;
+    --prism-charcoal: #1A1A2E;
+    --prism-deep-royal: #2E4EAD;
+    --prism-steel: #5C7BB8;
+
+    --off-white: #F4F7FB;
+    --light-gray: #D0D7DE;
+    --bg: #F4F7FB;
+    --panel: #FFFFFF;
+    --border: #D0D7DE;
+    --text: #1A1A2E;
+    --muted: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(135deg, var(--prism-navy) 0%, #2a2580 100%);
+    color: white;
+    padding: 24px 32px;
+    border-bottom: 4px solid var(--prism-gold);
+  }
+  header h1 { margin: 0 0 4px 0; font-size: 24px; font-weight: 600; }
+  header .sub { font-size: 14px; opacity: 0.85; }
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(23,19,92,0.06);
+  }
+  .tab {
+    padding: 14px 22px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--prism-navy); background: var(--off-white); }
+  .tab.active {
+    color: var(--prism-navy);
+    border-bottom-color: var(--prism-royal);
+    background: var(--off-white);
+  }
+  .tab .num {
+    display: inline-block;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    margin-right: 6px;
+    font-weight: 600;
+  }
+  .tab.active .num { background: var(--prism-navy); }
+  main { padding: 24px 32px 60px 32px; max-width: 1600px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { margin-bottom: 16px; }
+  .view-header h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--prism-navy); }
+  .view-header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(23,19,92,0.04);
+    overflow-x: auto;
+  }
+  .mermaid { text-align: center; min-height: 200px; overflow-x: auto; }
+  .mermaid svg { max-width: 100% !important; height: auto !important; display: block; margin: 0 auto; }
+  .mermaid .nodeLabel, .mermaid .edgeLabel { font-size: 12px !important; }
+  .mermaid .nodeLabel { white-space: nowrap; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--off-white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(23,19,92,0.15); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--prism-royal);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .kpi-card h4 { margin: 0 0 6px 0; font-size: 13px; color: var(--prism-navy); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card p { margin: 0; font-size: 14px; color: var(--text); }
+  .kpi-card.gold { border-left-color: var(--prism-gold); }
+  .kpi-card.blue { border-left-color: var(--prism-blue); }
+  .kpi-card.deep { border-left-color: var(--prism-deep-royal); }
+  .kpi-card.navy { border-left-color: var(--prism-navy); }
+  .kpi-card.charcoal { border-left-color: var(--prism-charcoal); }
+  table.spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  table.spec-table th { text-align: left; background: var(--off-white); padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--prism-navy); font-weight: 600; }
+  table.spec-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.spec-table tr:nth-child(even) { background: var(--off-white); }
+  table.spec-table tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; }
+  .pill.royal { background: var(--prism-royal); }
+  .pill.gold { background: var(--prism-gold); }
+  .pill.navy { background: var(--prism-navy); }
+  .pill.blue { background: var(--prism-blue); }
+  .pill.deep { background: var(--prism-deep-royal); }
+  .pill.charcoal { background: var(--prism-charcoal); }
+  .pill.steel { background: var(--prism-steel); }
+  .footer-note {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--off-white);
+    border-left: 3px solid var(--prism-gold);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li {
+    counter-increment: step;
+    padding: 12px 12px 12px 48px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 26px;
+    height: 26px;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .step-list li strong { color: var(--prism-navy); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Prism Ops Dashboard — Workflow Diagram</h1>
+  <div class="sub">Chief of Staff orchestration • Triage → Dispatch → Execute → Report</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-view="v1"><span class="num">1</span>High-level Overview</button>
+  <button class="tab" data-view="v2"><span class="num">2</span>Detailed Swim-Lane</button>
+  <button class="tab" data-view="v3"><span class="num">3</span>Step-by-Step Procedural</button>
+  <button class="tab" data-view="v4"><span class="num">4</span>Specialist Reference</button>
+</nav>
+
+<main>
+
+<!-- VIEW 1: HIGH-LEVEL OVERVIEW -->
+<section class="view active" id="v1">
+  <div class="view-header">
+    <h2>1 · High-Level Overview</h2>
+    <p>The five-step Chief of Staff loop, end-to-end, on a single page.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Trigger</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Orchestration step</div>
+    <div class="legend-item"><span class="swatch" style="background:#4A6DB5;"></span>Decision</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Specialist execution</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>Escalation</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Output to user</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+    Start(["Trigger phrase"]):::trigger
+    Mode{"Detect mode"}:::decision
+    Triage["1. Pull queue"]:::ops
+    Classify["2. Triage rubric"]:::ops
+    Dispatch["3. Dispatch"]:::ops
+    Specialists["3. Execute<br/>7 specialists"]:::exec
+    EscalateQ{"Safe to execute?"}:::decision
+    Escalate["4. ESCALATE"]:::escalate
+    Report["5. Consolidate"]:::output
+    Out(["Deliver report"]):::output
+
+    Start --> Mode
+    Mode --> Triage
+    Triage --> Classify
+    Classify --> Dispatch
+    Dispatch --> Specialists
+    Specialists --> EscalateQ
+    EscalateQ -->|yes| Report
+    EscalateQ -->|no| Escalate
+    Escalate --> Report
+    Report --> Out
+
+    classDef trigger fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+    classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+    classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+    classDef escalate fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card">
+      <h4>Trigger phrases</h4>
+      <p>"run COS", "run the team", "ops sweep", "morning brief", "what's on my plate", "Monday review", "handle ticket &lt;id&gt;"</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Sources pulled every run</h4>
+      <p>Prism Dashboard API · Notion tasks · Notion meeting-note action items · (de-duped by title+assignee)</p>
+    </div>
+    <div class="kpi-card deep">
+      <h4>Specialists dispatched</h4>
+      <p>7 — Client Delivery · Sales/BD · Finance/Billing · Marketing · Research/Analytics · <strong>Engineering</strong> · Internal Admin</p>
+    </div>
+    <div class="kpi-card navy">
+      <h4>Final output</h4>
+      <p>One consolidated report. Escalations always at top. &gt;30 tickets → written to Development/dashboard/reports/cos-{date}.md.</p>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW 2: DETAILED SWIM-LANE -->
+<section class="view" id="v2">
+  <div class="view-header">
+    <h2>2 · Detailed Swim-Lane</h2>
+    <p>Who/what owns each step. Lanes = systems and roles. Cross-lane arrows = handoffs.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Michele (user)</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Chief of Staff</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Data sources</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Specialist agents</div>
+    <div class="legend-item"><span class="swatch" style="background:#5C7BB8;"></span>Engineering specialist</div>
+    <div class="legend-item"><span class="swatch" style="background:#BDC9DD;border:1px solid #94a4c5;"></span>External systems</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  subgraph User["MICHELE"]
+    direction TB
+    U1(["Says trigger phrase"]):::user
+    U2(["Reads report<br/>acts on escalations"]):::user
+  end
+
+  subgraph COS["CHIEF OF STAFF"]
+    direction TB
+    C1["Detect mode"]:::cos
+    C2["Pull queue<br/>parallel fetch"]:::cos
+    C3["De-dupe and normalize"]:::cos
+    C4["Apply triage rubric<br/>first-match-wins"]:::cos
+    C5["Dispatch parallel<br/>where independent"]:::cos
+    C6["Collect results +<br/>escalations"]:::cos
+    C7["Format report"]:::cos
+  end
+
+  subgraph Sources["DATA SOURCES"]
+    direction TB
+    S1[("Prism Dashboard API<br/>/tickets /action-items<br/>/deals /clients")]:::data
+    S2[("Notion DBs<br/>tasks + meeting notes")]:::data
+  end
+
+  subgraph Specs["SPECIALIST AGENTS"]
+    direction TB
+    SP1["Client Delivery"]:::spec
+    SP2["Sales / BD"]:::spec
+    SP3["Finance / Billing"]:::spec
+    SP4["Marketing"]:::spec
+    SP5["Research / Analytics"]:::spec
+    SP6["Engineering"]:::engr
+    SP7["Internal Admin"]:::spec
+  end
+
+  subgraph Ext["EXTERNAL SYSTEMS"]
+    direction TB
+    E1["QuickBooks · Stripe"]:::ext
+    E2["Apollo · Close<br/>Granola · Fireflies"]:::ext
+    E3["Gmail · Google Cal<br/>draft only"]:::ext
+    E4["Local FS<br/>Clients Sales Marketing"]:::ext
+    E5["GitHub · Netlify<br/>Datadog · PagerDuty"]:::ext
+  end
+
+  U1 --> C1
+  C1 --> C2
+  C2 -.fetch.-> S1
+  C2 -.fetch.-> S2
+  S1 -.tickets.-> C3
+  S2 -.tasks.-> C3
+  C3 --> C4
+  C4 --> C5
+  C5 --> SP1
+  C5 --> SP2
+  C5 --> SP3
+  C5 --> SP4
+  C5 --> SP5
+  C5 --> SP6
+  C5 --> SP7
+  SP1 -.read/write.-> E4
+  SP2 -.read/write.-> E2
+  SP2 -.update deals.-> S1
+  SP3 -.read.-> E1
+  SP3 -.read.-> S1
+  SP4 -.draft.-> E4
+  SP5 -.read/write.-> E4
+  SP6 -.read/write.-> E5
+  SP6 -.read/write.-> E4
+  SP7 -.draft.-> E3
+  SP1 --> C6
+  SP2 --> C6
+  SP3 --> C6
+  SP4 --> C6
+  SP5 --> C6
+  SP6 --> C6
+  SP7 --> C6
+  C6 --> C7
+  C7 --> U2
+
+  classDef user fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef cos fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+  classDef data fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+  classDef spec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+  classDef engr fill:#5C7BB8,stroke:#42619a,color:#fff,stroke-width:2px
+  classDef ext fill:#BDC9DD,stroke:#94a4c5,color:#1A1A2E,stroke-width:1.5px
+    </pre>
+  </div>
+
+  <div class="footer-note">
+    <strong>Hard guardrails (always escalate, never execute):</strong> external sends to clients/prospects/third parties · money movement · third-party calendar invites · hiring/comp decisions · new vendor or vendor spend &gt;$500 · ticket body contains "ask Michele first".
+  </div>
+</section>
+
+<!-- VIEW 3: STEP-BY-STEP PROCEDURAL -->
+<section class="view" id="v3">
+  <div class="view-header">
+    <h2>3 · Step-by-Step Procedural</h2>
+    <p>Every decision point, branch, and tool call — SOP-grade detail.</p>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  A(["Trigger"]):::start --> B{"Mode?"}:::dec
+  B --> P1["Pull Dashboard"]:::fetch
+  B --> P2["Pull Notion"]:::fetch
+  P1 --> P3{"Sources<br/>reachable?"}:::dec
+  P2 --> P3
+  P3 -->|fail| P4["Log + continue"]:::warn
+  P3 -->|ok| N1["De-dupe"]:::ops
+  P4 --> N1
+  N1 --> N2["Normalize"]:::ops
+  N2 --> N3{"Open?"}:::dec
+  N3 -->|no| Skip["Drop"]:::warn
+  N3 -->|yes| T1["Triage rubric<br/>first match wins"]:::ops
+
+  T1 --> SP1["client-delivery"]:::spec
+  T1 --> SP2["sales-bd"]:::spec
+  T1 --> SP3["finance-billing"]:::spec
+  T1 --> SP4["marketing"]:::spec
+  T1 --> SP5["research-analytics"]:::spec
+  T1 --> SP6["engineering"]:::engr
+  T1 --> SP7["internal-admin"]:::spec
+
+  SP1 --> G1{"Hard-stop?"}:::dec
+  SP2 --> G1
+  SP3 --> G1
+  SP4 --> G1
+  SP5 --> G1
+  SP6 --> G1
+  SP7 --> G1
+  G1 -->|yes| ESC["ESCALATE"]:::esc
+  G1 -->|no| G2{"Obvious +<br/>reversible?"}:::dec
+  G2 -->|no| ESC
+  G2 -->|yes| DO["Execute"]:::exec
+
+  DO --> AGG["Aggregate"]:::ops
+  ESC --> AGG
+  Skip --> AGG
+  AGG --> SZ{"&gt;30 tix?"}:::dec
+  SZ -->|yes| F1["Write to file"]:::ops
+  SZ -->|no| F2["Inline"]:::ops
+  F1 --> RPT["Final report"]:::output
+  F2 --> RPT
+  RPT --> EndN(["Deliver"]):::start
+
+  classDef start fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef dec fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+  classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:1.5px
+  classDef fetch fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:1.5px
+  classDef spec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:1.5px
+  classDef engr fill:#5C7BB8,stroke:#42619a,color:#fff,stroke-width:1.5px
+  classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:1.5px
+  classDef esc fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:1.5px
+  classDef warn fill:#BDC9DD,stroke:#94a4c5,color:#1A1A2E,stroke-width:1.5px
+  classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <ol class="step-list">
+    <li><strong>Trigger detection</strong> — match user phrase to mode (triage, morning-brief, weekly-review, single-ticket). Different modes change report header and scope, not the underlying loop.</li>
+    <li><strong>Queue pull (parallel)</strong> — GET Prism Dashboard API endpoints + Notion task DB + meeting-note action items. Probe each source on first call of a session.</li>
+    <li><strong>Source-failure branch</strong> — if either source is unreachable, log it in the report's "Sources" footer and continue with the working source. Never block.</li>
+    <li><strong>De-dupe + normalize</strong> — merge tickets matching on title+assignee or explicit cross-reference. Output schema: <code>{id, source, title, body, owner, due, age_days, links}</code>.</li>
+    <li><strong>Open filter</strong> — drop dashboard status in {done, closed, cancelled, archived} and Notion status in {Done, Cancelled, Archived}. Overdue still counts as open.</li>
+    <li><strong>Triage waterfall</strong> — 7-rule keyword cascade, first match wins (client-delivery → sales-bd → finance-billing → marketing → research-analytics → engineering → internal-admin catch-all). Cross-functional tickets assigned by primary owner; 3+ specialty spans split into sub-tickets.</li>
+    <li><strong>Dispatch</strong> — parallelize tickets on independent systems, serialize on same record. Each specialist loads its own SKILL.md playbook.</li>
+    <li><strong>Hard-stop check</strong> — any external send, money movement, third-party calendar invite, hiring/comp, new vendor or vendor spend &gt;$500 → escalate without executing.</li>
+    <li><strong>Two-question test</strong> — (a) Is the right action obvious? (b) Is the downside reversible in &lt;5 min? Both yes → execute. Either no → escalate.</li>
+    <li><strong>Execution</strong> — specialist runs action, captures artifact path + confidence (high/med/low).</li>
+    <li><strong>Size branch</strong> — if &gt;30 tickets in sweep, write full report to <code>Development/dashboard/reports/cos-{YYYY-MM-DD}.md</code> and inline only the exec summary + all escalations + top 10 done.</li>
+    <li><strong>Final report</strong> — escalations always first, then Done grouped by specialist, then Not-yet-handled, then Sources footer with endpoints used and any unreachable.</li>
+  </ol>
+</section>
+
+<!-- VIEW 4: SPECIALIST REFERENCE -->
+<section class="view" id="v4">
+  <div class="view-header">
+    <h2>4 · Specialist Agent Reference</h2>
+    <p>Triage rule, one-liner, tools, write paths, and escalation triggers per specialist.</p>
+  </div>
+
+  <div class="panel" style="padding: 0;">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 14%;">Specialist</th>
+          <th style="width: 24%;">Triage keywords</th>
+          <th style="width: 28%;">Tools / MCPs</th>
+          <th style="width: 17%;">Writes to</th>
+          <th style="width: 17%;">Always escalate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill royal">client-delivery</span><br/><small>Active engagements on track</small></td>
+          <td>client name · engagement · deliverable · kickoff · sprint · milestone · scope · SOW</td>
+          <td>Dashboard <code>/api/clients/{id}/activity</code> · Notion meeting notes · <code>product-management:sprint-planning</code></td>
+          <td><code>Clients/{client}/Status_{date}.md</code></td>
+          <td>Scope replies to clients · any external send</td>
+        </tr>
+        <tr>
+          <td><span class="pill gold">sales-bd</span><br/><small>Prospect / pipeline pre-SOW</small></td>
+          <td>prospect · discovery · proposal · pipeline · demo · Apollo · Close · lead · unknown company</td>
+          <td><code>sales:account-research</code> · <code>:draft-outreach</code> · <code>:call-summary</code> · <code>:create-an-asset</code> · <code>:pipeline-review</code> · Apollo/Close MCPs · Granola/Fireflies</td>
+          <td><code>Sales/</code> + Dashboard <code>/api/deals</code> updates</td>
+          <td>Sending outreach · publishing assets</td>
+        </tr>
+        <tr>
+          <td><span class="pill navy">finance-billing</span><br/><small>Money — read free, write draft only</small></td>
+          <td>invoice · Stripe · QuickBooks · QB · AR · AP · reconcile · $ · payment · refund · expense</td>
+          <td>QuickBooks MCP (P&amp;L, AR/AP aging, balance sheet) · <code>finance:close-management</code> · <code>:variance-analysis</code> · Dashboard <code>/api/financials</code></td>
+          <td>Draft journal entries only</td>
+          <td>Amount &gt;$500 · new vendor · refund · any money movement</td>
+        </tr>
+        <tr>
+          <td><span class="pill blue">marketing</span><br/><small>Always draft, never publish</small></td>
+          <td>blog · LinkedIn · newsletter · social · SEO · campaign · case study · landing page · Klaviyo · Canva</td>
+          <td><code>marketing:draft-content</code> · <code>:campaign-plan</code> · <code>:seo-audit</code> · <code>:brand-review</code> · <code>prismai-company-profile</code> for voice</td>
+          <td><code>Marketing/</code></td>
+          <td>Unconfirmed client permission for case studies · publishing</td>
+        </tr>
+        <tr>
+          <td><span class="pill deep">research-analytics</span><br/><small>Data work, internal + client</small></td>
+          <td>analysis · metric · query · model · dataset · anomaly · SQL · pipeline · BigQuery</td>
+          <td><code>data:analyze</code> · <code>:sql-queries</code> · <code>:statistical-analysis</code> · <code>:build-dashboard</code> · <code>:validate-data</code> · <code>:create-viz</code> · <code>:explore-data</code></td>
+          <td><code>Research/</code> · <code>Development/ai_analytics_pipeline/</code></td>
+          <td>Client data sharing without consent</td>
+        </tr>
+        <tr>
+          <td><span class="pill steel">engineering</span><br/><small>Code · APIs · deploys · CRM dev</small></td>
+          <td>code · bug · deploy · API · endpoint · repo · PR · schema · migration · refactor · GitHub · CI · build · frontend · backend · CRM dev</td>
+          <td><code>engineering:code-review</code> · <code>:debug</code> · <code>:architecture</code> · <code>:system-design</code> · <code>:deploy-checklist</code> · <code>:testing-strategy</code> · <code>:tech-debt</code> · <code>:documentation</code> · GitHub MCP · Netlify MCP · Datadog · PagerDuty</td>
+          <td><code>Development/</code> (ai_analytics_pipeline, crm, dashboard)</td>
+          <td>Production deploys · schema migrations · breaking API changes · prod auth · infra cost increases</td>
+        </tr>
+        <tr>
+          <td><span class="pill charcoal">internal-admin</span><br/><small>Catch-all default</small></td>
+          <td>HR · vendor · schedule · calendar · tool setup · compliance · policy · receipt · (default)</td>
+          <td>Google Calendar MCP · <code>operations:vendor-review</code> · <code>:compliance-tracking</code> · <code>:process-doc</code> · <code>enterprise-search:search</code> · <code>cowork-plugin-customizer</code></td>
+          <td><code>Admin/</code> · Gmail/Cal drafts</td>
+          <td>HR decisions · 3rd-party cal sends · vendor &gt;$500</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card navy">
+      <h4>Handoffs between specialists</h4>
+      <p><strong>sales → client-delivery</strong> if prospect already a client.<br/><strong>admin (receipt) → finance</strong> for journal entry.<br/><strong>research → client-delivery</strong> when analysis is a deliverable.</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Parallel vs. serial dispatch</h4>
+      <p>COS runs tickets <strong>in parallel</strong> when they touch independent systems, and <strong>serializes</strong> tickets that touch the same record (e.g., two updates to the same deal).</p>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <strong>Source files:</strong> <code>skills/chief-of-staff/SKILL.md</code> · <code>references/ticket-sources.md</code> · <code>references/triage-rubric.md</code> · <code>references/escalation-policy.md</code> · <code>references/report-format.md</code> · plus seven <code>skills/{specialist}/SKILL.md</code> playbooks (client-delivery-ops, sales-bd-ops, finance-billing-ops, marketing-ops, research-analytics-ops, engineering-ops, internal-admin-ops).
+  </div>
+</section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      fontSize: '14px',
+      primaryColor: '#3A5998',
+      primaryTextColor: '#FFFFFF',
+      primaryBorderColor: '#2c4577',
+      lineColor: '#475569',
+      textColor: '#1A1A2E',
+      mainBkg: '#3A5998',
+      secondaryColor: '#4A6DB5',
+      tertiaryColor: '#F4F7FB',
+      /* Subgraph (cluster) styling — this is what was rendering red */
+      clusterBkg: '#F4F7FB',
+      clusterBorder: '#BDC9DD',
+      titleColor: '#17135C',
+      edgeLabelBackground: '#FFFFFF',
+      noteBkgColor: '#F4F7FB',
+      noteBorderColor: '#BDC9DD',
+      noteTextColor: '#1A1A2E'
+    },
+    flowchart: {
+      htmlLabels: true,
+      curve: 'basis',
+      nodeSpacing: 25,
+      rankSpacing: 45,
+      padding: 8,
+      useMaxWidth: true,
+      diagramPadding: 8
+    },
+    securityLevel: 'loose'
+  });
+
+  // Cache the original mermaid source on first read so subsequent renders use it
+  function captureSources() {
+    document.querySelectorAll('.mermaid').forEach(d => {
+      if (!d.dataset.src) d.dataset.src = d.textContent.trim();
+    });
+  }
+  async function renderView(viewId) {
+    const diagrams = document.querySelectorAll('#' + viewId + ' .mermaid');
+    for (const d of diagrams) {
+      if (d.dataset.rendered) continue;
+      try {
+        const src = d.dataset.src || d.textContent.trim();
+        const id = 'm_' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, src);
+        d.innerHTML = svg;
+        d.dataset.rendered = '1';
+      } catch (err) {
+        d.innerHTML = '<div style="color:#C8A45A;padding:20px;font-family:monospace;font-size:12px;text-align:left;">Mermaid render error:<br>' + (err && err.message ? err.message : err) + '</div>';
+      }
+    }
+  }
+
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-view');
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      renderView(target);
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    captureSources();
+    renderView('v1');
+  });
+</script>
+
+</body>
+</html>

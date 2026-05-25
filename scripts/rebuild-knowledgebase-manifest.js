@@ -15,9 +15,11 @@
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const DASHBOARD_ROOT = path.resolve(__dirname, '..');
-const DEFAULT_WEBSITE_ROOT = path.resolve(DASHBOARD_ROOT, '..', '..', 'prism_website_project');
+const WORKSPACE_ROOT = path.resolve(DASHBOARD_ROOT, '..', '..');
+const DEFAULT_WEBSITE_ROOT = path.resolve(WORKSPACE_ROOT, 'prism_website_project');
 const WEBSITE_ROOT = process.env.PRISM_WEBSITE_ROOT
   ? path.resolve(process.env.PRISM_WEBSITE_ROOT)
   : DEFAULT_WEBSITE_ROOT;
@@ -25,6 +27,7 @@ const MANIFEST_PATH = path.join(DASHBOARD_ROOT, 'config', 'knowledgebase-manifes
 
 // Order matters — more specific rules first. The first matching rule wins.
 const TOPIC_RULES = [
+  { topic: 'Internal Workflows',        match: /\b(workflow|orchestrat(ion|or)|ops[- ]?routing|specialist|chief[- ]of[- ]staff|prism[- ]agents|cascade|triage|dispatch)\b/i },
   { topic: 'Configuration Management',  match: /\b(config|configuration|drift|cm-?ai|aigp|control[- ]plane)\b/i },
   { topic: 'Compliance & Regulation',   match: /\b(nist|regulation|regulatory|2026|compliance|cis|benchmark|rmf|policy|eu[- ]ai[- ]act)\b/i },
   { topic: 'AI Readiness',              match: /\b(readiness|5-signs|five-signs|assessment|catch-up|roadmap)\b/i },
@@ -60,6 +63,91 @@ function parseFrontmatter(raw) {
     fm[m[1]] = value;
   }
   return { fm, body };
+}
+
+// Workflow diagrams (under public/knowledgebase/workflows/) carry a leading
+// HTML comment block declaring the source path the diagram derives from and a
+// sha256 hash of that source at last regen. The scanner recomputes the hash
+// and surfaces `drift: true` when source and diagram disagree.
+//
+// Comment shape (immediately after the `<!--`):
+//   workflow-diagram:
+//     name: foo
+//     source: path/relative/to/workspace-root
+//     source_hash: <sha256 hex>
+//     created: YYYY-MM-DD
+//     last_verified: YYYY-MM-DD
+//     mermaid_blocks: 3
+//     status: active
+//     regenerated_by: /diagram-from-source
+function parseWorkflowDiagramFrontmatter(html) {
+  const m = html.match(/<!--\s*\r?\n?\s*workflow-diagram:\s*\r?\n([\s\S]*?)\r?\n\s*-->/);
+  if (!m) return null;
+  const fm = {};
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = line.match(/^\s*([a-z_]+):\s*(.+?)\s*$/i);
+    if (kv) fm[kv[1]] = kv[2].replace(/^["']|["']$/g, '');
+  }
+  return fm;
+}
+
+// SHA-256 over a deterministic sorted walk of a source tree (file path bytes +
+// file content bytes). Same input tree → same hash, regardless of OS or
+// readdir order. Returns null if the path does not exist.
+function hashSourceTree(absPath) {
+  if (!fs.existsSync(absPath)) return null;
+  const hash = crypto.createHash('sha256');
+  const walk = dir => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const e of entries) {
+      if (e.name.startsWith('.') || e.name.toLowerCase() === 'desktop.ini') continue;
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(abs); continue; }
+      hash.update(e.name);
+      hash.update(fs.readFileSync(abs));
+    }
+  };
+  const stat = fs.statSync(absPath);
+  if (stat.isDirectory()) walk(absPath);
+  else hash.update(fs.readFileSync(absPath));
+  return hash.digest('hex');
+}
+
+// Decorate an html drop-folder item with workflow-diagram metadata + drift status.
+// Returns null if no workflow-diagram front-matter is present.
+function decorateWorkflowDiagram(html) {
+  const wfm = parseWorkflowDiagramFrontmatter(html);
+  if (!wfm) return null;
+  let sourceHashCurrent = null;
+  let drift = null;
+  if (!wfm.source) {
+    drift = 'no-source';
+  } else {
+    const sourceAbs = path.resolve(WORKSPACE_ROOT, wfm.source);
+    if (!sourceAbs.startsWith(WORKSPACE_ROOT)) {
+      drift = 'source-outside-workspace';
+    } else if (!fs.existsSync(sourceAbs)) {
+      drift = 'source-not-found';
+    } else {
+      sourceHashCurrent = hashSourceTree(sourceAbs);
+      drift = wfm.source_hash !== sourceHashCurrent;
+    }
+  }
+  return {
+    workflow_diagram: {
+      name: wfm.name || null,
+      source: wfm.source || null,
+      source_hash_recorded: wfm.source_hash || null,
+      source_hash_current: sourceHashCurrent,
+      drift,
+      created: wfm.created || null,
+      last_verified: wfm.last_verified || null,
+      mermaid_blocks: wfm.mermaid_blocks ? parseInt(wfm.mermaid_blocks, 10) : null,
+      status: wfm.status || null,
+      regenerated_by: wfm.regenerated_by || null,
+    },
+  };
 }
 
 function extractMeta(html) {
@@ -223,6 +311,7 @@ function scanCentralDropFolder() {
       let title = base.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
       let description = '';
       let fm = {};
+      let workflowMeta = null;
 
       if (ext === '.md') {
         contentType = 'article';
@@ -237,6 +326,7 @@ function scanCentralDropFolder() {
         const meta = extractMeta(html);
         if (meta.title) title = meta.title.replace(/^PRISM AI\s*[—-]\s*/, '');
         if (meta.description) description = meta.description;
+        workflowMeta = decorateWorkflowDiagram(html);
       } else if (/^\.(pdf|docx|xlsx|zip|pptx)$/.test(ext)) {
         contentType = 'download';
       } else if (/^\.(png|jpe?g|svg|gif|webp|avif)$/.test(ext)) {
@@ -259,6 +349,7 @@ function scanCentralDropFolder() {
         read_time: fm.read_time || null,
         author: fm.author || null,
         description,
+        ...(workflowMeta || {}),
       });
     }
   };

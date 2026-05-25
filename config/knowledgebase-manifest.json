@@ -1,25 +1,26 @@
 {
-  "generated_at": "2026-05-25T17:46:23.979Z",
+  "generated_at": "2026-05-25T23:34:25.749Z",
   "website_root": "C:\\Users\\miche\\Prism AI\\PRISM AI Analytics\\prism_website_project",
   "counts": {
-    "total": 40,
+    "total": 42,
     "by_topic": {
       "Configuration Management": 11,
       "AI Readiness": 7,
-      "Data & Analytics": 5,
+      "Data & Analytics": 6,
       "Advisory & Practice": 4,
       "Compliance & Regulation": 4,
       "General": 7,
-      "Architecture & Platform": 2
+      "Architecture & Platform": 2,
+      "Internal Workflows": 1
     },
     "by_content_type": {
-      "blog": 17,
+      "blog": 18,
       "service-page": 1,
       "assessment": 1,
       "podcast-index": 1,
       "page": 1,
       "download": 1,
-      "infographic": 18
+      "infographic": 19
     }
   },
   "topics": [
@@ -340,8 +341,23 @@
     },
     {
       "topic": "Data & Analytics",
-      "count": 5,
+      "count": 6,
       "items": [
+        {
+          "id": "blog/from-chaos-to-cadence-claude-operating-system",
+          "slug": "from-chaos-to-cadence-claude-operating-system",
+          "title": "From Chaos to Cadence: How We Built Prism's Claude Operating System",
+          "url": "/blog/from-chaos-to-cadence-claude-operating-system/",
+          "content_type": "blog",
+          "topic": "Data & Analytics",
+          "category": "Claude for Business",
+          "series": null,
+          "series_part": null,
+          "date": "2026-06-01",
+          "read_time": "10 min",
+          "author": "Michele Fisher",
+          "description": "When we launched Prism AI Analytics two months ago, the conviction was simple: Claude would be foundational to how we work. The execution was not. For the first three weeks, every session started the ..."
+        },
         {
           "id": "dashboard/prism-data-silos",
           "slug": "prism-data-silos",
@@ -524,6 +540,39 @@
           "content_type": "infographic",
           "topic": "Architecture & Platform",
           "description": ""
+        }
+      ]
+    },
+    {
+      "topic": "Internal Workflows",
+      "count": 1,
+      "items": [
+        {
+          "id": "kb/workflows/prism_dashboard_workflow.html",
+          "slug": "workflows/prism_dashboard_workflow.html",
+          "title": "Prism Ops Dashboard — Workflow",
+          "url": "/knowledgebase/workflows/prism_dashboard_workflow.html",
+          "content_type": "infographic",
+          "topic": "Internal Workflows",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Interactive diagram of the Prism ops dashboard workflow — Chief of Staff orchestration across seven specialist sub-agents (delivery, sales, finance, marketing, research, engineering, admin). Four views: Overview, Swim-Lane, Procedural, Specialist Reference. Source: prism-agents plugin.",
+          "workflow_diagram": {
+            "name": "prism_dashboard_workflow",
+            "source": "prism-agents/",
+            "source_hash_recorded": "23145c6cb31c628dc7ca07fa90a482f251e958595391c02e1a83d5962667be2b",
+            "source_hash_current": "23145c6cb31c628dc7ca07fa90a482f251e958595391c02e1a83d5962667be2b",
+            "drift": false,
+            "created": "2026-05-25",
+            "last_verified": "2026-05-25",
+            "mermaid_blocks": 3,
+            "status": "active",
+            "regenerated_by": "/diagram-from-source"
+          }
         }
       ]
     }
