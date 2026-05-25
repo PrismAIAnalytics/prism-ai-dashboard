@@ -9,13 +9,6 @@
       "note": "Daily Agenda + Mission Control surfaces — Phase 1 (T-036..T-039) shipped, Phases 2–5 in flight."
     },
     {
-      "slug": "notion-as-source-migration",
-      "name": "Notion-as-source migration",
-      "ticket_id_range": ["T-023", "T-027"],
-      "decision_date": "2026-05-03",
-      "note": "5-phase migration — Phase 5 (T-027) is the final irreversible gate to drop SQLite tickets table."
-    },
-    {
       "slug": "solopreneur-os-etsy-sku",
       "name": "Solopreneur OS — Etsy SKU",
       "ticket_ids": ["PS-057", "PS-058", "PS-059"],
