@@ -1,0 +1,73 @@
+{
+  "_comment": "Archived (shipped) roadmaps. Companion to active-roadmaps.json. A plan lands here when all its tickets are Done AND a closing comment was attached at ship time. New entries are appended at the top (reverse-chronological by shipped_at). Schema: slug, name, ticket_ids OR ticket_id_range, decision_date, note, shipped_at, closing_comment, ticket_snapshot, cycle_time_days, workstream. Backfilled 2026-05-25 from git history of merges to main.",
+  "archived_roadmaps": [
+    {
+      "slug": "tickets-page-v2",
+      "name": "Tickets page v2 — Phases A–F",
+      "ticket_ids": ["T-071"],
+      "decision_date": "2026-05-24",
+      "note": "Single-ticket arc with 6 internal phases (A–F) plus Michele's polish + side fixes. ~1,922 lines added in one PR. End-to-end smoke verified in local preview throughout session.",
+      "shipped_at": "2026-05-24T00:00:00Z",
+      "closing_comment": "Merged via PR #55 as 530dd64 (squash). Phases A–F shipped together with two openTicketByKey fix tiers (title-prefix + NTN-uuid → notion_page_id fallback) and housekeeping. ~1,922 lines added. Railway auto-deployed to prod on merge.",
+      "ticket_snapshot": [
+        { "id": "T-071", "status": "done", "title": "Tickets page v2 — Phases A–F + Michele's polish + side fixes", "last_updated": "2026-05-24" }
+      ],
+      "cycle_time_days": 1,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "notion-as-source-migration",
+      "name": "Notion-as-source migration (Phases 1–4 + 5b)",
+      "ticket_ids": ["T-023", "T-024", "T-025", "T-026", "T-026a", "T-027b"],
+      "decision_date": "2026-05-03",
+      "note": "Multi-phase migration of the dashboard ticket store from SQLite to Notion. Phases 1–4 (T-023, T-024, T-025, T-026) plus the empty-mappable-update adapter fix (T-026a) and the Notion comments adapter (T-027b — Phase 5b prerequisite) shipped under this arc. The remaining T-027a/c/d/e sub-tickets (drop SQLite tables + action_items decommission + final cleanup) continue as separate future work tracked in TASKS.md Up Next.",
+      "shipped_at": "2026-05-24T00:00:00Z",
+      "closing_comment": "5 phases + adapter fix shipped over 21 days. Phase 1 (T-023, read-path adapter behind USE_NOTION_SOURCE) merged 2026-05-03 PR #13. Phase 2 (T-024, duplicate audit) merged 2026-05-08 PR #14. Phase 3 (T-025, DB cleanup + reconciliation) merged 2026-05-16 PR #17. Phase 4 (T-026, write-path cutover) merged 2026-05-18 PR #18. Adapter fix (T-026a, empty-mappable updates as no-ops) merged 2026-05-22 PR #36. Comments adapter (T-027b, Phase 5b prerequisite) merged 2026-05-24 PR #53. Notion is now the canonical write surface for tickets; SQLite tickets table remains as a read-side fallback until T-027a drops it.",
+      "ticket_snapshot": [
+        { "id": "T-023", "status": "done", "title": "Notion read-path adapter behind USE_NOTION_SOURCE flag (Phase 1/5)", "last_updated": "2026-05-03" },
+        { "id": "T-024", "status": "done", "title": "Duplicate audit script (Phase 2/5)", "last_updated": "2026-05-08" },
+        { "id": "T-025", "status": "done", "title": "Notion DB cleanup + Phase 3 reconciliation", "last_updated": "2026-05-16" },
+        { "id": "T-026", "status": "done", "title": "Notion-as-source migration Phase 4 — write-path cutover", "last_updated": "2026-05-18" },
+        { "id": "T-026a", "status": "done", "title": "Notion adapter — empty-mappable updates are no-ops, not 400", "last_updated": "2026-05-22" },
+        { "id": "T-027b", "status": "done", "title": "Notion-as-source migration Phase 5b — Notion comments adapter", "last_updated": "2026-05-24" }
+      ],
+      "cycle_time_days": 21,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "portal-domain-sweep",
+      "name": "Portal domain sweep (T-067)",
+      "ticket_ids": ["T-067"],
+      "decision_date": "2026-05-23",
+      "note": "Replace hardcoded `dashboard-api-production-dabe.up.railway.app` with `portal.prismaianalytics.com` across scripts, CI workflow, _redirects, build-site.sh, and active operator docs. Same-day saga: v1 (PR #48) broke prod because the Railway custom domain + Netlify DNS CNAME pre-flight hadn't been done; reverted in PR #49 within ~10 min. V2 (PR #50) shipped after Michele added the Railway custom domain and DNS resolution was verified.",
+      "shipped_at": "2026-05-23T00:00:00Z",
+      "closing_comment": "Two-PR arc landed same day. PR #48 (v1) merged as 2eb0c72 but failed because the Railway custom domain + Netlify DNS CNAME for portal.prismaianalytics.com weren't in place — pre-deploy backup workflow #44 curled a non-resolving URL and the website login button went dead. Reverted via PR #49 as bdd981d. Lesson recorded: always nslookup the target domain via 8.8.8.8/1.1.1.1 before merging infra-dependent sweeps. Re-merged as PR #50 (f027406) after DNS + SSL were verified live (Server: railway-edge confirmed via --resolve bypass at 21:37 UTC).",
+      "ticket_snapshot": [
+        { "id": "T-067", "status": "done", "title": "Portal domain sweep (v2) — Railway URL → portal.prismaianalytics.com", "last_updated": "2026-05-23" }
+      ],
+      "cycle_time_days": 1,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "mission-control-morning-brief",
+      "name": "Mission Control — Daily Agenda + Morning Brief surface",
+      "ticket_ids": ["T-036", "T-036a", "T-036b", "T-036c", "T-036e", "T-036f", "T-036g", "T-036h"],
+      "decision_date": "2026-05-21",
+      "note": "8 sub-phases of T-036 shipped over 2 days. Established the Daily Agenda surface (parent T-036), then iterated through hotfixes (T-036a route boot fix), perf caps (T-036b End of Day → last 10 days), editorial layout (T-036c parser + Top 10 extraction), brief rendering (T-036e), Railway deployment fixes (T-036f stage briefs, T-036h Dockerfile COPY reports/), and the per-day collapsible cards (T-036g). T-036d (orchestrator structured output contract) is intentionally NOT in this arc — it stays in TASKS.md Up Next.",
+      "shipped_at": "2026-05-22T00:00:00Z",
+      "closing_comment": "8 PRs over 2 days replaced the prior Daily Review surface with a Mission Control Daily Agenda anchored on the morning-brief Top 10. Parent T-036 merged 2026-05-21 PR #24. Same-day hotfix T-036a merged PR #25 (boot routing). Perf cap T-036b merged PR #28. Editorial layout T-036c merged PR #31. Brief rendering T-036e merged PR #32. Deploy fixes T-036f (stage 22 historical briefs into Railway) merged PR #33, T-036h (Dockerfile COPY reports/) merged PR #35. Per-day collapsible T-036g merged PR #34. Validated post-deploy: morning brief renders Top 10 above the fold, sections collapse to needed-Michele / carry-forward / maturity / what-landed / data-hygiene.",
+      "ticket_snapshot": [
+        { "id": "T-036", "status": "done", "title": "Daily Agenda + Mission Control today panel + nav reorganization", "last_updated": "2026-05-21" },
+        { "id": "T-036a", "status": "done", "title": "Hotfix — route post-login bootstrap to loaders['daily-agenda']", "last_updated": "2026-05-21" },
+        { "id": "T-036b", "status": "done", "title": "Cap End of Day to last 10 days (Daily Agenda perf fix)", "last_updated": "2026-05-21" },
+        { "id": "T-036c", "status": "done", "title": "End of Day editorial layout + mini-markdown parser + Top 10 extraction", "last_updated": "2026-05-22" },
+        { "id": "T-036e", "status": "done", "title": "Surface morning brief on Daily Agenda — Top 10 + sections", "last_updated": "2026-05-22" },
+        { "id": "T-036f", "status": "done", "title": "Deploy morning briefs to Railway (gitignore carve-out + stage 22 historical briefs)", "last_updated": "2026-05-22" },
+        { "id": "T-036g", "status": "done", "title": "Per-day collapsible End of Day cards + attach morning brief to each day's Top 10", "last_updated": "2026-05-22" },
+        { "id": "T-036h", "status": "done", "title": "Include reports/ in production Docker image (fix broken brief surface)", "last_updated": "2026-05-22" }
+      ],
+      "cycle_time_days": 2,
+      "workstream": "engineering"
+    }
+  ]
+}
