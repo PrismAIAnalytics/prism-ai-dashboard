@@ -128,7 +128,13 @@ function computeProgress(roadmap, tickets) {
 
 // Public entrypoint. Takes the notionAdapter module (passed by server.js to
 // avoid a circular require) and returns { active_roadmaps, manifest_present, manifest_path }.
-async function getActiveRoadmaps(notionAdapter) {
+//
+// T-080: `options.prefetchedTickets` lets a caller pass an already-fetched
+// ticket list (from a prior `notionAdapter.listTickets({})` call) so we skip
+// the redundant Notion roundtrip. lifecycleAggregator.compute uses this —
+// before T-080 it called listTickets at the top AND again indirectly through
+// getActiveRoadmaps, doubling the cold-load latency (3.3s → ~1.6s when fixed).
+async function getActiveRoadmaps(notionAdapter, options = {}) {
   const manifest = readManifest();
   const manifestPresent = fs.existsSync(MANIFEST_PATH);
 
@@ -139,13 +145,20 @@ async function getActiveRoadmaps(notionAdapter) {
   let tickets = [];
   let notionAvailable = false;
   let notionError = null;
-  try {
-    const result = await notionAdapter.listTickets({});
-    tickets = result.tickets || [];
+
+  if (Array.isArray(options.prefetchedTickets)) {
+    // Caller already paid the Notion roundtrip cost — reuse the result.
+    tickets = options.prefetchedTickets;
     notionAvailable = true;
-  } catch (e) {
-    notionError = e.message;
-    console.warn('[plansAggregator] notion fetch failed, rendering manifest with progress: unknown — %s', e.message);
+  } else {
+    try {
+      const result = await notionAdapter.listTickets({});
+      tickets = result.tickets || [];
+      notionAvailable = true;
+    } catch (e) {
+      notionError = e.message;
+      console.warn('[plansAggregator] notion fetch failed, rendering manifest with progress: unknown — %s', e.message);
+    }
   }
 
   // T-078: filter out retired entries (e.g. Solopreneur OS) so the Active

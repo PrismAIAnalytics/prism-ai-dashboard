@@ -284,3 +284,38 @@ test('plansAggregator exposes ready_to_ship flag for 100% plans', async () => {
   const solopreneur = result.active_roadmaps.find(r => r.slug === 'solopreneur-os-etsy-sku');
   assert.equal(solopreneur, undefined, 'retired plan filtered out of active output');
 });
+
+// ─── T-080: prefetchedTickets dedupe ────────────────────────────────────
+// Regression guard: lifecycleAggregator.compute() was calling
+// notionAdapter.listTickets({}) twice on every cache miss — once at the top
+// and once indirectly through plansAggregator.getActiveRoadmaps. This test
+// makes the duplicate call a hard failure by counting listTickets invocations.
+
+test('lifecycleAggregator.compute hits notionAdapter.listTickets exactly once per cache miss', async () => {
+  let listTicketsCalls = 0;
+  const countingAdapter = {
+    listTickets: async () => {
+      listTicketsCalls += 1;
+      return { tickets: FIXTURE_TICKETS };
+    },
+  };
+  lifecycleAggregator.invalidateCache();
+  await lifecycleAggregator.compute(countingAdapter, { useCache: false });
+  assert.equal(listTicketsCalls, 1, 'compute() should fetch tickets exactly once, not twice');
+});
+
+test('plansAggregator.getActiveRoadmaps accepts prefetchedTickets and skips the Notion call', async () => {
+  let listTicketsCalls = 0;
+  const countingAdapter = {
+    listTickets: async () => {
+      listTicketsCalls += 1;
+      return { tickets: FIXTURE_TICKETS };
+    },
+  };
+  const result = await plansAggregator.getActiveRoadmaps(countingAdapter, {
+    prefetchedTickets: FIXTURE_TICKETS,
+  });
+  assert.equal(listTicketsCalls, 0, 'listTickets must not be called when prefetchedTickets is provided');
+  assert.equal(result.notion_available, true, 'notion_available true because prefetched data was usable');
+  assert.ok(Array.isArray(result.active_roadmaps), 'active_roadmaps array returned');
+});
