@@ -20,6 +20,8 @@ const plansAggregator = require('./services/plansAggregator'); // T-057 — Plan
 const pendingPlansAggregator = require('./services/pendingPlansAggregator'); // T-065 — Pending Plans panel data
 const inboxRouter = require('./services/inboxRouter'); // T-037 — Mission Control inbox capture/list/triage
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
+const knowledgebaseScanner = require('./services/knowledgebaseScanner'); // T-076 — Knowledgebase manifest reader
+const knowledgebaseVisibility = require('./services/knowledgebaseVisibility'); // T-076 — public/non-public curation
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
 const emailSender = require('./lib/email-sender');
@@ -5452,6 +5454,39 @@ app.get('/api/mission-control/pending-plans', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('[mission-control/pending-plans] failed:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-076: Knowledgebase manifest endpoint. Reads the committed manifest at
+// config/knowledgebase-manifest.json (produced by
+// scripts/rebuild-knowledgebase-manifest.js) and decorates each item with
+// public/non-public visibility from config/knowledgebase-visibility.json.
+// Graceful degradation when the manifest is absent — returns an empty,
+// well-shaped payload with available=false.
+app.get('/api/knowledgebase', requireAuth, (req, res) => {
+  try {
+    const manifest = knowledgebaseScanner.getManifest();
+    const decorated = knowledgebaseVisibility.decorateManifest(manifest);
+    res.json({
+      ok: true,
+      ...decorated,
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[knowledgebase] failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-076: Per-item visibility toggle. Writes to
+// config/knowledgebase-visibility.json. Body: {item_id, visibility}.
+app.post('/api/knowledgebase/visibility', requireAuth, express.json(), (req, res) => {
+  try {
+    const { item_id, visibility } = req.body || {};
+    const result = knowledgebaseVisibility.setVisibility(item_id, visibility);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: e.message });
   }
 });
 
