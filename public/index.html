@@ -488,6 +488,15 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .recommended-row-actions { display: flex; gap: 6px; grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .recommended-row-actions .btn-sm { font-size: 11px; padding: 6px 12px; white-space: nowrap; }
 .recommended-due { font-size: 11px; color: var(--muted); padding: 2px 7px; border-radius: 8px; background: rgba(255,255,255,0.04); }
+/* T-073 — small date chips shown alongside priority on both Recommended + Past-due rows */
+.agenda-date-chip { font-size: 11px; color: var(--muted); padding: 2px 7px; border-radius: 8px; background: rgba(255,255,255,0.04); font-variant-numeric: tabular-nums; }
+.agenda-date-chip.is-due { color: var(--text); }
+/* T-073 — Daily Agenda two-column wrapper: Recommended for To Do (left) + Past-due in Backlog (right).
+   Single-column fallback below 900px so panels stack on narrow viewports. Each column is min-width:0
+   so children inherit grid-track widths instead of forcing track expansion (long ticket titles). */
+.agenda-twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.agenda-twocol > details { min-width: 0; margin: 0; }
+@media (max-width: 900px) { .agenda-twocol { grid-template-columns: 1fr; } }
 /* Phase B — stale Backlog card warning pill on the Kanban */
 .ticket-card.stale-backlog { border-left: 3px solid var(--red); }
 .ticket-card .ticket-stale-warn { font-size: 10px; color: var(--red); font-weight: 600; margin-top: 6px; padding: 3px 7px; background: rgba(248,113,113,0.12); border-radius: 6px; display: inline-block; }
@@ -1184,11 +1193,15 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
       </div>
 
+      <!-- T-073 (2026-05-25): Recommended / Past-due panels arranged side-by-side in a 2-column grid.
+           Stacks back to single column below ~900px viewport via the .agenda-twocol media query. Both
+           <details> elements keep their individual collapse state via data-persist-key. -->
+      <div class="agenda-twocol" style="margin-top:20px;margin-bottom:20px">
       <!-- Recommended for To Do panel (Phase C, 2026-05-24) — top-N backlog candidates ranked by
            (priority, due-date asc, last-updated desc). Past-due excluded (those go to Phase B's panel).
            Moved below the brief per Michele's edits 2026-05-24 — operational panels sit below the
            reading-pane brief. -->
-      <details class="card agenda-collapsible" id="agenda-recommended-todo-card" data-persist-key="agenda.recommended-todo" style="margin-top:20px;margin-bottom:20px;display:none">
+      <details class="card agenda-collapsible" id="agenda-recommended-todo-card" data-persist-key="agenda.recommended-todo" style="display:none">
         <summary class="agenda-collapsible-summary">
           <span class="agenda-collapsible-chevron">&#9654;</span>
           <h3 class="agenda-collapsible-title">Recommended for To Do <span id="agenda-recommended-count" class="agenda-collapsible-count"></span></h3>
@@ -1201,7 +1214,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
       <!-- Past-due Backlog panel (Phase B, 2026-05-24) — tickets stuck in Backlog past their due_date.
            Moved below the brief per Michele's edits 2026-05-24. -->
-      <details class="card agenda-collapsible" id="agenda-pastdue-backlog-card" data-persist-key="agenda.pastdue-backlog" style="margin-bottom:20px;display:none">
+      <details class="card agenda-collapsible" id="agenda-pastdue-backlog-card" data-persist-key="agenda.pastdue-backlog" style="display:none">
         <summary class="agenda-collapsible-summary">
           <span class="agenda-collapsible-chevron">&#9654;</span>
           <h3 class="agenda-collapsible-title">Past-due in Backlog <span id="agenda-pastdue-count" class="agenda-collapsible-count agenda-collapsible-count-red"></span></h3>
@@ -1211,6 +1224,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="agenda-pastdue-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
         </div>
       </details>
+      </div>
 
       <!-- End of Day collapsible -->
       <details id="agenda-end-of-day" class="card" style="padding:0;overflow:hidden;margin-top:24px">
@@ -1435,6 +1449,14 @@ const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const fmt = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(n);
 const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+// T-073 — compact "MMM D" formatter for the Daily Agenda date chips. Accepts a
+// YYYY-MM-DD string OR a full ISO timestamp (auto-slices to the date portion).
+// Returns null on missing input so callers can decide whether to render at all.
+const fmtDateShort = d => {
+  if (!d) return null;
+  const ymd = String(d).slice(0, 10);
+  return new Date(ymd + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 // Phase E — short relative-time formatter for the ticket detail "Last Updated"
 // strip, list column, and Kanban card recency pill. Input is an ISO timestamp
 // (e.g. "2026-05-24T15:52:10.501Z" from updated_at). Falls back to fmtDate
@@ -5592,12 +5614,21 @@ function renderRecommendedTodo() {
   }
   const rows = list.map(t => {
     const titleSafe = escapeHtml(t.title || '');
-    const dueLabel = t.due_date ? `due ${fmtDate(t.due_date)}` : 'no due date';
+    // T-073 — render created + due as separate compact chips so both dates are visible per row.
+    const createdShort = fmtDateShort(t.created_at);
+    const dueShort = fmtDateShort(t.due_date);
+    const createdChip = createdShort
+      ? `<span class="agenda-date-chip" title="Created ${escapeHtml(String(t.created_at || '').slice(0,10))}">created ${createdShort}</span>`
+      : '';
+    const dueChip = dueShort
+      ? `<span class="agenda-date-chip is-due" title="Due ${escapeHtml(t.due_date || '')}">due ${dueShort}</span>`
+      : `<span class="agenda-date-chip" title="No due date set">no due date</span>`;
     return `<div class="recommended-row" data-ticket-id="${escapeHtml(t.ticket_id || '')}">
       <div class="recommended-row-meta">
         <span class="ticket-link" data-ticket-key="${escapeHtml(t.ticket_key || '')}" tabindex="0" role="link">${escapeHtml(t.ticket_key || '?')}</span>
         <span class="tag tag-${escapeHtml(t.priority || 'medium')}" style="font-size:10px;padding:1px 7px">${escapeHtml(t.priority || 'medium')}</span>
-        <span class="recommended-due" title="${escapeHtml(t.due_date || '')}">${dueLabel}</span>
+        ${createdChip}
+        ${dueChip}
       </div>
       <div class="recommended-row-title">${linkifyTickets(titleSafe)}</div>
       <div class="recommended-row-actions">
@@ -5705,10 +5736,21 @@ function renderPastDueBacklog() {
   const rows = list.map(t => {
     const dueClass = t.days_overdue >= 14 ? 'overdue-deep' : 'overdue-recent';
     const titleSafe = escapeHtml(t.title || '');
+    // T-073 — surface created + due as compact chips alongside the overdue pill.
+    const createdShort = fmtDateShort(t.created_at);
+    const dueShort = fmtDateShort(t.due_date);
+    const createdChip = createdShort
+      ? `<span class="agenda-date-chip" title="Created ${escapeHtml(String(t.created_at || '').slice(0,10))}">created ${createdShort}</span>`
+      : '';
+    const dueChip = dueShort
+      ? `<span class="agenda-date-chip is-due" title="Due ${escapeHtml(t.due_date || '')}">due ${dueShort}</span>`
+      : '';
     return `<div class="pastdue-row" data-ticket-id="${escapeHtml(t.ticket_id || '')}">
       <div class="pastdue-row-meta">
         <span class="ticket-link" data-ticket-key="${escapeHtml(t.ticket_key || '')}" tabindex="0" role="link">${escapeHtml(t.ticket_key || '?')}</span>
         <span class="tag tag-${escapeHtml(t.priority || 'medium')}" style="font-size:10px;padding:1px 7px">${escapeHtml(t.priority || 'medium')}</span>
+        ${createdChip}
+        ${dueChip}
         <span class="pastdue-days ${dueClass}" title="Due ${escapeHtml(t.due_date)}">${t.days_overdue}d overdue</span>
       </div>
       <div class="pastdue-row-title">${linkifyTickets(titleSafe)}</div>

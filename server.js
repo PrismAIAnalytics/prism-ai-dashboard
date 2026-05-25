@@ -4591,7 +4591,7 @@ app.get('/api/tickets/past-due-backlog', requireAuth, async (req, res) => {
       tickets = t;
     } else {
       tickets = db.prepare(`
-        SELECT id, ticket_key, title, due_date, priority, status, category, notion_page_id
+        SELECT id, ticket_key, title, due_date, priority, status, category, created_at, notion_page_id
         FROM tickets
         WHERE status = 'backlog'
           AND due_date IS NOT NULL
@@ -4608,6 +4608,7 @@ app.get('/api/tickets/past-due-backlog', requireAuth, async (req, res) => {
         due_date:       t.due_date,
         days_overdue:   Math.max(0, Math.floor((Date.parse(today) - Date.parse(t.due_date)) / 86400000)),
         priority:       t.priority || 'medium',
+        created_at:     t.created_at || null,
         notion_page_id: t.notion_page_id || null,
         ticket_id:      t.id,
       }))
@@ -4642,7 +4643,7 @@ app.get('/api/tickets/recommended-todo', requireAuth, async (req, res) => {
       tickets = t;
     } else {
       tickets = db.prepare(`
-        SELECT id, ticket_key, title, due_date, priority, status, category, updated_at, notion_page_id
+        SELECT id, ticket_key, title, due_date, priority, status, category, created_at, updated_at, notion_page_id
         FROM tickets
         WHERE (category IS NULL OR category != 'dev_insight')
       `).all();
@@ -4657,6 +4658,7 @@ app.get('/api/tickets/recommended-todo', requireAuth, async (req, res) => {
         title:          t.title,
         due_date:       t.due_date || null,
         priority:       t.priority || 'medium',
+        created_at:     t.created_at || null,
         updated_at:     t.updated_at || null,
         notion_page_id: t.notion_page_id || null,
         ticket_id:      t.id,
