@@ -13,7 +13,10 @@
       "name": "Solopreneur OS — Etsy SKU",
       "ticket_ids": ["PS-057", "PS-058", "PS-059"],
       "decision_date": "2026-05-17",
-      "note": "$59 Etsy template — PS-058 (75-prompt master library, Michele-only) is the go-live bottleneck."
+      "note": "$59 Etsy template — PS-058 (75-prompt master library, Michele-only) is the go-live bottleneck.",
+      "retired": true,
+      "retired_date": "2026-05-24",
+      "retired_reason": "Etsy SKU retired 2026-05-24 (decisions-log). Workspace preserved for possible AI Readiness Assessment leave-behind. PS-057/058/059/060/061/062 all Blocked."
     },
     {
       "slug": "founder-journey-personal-account",

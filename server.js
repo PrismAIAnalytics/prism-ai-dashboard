@@ -19,6 +19,7 @@ const notionAdapter = require('./services/notionAdapter'); // T-023 — read-pat
 const plansAggregator = require('./services/plansAggregator'); // T-057 — Plans panel data
 const pendingPlansAggregator = require('./services/pendingPlansAggregator'); // T-065 — Pending Plans panel data
 const inboxRouter = require('./services/inboxRouter'); // T-037 — Mission Control inbox capture/list/triage
+const lifecycleAggregator = require('./services/lifecycleAggregator'); // T-078 — Mission Control Lifecycle Spectrum view
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const knowledgebaseScanner = require('./services/knowledgebaseScanner'); // T-076 — Knowledgebase manifest reader
 const knowledgebaseVisibility = require('./services/knowledgebaseVisibility'); // T-076 — public/non-public curation
@@ -5501,6 +5502,49 @@ app.get('/api/mission-control/pending-plans', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('[mission-control/pending-plans] failed:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-078: Lifecycle Spectrum view. Single aggregator endpoint that powers the
+// 5-state Mission Control view (Idea → Handoff → Pending → Active → Shipped)
+// client-side. Mirrors how /api/benchmark-products feeds the Compliance page.
+// Response shape documented in services/lifecycleAggregator.js header.
+app.get('/api/mission-control/lifecycle', requireAuth, async (req, res) => {
+  try {
+    const data = await lifecycleAggregator.compute(notionAdapter, {
+      useCache: req.query.refresh !== '1',
+    });
+    res.json({ ok: true, ...data });
+  } catch (e) {
+    console.error('[mission-control/lifecycle] failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-078: Ship transition. Moves a plan atomically from active-roadmaps.json →
+// archived-roadmaps.json. Required body: { closing_comment: string ≥ 20 chars }.
+// Pre-conditions enforced inside lifecycleAggregator.shipPlan:
+//   - plan exists in active manifest (else 404)
+//   - all tickets are Done (else 409)
+//   - closing_comment ≥ 20 chars (else 422)
+//   - Notion adapter reachable to verify completion (else 503)
+app.post('/api/mission-control/plans/:slug/ship', requireAuth, [
+  body('closing_comment').isString().isLength({ min: 20 }).withMessage('closing_comment must be at least 20 characters'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ ok: false, errors: errors.array() });
+  }
+  try {
+    const out = await lifecycleAggregator.shipPlan(
+      req.params.slug,
+      req.body.closing_comment,
+      notionAdapter,
+    );
+    return res.json(out);
+  } catch (e) {
+    console.warn('[mission-control/plans/:slug/ship] failed:', e.message);
+    return res.status(e.status || 500).json({ ok: false, error: e.message });
   }
 });
 

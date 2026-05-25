@@ -148,8 +148,17 @@ async function getActiveRoadmaps(notionAdapter) {
     console.warn('[plansAggregator] notion fetch failed, rendering manifest with progress: unknown — %s', e.message);
   }
 
-  const roadmaps = manifest.map(r => {
+  // T-078: filter out retired entries (e.g. Solopreneur OS) so the Active
+  // panel + Lifecycle Spectrum view stop rendering dead roadmaps. The manifest
+  // keeps the entry for audit-trail; the `retired: true` flag is the live signal.
+  const liveManifest = manifest.filter(r => r.retired !== true);
+
+  const roadmaps = liveManifest.map(r => {
     const progress = notionAvailable ? computeProgress(r, tickets) : null;
+    // T-078: surface `ready_to_ship: true` when every ticket in the roadmap is
+    // Done. The Lifecycle Spectrum view uses this to render the "Ship this plan"
+    // CTA without needing a separate roundtrip.
+    const readyToShip = !!(progress && progress.total > 0 && progress.shipped === progress.total);
     return {
       slug: r.slug,
       name: r.name,
@@ -159,6 +168,7 @@ async function getActiveRoadmaps(notionAdapter) {
         ? { kind: 'range', from: r.ticket_id_range[0], to: r.ticket_id_range[1] }
         : { kind: 'list', ids: r.ticket_ids || [] },
       progress, // null if Notion unavailable; clients show "progress unknown"
+      ready_to_ship: readyToShip,
     };
   });
 
@@ -171,4 +181,29 @@ async function getActiveRoadmaps(notionAdapter) {
   };
 }
 
-module.exports = { getActiveRoadmaps, parseTicketId, extractTicketIdFromTitle, makeBelongsTo, computeProgress, MANIFEST_PATH };
+// T-078 exposed helpers — lifecycleAggregator needs to read the same manifest
+// without going through the public entrypoint (which calls Notion). Also
+// surfaces the raw manifest so the Ship transition can mutate it atomically.
+function readManifestRaw() {
+  return readManifest();
+}
+
+function writeManifestRaw(entries) {
+  const payload = {
+    _comment: 'T-057: Active roadmaps the Daily Agenda Plans panel surfaces. Edit this file to add or retire a roadmap; ship progress is computed live from Notion via services/plansAggregator.js. Two ways to specify which tickets belong to a roadmap: ticket_id_range (inclusive bounds, must share a prefix) OR ticket_ids (explicit list). Use one or the other per entry, not both.',
+    active_roadmaps: entries,
+  };
+  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+}
+
+module.exports = {
+  getActiveRoadmaps,
+  parseTicketId,
+  extractTicketIdFromTitle,
+  makeBelongsTo,
+  computeProgress,
+  MANIFEST_PATH,
+  // T-078 exports for lifecycleAggregator + Ship transition endpoint
+  readManifestRaw,
+  writeManifestRaw,
+};

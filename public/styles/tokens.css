@@ -158,4 +158,16 @@ body.prism-themed {
   /* Focus ring (gold, brand) */
   --ring: 0 0 0 2px rgba(200, 164, 90, 0.55);
   --ring-strong: 0 0 0 3px rgba(200, 164, 90, 0.75);
+
+  /* ---- Lifecycle spectrum (T-078 — Mission Control 5-state view) ----
+     Light refracted through a prism: amber → orange → blue → green → violet.
+     Used as accent stripes on KPI tiles, doughnut segments on the Lifecycle
+     Distribution chart, and column colors on the Pipeline-by-State stacked
+     bar. Two of the five reuse existing tokens so the spectrum stays in
+     family with the rest of the dashboard. */
+  --lifecycle-idea:    #E8A33C; /* amber  — raw light */
+  --lifecycle-handoff: #E07A3C; /* orange — warming   */
+  --lifecycle-pending: var(--blue);    /* blue — parked */
+  --lifecycle-active:  var(--success); /* green — in motion */
+  --lifecycle-shipped: #8A6AD9; /* violet — refracted complete */
 }

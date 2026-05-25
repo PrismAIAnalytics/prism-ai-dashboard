@@ -1142,48 +1142,103 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
       </div>
 
-      <!-- Idea Vault + Active Plans + Pending Plans (three-column above-the-fold operations row).
-           T-037 Idea Vault, T-057 Active Plans, T-065 Pending Plans. Grid uses auto-fit minmax so
-           it collapses to two columns then one column on narrower viewports.
-           Each card is a <details data-persist-key="..."> — collapse state persists via localStorage. -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-bottom:20px;align-items:start">
+      <!-- T-078: Lifecycle Spectrum. Replaces the 3-column accordion (Idea Vault / Active Plans / Pending Plans).
+           Single client-side view fed by GET /api/mission-control/lifecycle. Mirrors the Compliance page
+           archetype: KPI tile row → 3-chart row → sortable detail table. The 5 lifecycle states
+           (Idea → Handoff → Pending → Active → Shipped) are colored by the --lifecycle-* spectrum tokens
+           in tokens.css. The existing global Idea Vault capture bar (above <main>) stays unchanged. -->
+      <div class="lifecycle-spectrum" style="margin-bottom:24px">
 
-        <!-- Inbox panel — T-037. Lists open cowork:inbox captures with triage actions. -->
-        <details class="card agenda-collapsible" id="agenda-inbox-card" data-persist-key="agenda.inbox" style="margin-bottom:0">
-          <summary class="agenda-collapsible-summary">
-            <span class="agenda-collapsible-chevron">&#9654;</span>
-            <h3 class="agenda-collapsible-title">Idea Vault <span id="agenda-inbox-count" class="agenda-collapsible-count"></span></h3>
-            <span id="agenda-inbox-sla" style="font-size:11px;color:var(--amber, #C8A45A);display:none">over 20 — Chloe will flag</span>
-          </summary>
-          <div class="agenda-collapsible-body">
-            <div id="agenda-inbox-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
+        <!-- Sub-header strip + filter chip -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+          <div>
+            <h3 style="font-size:14px;font-weight:600;margin:0 0 4px;color:var(--text)">Mission Control &mdash; Lifecycle</h3>
+            <div style="font-size:11px;color:var(--muted);letter-spacing:0.4px;text-transform:uppercase">
+              <span style="color:var(--lifecycle-idea)">Idea</span>
+              &nbsp;&rsaquo;&nbsp;
+              <span style="color:var(--lifecycle-handoff)">Handoff</span>
+              &nbsp;&rsaquo;&nbsp;
+              <span style="color:var(--lifecycle-pending)">Pending</span>
+              &nbsp;&rsaquo;&nbsp;
+              <span style="color:var(--lifecycle-active)">Active</span>
+              &nbsp;&rsaquo;&nbsp;
+              <span style="color:var(--lifecycle-shipped)">Shipped</span>
+            </div>
           </div>
-        </details>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="lifecycle-filter-chip" style="display:none;font-size:11px;color:var(--text);background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:14px;padding:3px 10px;line-height:1.4">
+              <span id="lifecycle-filter-label">filter</span>
+              <span style="cursor:pointer;color:var(--muted);margin-left:6px" onclick="clearLifecycleFilter()" title="Clear filter">&times;</span>
+            </div>
+            <input id="lifecycle-search" type="text" placeholder="Search&hellip;" oninput="renderLifecycleTable()"
+              style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit;width:200px"/>
+          </div>
+        </div>
 
-        <!-- Active Plans panel — T-057. Active multi-ticket roadmaps with live ship progress from Notion. -->
-        <details class="card agenda-collapsible" id="agenda-plans-card" data-persist-key="agenda.active-plans" style="margin-bottom:0">
-          <summary class="agenda-collapsible-summary">
-            <span class="agenda-collapsible-chevron">&#9654;</span>
-            <h3 class="agenda-collapsible-title">Active Plans <span id="agenda-plans-count" class="agenda-collapsible-count"></span></h3>
-            <span id="agenda-plans-note" style="font-size:11px;color:var(--muted)"></span>
-          </summary>
-          <div class="agenda-collapsible-body">
-            <div id="agenda-plans-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
+        <!-- KPI tile row (7 tiles — 5 lifecycle states + Velocity + Cycle Time) -->
+        <div id="lifecycle-kpis" class="kpi-grid" style="grid-template-columns:repeat(7, 1fr);margin-bottom:18px">
+          <div class="kpi" data-lifecycle-tile="idea" onclick="filterLifecycle({state:'idea'})" style="cursor:pointer;border-left:3px solid var(--lifecycle-idea)">
+            <div class="label">Idea</div>
+            <div class="value" style="color:var(--lifecycle-idea)" id="lifecycle-tile-idea">&mdash;</div>
+            <div class="sub" id="lifecycle-tile-idea-sub">raw light</div>
           </div>
-        </details>
+          <div class="kpi" data-lifecycle-tile="handoff" onclick="filterLifecycle({state:'handoff'})" style="cursor:pointer;border-left:3px solid var(--lifecycle-handoff)">
+            <div class="label">Handoff</div>
+            <div class="value" style="color:var(--lifecycle-handoff)" id="lifecycle-tile-handoff">&mdash;</div>
+            <div class="sub" id="lifecycle-tile-handoff-sub">warming</div>
+          </div>
+          <div class="kpi" data-lifecycle-tile="pending" onclick="filterLifecycle({state:'pending'})" style="cursor:pointer;border-left:3px solid var(--lifecycle-pending)">
+            <div class="label">Pending</div>
+            <div class="value" style="color:var(--lifecycle-pending)" id="lifecycle-tile-pending">&mdash;</div>
+            <div class="sub" id="lifecycle-tile-pending-sub">parked</div>
+          </div>
+          <div class="kpi" data-lifecycle-tile="active" onclick="filterLifecycle({state:'active'})" style="cursor:pointer;border-left:3px solid var(--lifecycle-active)">
+            <div class="label">Active</div>
+            <div class="value" style="color:var(--lifecycle-active)" id="lifecycle-tile-active">&mdash;</div>
+            <div class="sub" id="lifecycle-tile-active-sub">in motion</div>
+          </div>
+          <div class="kpi" data-lifecycle-tile="shipped" onclick="filterLifecycle({state:'shipped'})" style="cursor:pointer;border-left:3px solid var(--lifecycle-shipped)">
+            <div class="label">Shipped 30d</div>
+            <div class="value" style="color:var(--lifecycle-shipped)" id="lifecycle-tile-shipped">&mdash;</div>
+            <div class="sub" id="lifecycle-tile-shipped-sub">refracted</div>
+          </div>
+          <div class="kpi" style="border-left:3px solid var(--success)">
+            <div class="label">Velocity</div>
+            <div class="value" style="color:var(--success)" id="lifecycle-tile-velocity">&mdash;</div>
+            <div class="sub">plans / week</div>
+          </div>
+          <div class="kpi" style="border-left:3px solid var(--muted)">
+            <div class="label">Cycle Time</div>
+            <div class="value" id="lifecycle-tile-cycle">&mdash;</div>
+            <div class="sub">median days</div>
+          </div>
+        </div>
 
-        <!-- Pending Plans panel — T-065. Plans awaiting Michele's review (hand-curated manifest +
-             auto-suggested entries scanned from ~/.claude/plans/ for explicit review markers). -->
-        <details class="card agenda-collapsible" id="agenda-pending-plans-card" data-persist-key="agenda.pending-plans" style="margin-bottom:0">
-          <summary class="agenda-collapsible-summary">
-            <span class="agenda-collapsible-chevron">&#9654;</span>
-            <h3 class="agenda-collapsible-title">Pending Plans <span id="agenda-pending-plans-count" class="agenda-collapsible-count"></span></h3>
-            <span id="agenda-pending-plans-note" style="font-size:11px;color:var(--muted)"></span>
-          </summary>
-          <div class="agenda-collapsible-body">
-            <div id="agenda-pending-plans-body" style="font-size:14px;color:var(--text-muted, var(--muted));line-height:1.55">Loading…</div>
+        <!-- 3-chart row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:16px;margin-bottom:18px">
+          <div class="card" style="margin-bottom:0">
+            <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Lifecycle Distribution</h3>
+            <div style="position:relative;height:200px"><canvas id="chart-lifecycle-distribution"></canvas></div>
           </div>
-        </details>
+          <div class="card" style="margin-bottom:0">
+            <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Workstream Mix <span style="text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400">(in-flight)</span></h3>
+            <div style="position:relative;height:200px"><canvas id="chart-workstream-mix"></canvas></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Pipeline by State <span style="text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400">(5 workstreams &times; 5 states)</span></h3>
+            <div style="position:relative;height:200px"><canvas id="chart-pipeline-by-state"></canvas></div>
+            <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-style:italic">Admin / Finance / Training excluded &mdash; administrative overhead, not workstream output.</div>
+          </div>
+        </div>
+
+        <!-- Sortable detail table -->
+        <div class="card" style="margin-bottom:0;padding-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px">
+            <div style="font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Detail</div>
+            <div id="lifecycle-table-meta" style="font-size:11px;color:var(--muted)"></div>
+          </div>
+          <div id="lifecycle-table-wrap" style="overflow-x:auto"><div id="lifecycle-table" style="font-size:13px;color:var(--text-muted, var(--muted))">Loading&hellip;</div></div>
+        </div>
 
       </div>
 
@@ -5345,6 +5400,395 @@ function renderAgendaPendingPlans(data) {
   body.innerHTML = html;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// --- T-078: Mission Control Lifecycle Spectrum ---
+// Single-page view fed by GET /api/mission-control/lifecycle. Replaces the
+// 3-column Idea Vault / Active Plans / Pending Plans accordion. Renders
+// 7 KPI tiles + 3 charts (lifecycle doughnut, workstream doughnut, pipeline-
+// by-state stacked bar) + sortable filterable detail table. Drill-ins are
+// filter-based: click a tile or chart segment to filter the table.
+
+const LIFECYCLE_STATES = ['idea', 'handoff', 'pending', 'active', 'shipped'];
+const LIFECYCLE_STATE_LABELS = { idea: 'Idea', handoff: 'Handoff', pending: 'Pending', active: 'Active', shipped: 'Shipped' };
+const LIFECYCLE_HEX = {
+  idea:    '#E8A33C',
+  handoff: '#E07A3C',
+  pending: '#4A6DB5',
+  active:  '#4FB48A',
+  shipped: '#8A6AD9',
+};
+const LIFECYCLE_WORKSTREAMS = ['delivery', 'engineering', 'marketing', 'sales', 'studio'];
+const LIFECYCLE_WORKSTREAM_LABELS = {
+  delivery: 'Delivery', engineering: 'Engineering', marketing: 'Marketing', sales: 'Sales', studio: 'Studio',
+};
+
+let lifecycleData = null;
+let lifecycleFilter = { state: null, workstream: null };
+let chartLifecycleDistribution = null;
+let chartWorkstreamMix = null;
+let chartPipelineByState = null;
+
+async function loadLifecyclePage() {
+  const tableEl = document.getElementById('lifecycle-table');
+  try {
+    const r = await api('mission-control/lifecycle');
+    if (!r || !r.ok) {
+      if (tableEl) tableEl.innerHTML = '<em style="color:var(--muted)">Lifecycle view temporarily unavailable.</em>';
+      return;
+    }
+    lifecycleData = r;
+    renderLifecycleTiles(r.tiles || {});
+    renderLifecycleDistributionChart(r.tiles || {});
+    renderWorkstreamMixChart(r.items || [], r.matrix || {});
+    renderPipelineByStateChart(r.matrix || {});
+    renderLifecycleTable();
+  } catch (e) {
+    if (tableEl) tableEl.innerHTML = '<em style="color:var(--muted)">Lifecycle view failed to load.</em>';
+  }
+}
+
+function renderLifecycleTiles(tiles) {
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = (val == null || val === '') ? '—' : val; };
+  setVal('lifecycle-tile-idea', tiles.idea ?? 0);
+  setVal('lifecycle-tile-handoff', tiles.handoff ?? 0);
+  setVal('lifecycle-tile-pending', tiles.pending ?? 0);
+  setVal('lifecycle-tile-active', tiles.active ?? 0);
+  setVal('lifecycle-tile-shipped', tiles.shipped_30d ?? 0);
+  setVal('lifecycle-tile-velocity', (tiles.velocity_per_week == null) ? '—' : tiles.velocity_per_week);
+  setVal('lifecycle-tile-cycle', (tiles.cycle_time_median_days == null) ? '—' : tiles.cycle_time_median_days);
+
+  const ePend = document.getElementById('lifecycle-tile-pending-sub');
+  if (ePend) ePend.textContent = (tiles.pending ?? 0) === 1 ? 'plan awaiting approval' : 'plans awaiting approval';
+  const eActive = document.getElementById('lifecycle-tile-active-sub');
+  if (eActive) eActive.textContent = tiles.active === 1 ? 'plan in flight' : 'plans in flight';
+  const eShipped = document.getElementById('lifecycle-tile-shipped-sub');
+  if (eShipped) eShipped.textContent = `${tiles.shipped_30d ?? 0} in last 30 days`;
+}
+
+function renderLifecycleDistributionChart(tiles) {
+  const ctx = document.getElementById('chart-lifecycle-distribution');
+  if (!ctx) return;
+  const data = [tiles.idea ?? 0, tiles.handoff ?? 0, tiles.pending ?? 0, tiles.active ?? 0, tiles.shipped_30d ?? 0];
+  const total = data.reduce((a, b) => a + b, 0);
+  if (chartLifecycleDistribution) chartLifecycleDistribution.destroy();
+  chartLifecycleDistribution = new Chart(ctx.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Idea', 'Handoff', 'Pending', 'Active', 'Shipped 30d'],
+      datasets: [{
+        data,
+        backgroundColor: LIFECYCLE_STATES.map(s => LIFECYCLE_HEX[s]),
+        borderColor: '#0F0C30',
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '55%',
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        filterLifecycle({ state: LIFECYCLE_STATES[elements[0].index] });
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 10 }, padding: 10, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw}${total > 0 ? ` (${Math.round(c.raw / total * 100)}%)` : ''}` } },
+      },
+    },
+  });
+}
+
+function renderWorkstreamMixChart(items, matrix) {
+  const ctx = document.getElementById('chart-workstream-mix');
+  if (!ctx) return;
+  const wsTotals = {};
+  for (const ws of LIFECYCLE_WORKSTREAMS) {
+    const m = matrix[ws] || {};
+    wsTotals[ws] = (m.idea || 0) + (m.handoff || 0) + (m.pending || 0) + (m.active || 0);
+  }
+  const data = LIFECYCLE_WORKSTREAMS.map(ws => wsTotals[ws]);
+  const total = data.reduce((a, b) => a + b, 0);
+
+  if (chartWorkstreamMix) chartWorkstreamMix.destroy();
+  chartWorkstreamMix = new Chart(ctx.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: LIFECYCLE_WORKSTREAMS.map(ws => LIFECYCLE_WORKSTREAM_LABELS[ws]),
+      datasets: [{
+        data,
+        backgroundColor: window.PRISM ? window.PRISM.PALETTE.slice(0, 5) : ['#C8A45A', '#4A6DB5', '#BDC9DD', '#3A5998', '#A8883A'],
+        borderColor: '#0F0C30',
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '55%',
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        filterLifecycle({ workstream: LIFECYCLE_WORKSTREAMS[elements[0].index] });
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 10 }, padding: 10, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw}${total > 0 ? ` (${Math.round(c.raw / total * 100)}%)` : ''}` } },
+      },
+    },
+  });
+}
+
+function renderPipelineByStateChart(matrix) {
+  const ctx = document.getElementById('chart-pipeline-by-state');
+  if (!ctx) return;
+  const datasets = LIFECYCLE_STATES.map(state => ({
+    label: LIFECYCLE_STATE_LABELS[state],
+    data: LIFECYCLE_WORKSTREAMS.map(ws => (matrix[ws] || {})[state] || 0),
+    backgroundColor: LIFECYCLE_HEX[state],
+    borderColor: '#0F0C30',
+    borderWidth: 1,
+  }));
+  if (chartPipelineByState) chartPipelineByState.destroy();
+  chartPipelineByState = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: LIFECYCLE_WORKSTREAMS.map(ws => LIFECYCLE_WORKSTREAM_LABELS[ws]),
+      datasets,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      onClick: (_, elements) => {
+        if (!elements || !elements.length) return;
+        const el = elements[0];
+        filterLifecycle({
+          workstream: LIFECYCLE_WORKSTREAMS[el.index],
+          state: LIFECYCLE_STATES[el.datasetIndex],
+        });
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: '#94A3B8', font: { size: 10 } }, grid: { color: 'rgba(189,201,221,0.06)' } },
+        y: { stacked: true, ticks: { color: '#94A3B8', font: { size: 11 } }, grid: { display: false } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 10 }, padding: 10, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } },
+      },
+    },
+  });
+}
+
+function lifecycleEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function lifecycleStatePill(state) {
+  const label = LIFECYCLE_STATE_LABELS[state] || state;
+  const color = LIFECYCLE_HEX[state] || '#999';
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:600;background:${color}22;color:${color};text-transform:uppercase;letter-spacing:0.4px">${lifecycleEsc(label)}</span>`;
+}
+
+function lifecycleWorkstreamPill(ws) {
+  if (!ws) return '<span style="font-size:11px;color:var(--text-dim)">&mdash;</span>';
+  const label = LIFECYCLE_WORKSTREAM_LABELS[ws] || ws;
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:10px;font-weight:500;background:rgba(255,255,255,0.05);color:var(--text-muted);border:1px solid var(--border)">${lifecycleEsc(label)}</span>`;
+}
+
+function lifecycleProgressBar(item) {
+  if (item.state === 'active' && item.progress && item.progress.total > 0) {
+    const p = item.progress;
+    const pct = Math.round((p.shipped / p.total) * 100);
+    return `
+      <div style="display:flex;align-items:center;gap:8px;min-width:140px">
+        <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--lifecycle-active, #4FB48A);transition:width .3s"></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);white-space:nowrap">${p.shipped}/${p.total} &middot; ${pct}%</div>
+      </div>`;
+  }
+  if (item.state === 'handoff' && item.iteration_depth) {
+    return `<span style="font-size:11px;color:var(--text-muted)">${item.iteration_depth}d iterating</span>`;
+  }
+  if (item.state === 'shipped') {
+    const cd = item.cycle_time_days;
+    return cd ? `<span style="font-size:11px;color:var(--text-muted)">${cd}d cycle</span>` : '<span style="color:var(--text-dim)">&mdash;</span>';
+  }
+  return '<span style="color:var(--text-dim)">&mdash;</span>';
+}
+
+function lifecycleRowActions(item) {
+  if (item.state === 'active' && item.ready_to_ship) {
+    return `<button type="button" onclick="openShipPlanRow('${lifecycleEsc(item.slug || '')}', '${lifecycleEsc(item.title || '').replace(/'/g, "\\'")}')" style="background:var(--lifecycle-shipped, #8A6AD9);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Ship this plan &rarr;</button>`;
+  }
+  if (item.state === 'handoff' && !item.has_front_matter) {
+    return `<span style="font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:0.4px;font-weight:500">Needs front-matter</span>`;
+  }
+  if (item.drill_link) {
+    const isUrl = /^https?:/.test(item.drill_link);
+    if (isUrl) return `<a href="${lifecycleEsc(item.drill_link)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue)">open &rarr;</a>`;
+    return `<span style="font-size:10px;color:var(--text-dim);font-family:monospace" title="${lifecycleEsc(item.drill_link)}">file&hellip;</span>`;
+  }
+  return '';
+}
+
+function getLifecycleFilteredItems() {
+  if (!lifecycleData || !Array.isArray(lifecycleData.items)) return [];
+  const searchEl = document.getElementById('lifecycle-search');
+  const search = (searchEl ? searchEl.value || '' : '').trim().toLowerCase();
+  const out = [];
+  for (const it of lifecycleData.items) {
+    if (lifecycleFilter.state && it.state !== lifecycleFilter.state) continue;
+    if (lifecycleFilter.workstream && it.workstream !== lifecycleFilter.workstream) continue;
+    if (search && !(it.title || '').toLowerCase().includes(search)) continue;
+    out.push(it);
+  }
+  const stateOrder = (s) => LIFECYCLE_STATES.indexOf(s);
+  out.sort((a, b) => {
+    const so = stateOrder(a.state) - stateOrder(b.state);
+    if (so !== 0) return so;
+    return (b.last_updated || '').localeCompare(a.last_updated || '');
+  });
+  return out;
+}
+
+function renderLifecycleTable() {
+  const wrap = document.getElementById('lifecycle-table');
+  const meta = document.getElementById('lifecycle-table-meta');
+  const chip = document.getElementById('lifecycle-filter-chip');
+  const chipLabel = document.getElementById('lifecycle-filter-label');
+  if (!wrap) return;
+
+  if (chip && chipLabel) {
+    const parts = [];
+    if (lifecycleFilter.state) parts.push(`state: ${LIFECYCLE_STATE_LABELS[lifecycleFilter.state]}`);
+    if (lifecycleFilter.workstream) parts.push(`workstream: ${LIFECYCLE_WORKSTREAM_LABELS[lifecycleFilter.workstream]}`);
+    if (parts.length > 0) {
+      chip.style.display = '';
+      chipLabel.textContent = parts.join(' · ');
+    } else {
+      chip.style.display = 'none';
+    }
+  }
+
+  const items = getLifecycleFilteredItems();
+  if (meta) meta.textContent = `${items.length} item${items.length === 1 ? '' : 's'}${lifecycleData && lifecycleData.notion_available === false ? ' · Notion unavailable (progress unknown)' : ''}`;
+
+  if (items.length === 0) {
+    wrap.innerHTML = `<div style="color:var(--muted);padding:14px 0;font-style:italic">No items match the current filter.</div>`;
+    return;
+  }
+
+  const rows = items.map(it => {
+    const updated = it.last_updated ? lifecycleEsc(it.last_updated) : '<span style="color:var(--text-dim)">&mdash;</span>';
+    const note = (it.summary || it.note) ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;line-height:1.4">${lifecycleEsc((it.summary || it.note || '').slice(0, 220))}${(it.summary || it.note || '').length > 220 ? '…' : ''}</div>` : '';
+    return `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:10px 8px;vertical-align:top">
+          <div style="color:var(--text);font-weight:500;line-height:1.35">${lifecycleEsc(it.title || '(untitled)')}</div>
+          ${note}
+        </td>
+        <td style="padding:10px 8px;vertical-align:top;white-space:nowrap">${lifecycleStatePill(it.state)}</td>
+        <td style="padding:10px 8px;vertical-align:top;white-space:nowrap">${lifecycleWorkstreamPill(it.workstream)}</td>
+        <td style="padding:10px 8px;vertical-align:top">${lifecycleProgressBar(it)}</td>
+        <td style="padding:10px 8px;vertical-align:top;font-size:11px;color:var(--text-muted);white-space:nowrap">${updated}</td>
+        <td style="padding:10px 8px;vertical-align:top;text-align:right;white-space:nowrap">${lifecycleRowActions(it)}</td>
+      </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border-strong, var(--border))">
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Title</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">State</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Workstream</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Progress</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Updated</th>
+          <th style="text-align:right;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:600"></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function filterLifecycle({ state, workstream }) {
+  if (state !== undefined) lifecycleFilter.state = state || null;
+  if (workstream !== undefined) lifecycleFilter.workstream = workstream || null;
+  renderLifecycleTable();
+}
+
+function clearLifecycleFilter() {
+  lifecycleFilter = { state: null, workstream: null };
+  const search = document.getElementById('lifecycle-search');
+  if (search) search.value = '';
+  renderLifecycleTable();
+}
+
+function openShipPlanRow(slug, title) {
+  const wrap = document.getElementById('lifecycle-table-wrap');
+  if (!wrap) return;
+  const existing = document.getElementById('ship-plan-panel');
+  if (existing) { existing.remove(); return; }
+
+  const panel = document.createElement('div');
+  panel.id = 'ship-plan-panel';
+  panel.style.cssText = 'margin-top:12px;padding:14px;background:rgba(138,106,217,0.08);border:1px solid var(--lifecycle-shipped, #8A6AD9);border-radius:10px';
+  panel.innerHTML = `
+    <div style="font-size:13px;color:var(--text);margin-bottom:6px">
+      <span style="color:var(--lifecycle-shipped)">&#9728;</span>
+      Ship <strong>${lifecycleEsc(title)}</strong>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+      Closing comment (min 20 chars) becomes the plan's audit-trail entry. The plan moves to Shipped on submit.
+    </div>
+    <textarea id="ship-plan-comment" rows="3" placeholder="What landed, in a sentence or two&hellip;" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12px;font-family:inherit;line-height:1.4;resize:vertical"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px">
+      <div id="ship-plan-status" style="font-size:11px;color:var(--muted)"></div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="document.getElementById('ship-plan-panel').remove()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit">Cancel</button>
+        <button type="button" id="ship-plan-submit" onclick="submitShipPlan('${lifecycleEsc(slug)}')" style="background:var(--lifecycle-shipped, #8A6AD9);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Ship plan</button>
+      </div>
+    </div>`;
+  wrap.parentNode.appendChild(panel);
+  const ta = document.getElementById('ship-plan-comment');
+  if (ta) ta.focus();
+}
+
+async function submitShipPlan(slug) {
+  const ta = document.getElementById('ship-plan-comment');
+  const status = document.getElementById('ship-plan-status');
+  const btn = document.getElementById('ship-plan-submit');
+  if (!ta) return;
+  const comment = (ta.value || '').trim();
+  if (comment.length < 20) {
+    if (status) { status.textContent = `Need ${20 - comment.length} more character${20 - comment.length === 1 ? '' : 's'}.`; status.style.color = 'var(--amber)'; }
+    return;
+  }
+  if (btn) btn.disabled = true;
+  if (status) { status.textContent = 'Shipping…'; status.style.color = 'var(--muted)'; }
+  try {
+    const r = await api(`mission-control/plans/${encodeURIComponent(slug)}/ship`, {
+      method: 'POST',
+      body: JSON.stringify({ closing_comment: comment }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (r && r.ok) {
+      if (status) { status.textContent = 'Shipped → moved to Shipped column.'; status.style.color = 'var(--success)'; }
+      setTimeout(() => {
+        const panel = document.getElementById('ship-plan-panel');
+        if (panel) panel.remove();
+        loadLifecyclePage();
+      }, 700);
+    } else {
+      const msg = (r && r.error) || 'Ship failed';
+      if (status) { status.textContent = msg; status.style.color = 'var(--danger)'; }
+      if (btn) btn.disabled = false;
+    }
+  } catch (e) {
+    if (status) { status.textContent = 'Ship failed (network).'; status.style.color = 'var(--danger)'; }
+    if (btn) btn.disabled = false;
+  }
+}
+
 function renderAgendaBrief(brief) {
   const el = document.getElementById('agenda-brief');
   if (!el) return;
@@ -5516,30 +5960,18 @@ loaders['daily-agenda'] = async () => {
     renderAgendaBrief(null);
   }
 
-  // Inbox panel — T-037. Independent failure mode from Today aggregator.
-  loadInboxPanel();
-
-  // Plans panel — T-057. Independent failure mode from other surfaces.
-  try {
-    const plans = await api('mission-control/plans');
-    renderAgendaPlans(plans);
-  } catch (e) {
-    renderAgendaPlans({ active_roadmaps: [], notion_available: false });
-  }
+  // T-078: Lifecycle Spectrum view supersedes the prior three loaders
+  // (loadInboxPanel, renderAgendaPlans, renderAgendaPendingPlans). Single
+  // aggregator endpoint feeds 7 KPI tiles + 3 charts + sortable detail table.
+  // The legacy panel renderers stay in this file (vestigial) but are no
+  // longer invoked; their DOM targets were removed in the same change.
+  loadLifecyclePage();
 
   // Recommended for To Do panel — Phase C (2026-05-24). Independent failure mode.
   loadRecommendedTodo();
 
   // Past-due Backlog panel — Phase B (2026-05-24). Independent failure mode.
   loadPastDueBacklog();
-
-  // Pending Plans panel — T-065. Independent failure mode from other surfaces.
-  try {
-    const pending = await api('mission-control/pending-plans');
-    renderAgendaPendingPlans(pending);
-  } catch (e) {
-    renderAgendaPendingPlans({ pending_plans: [], suggested_plans: [], plans_dir_available: false });
-  }
 
   // End of Day — preserves Daily Review behavior unchanged (load docs, load reviews).
   const docRes = await api('documents');
