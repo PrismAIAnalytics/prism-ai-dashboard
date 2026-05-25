@@ -1231,14 +1231,17 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </div>
 
-        <!-- Sortable detail table -->
-        <div class="card" style="margin-bottom:0;padding-top:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px">
-            <div style="font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Detail</div>
-            <div id="lifecycle-table-meta" style="font-size:11px;color:var(--muted)"></div>
+        <!-- Sortable detail table — collapsible (T-079). open by default since it's the primary
+             drill-in surface; collapse state persists via data-persist-key. -->
+        <details class="card agenda-collapsible" id="lifecycle-detail-card" data-persist-key="agenda.lifecycle-detail" style="margin-bottom:0" open>
+          <summary class="agenda-collapsible-summary">
+            <span class="agenda-collapsible-chevron">&#9654;</span>
+            <h3 class="agenda-collapsible-title">Detail <span id="lifecycle-table-meta" class="agenda-collapsible-count"></span></h3>
+          </summary>
+          <div class="agenda-collapsible-body" style="padding-top:6px">
+            <div id="lifecycle-table-wrap" style="overflow-x:auto"><div id="lifecycle-table" style="font-size:13px;color:var(--text-muted, var(--muted))">Loading&hellip;</div></div>
           </div>
-          <div id="lifecycle-table-wrap" style="overflow-x:auto"><div id="lifecycle-table" style="font-size:13px;color:var(--text-muted, var(--muted))">Loading&hellip;</div></div>
-        </div>
+        </details>
 
       </div>
 
