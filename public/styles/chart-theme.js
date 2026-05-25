@@ -57,6 +57,26 @@ export const PRISM_AUTOMATION_COLORS = Object.freeze({
   manual_heavy:  PRISM_STATUS_COLORS.danger,
 });
 
+/** Lifecycle spectrum (T-078) — colors for the 5-state Mission Control view.
+ *  Order matches the workflow: Idea → Handoff → Pending → Active → Shipped.
+ *  Mirrors the --lifecycle-* tokens in tokens.css so chart segments and CSS
+ *  accents stay in lockstep. */
+export const PRISM_LIFECYCLE_COLORS = Object.freeze({
+  idea:    '#E8A33C', // amber  — raw light
+  handoff: '#E07A3C', // orange — warming
+  pending: PRISM_CHART_PALETTE[1], // brand blue — parked
+  active:  PRISM_STATUS_COLORS.success, // green — in motion
+  shipped: '#8A6AD9', // violet — refracted complete
+});
+
+/** Ordered list of lifecycle state slugs in workflow order. Use this when
+ *  building dataset arrays for the Lifecycle Distribution doughnut + the
+ *  Pipeline-by-State stacked bar so the visual ordering of the spectrum is
+ *  consistent across surfaces. */
+export const PRISM_LIFECYCLE_ORDER = Object.freeze([
+  'idea', 'handoff', 'pending', 'active', 'shipped',
+]);
+
 /** rgba helper for chart fills with consistent alpha. */
 export function withAlpha(hex, alpha = 0.6) {
   const h = hex.replace('#', '');
