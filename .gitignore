@@ -48,3 +48,9 @@ reports/
 # repo so they don't accumulate after merge.
 .PR_BODY_*.md
 
+# Per-task temp dirs written during a ticket (e.g. _t027b_tmp/ for T-027b
+# work). Convention: leading underscore + _tmp suffix. Cleaned up after the
+# ticket closes, but the gitignore prevents the working tree from getting
+# noisy mid-task.
+_*_tmp/
+
