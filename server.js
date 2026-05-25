@@ -694,6 +694,7 @@ app.use('/api', (req, res, next) => {
     p === '/auth/me' ||
     p === '/auth/logout' ||
     p === '/portal/me' ||
+    p === '/portal/knowledgebase' ||
     p === '/services' || p.startsWith('/services/') ||
     (p === '/assessments' && req.method === 'POST')
   );
@@ -734,6 +735,52 @@ app.get('/api/portal/me', (req, res) => {
     recommendations: row.recommendations,
   } : null;
   res.json({ ok: true, contact, client, assessment });
+});
+
+// T-077: Public-only Knowledgebase manifest for the client portal. Returns
+// the same topic-grouped shape as /api/knowledgebase but filtered to items
+// where visibility==='public' and stripped of admin counts / toggle state.
+// Same library for every client in v1 — per-client filtering deferred.
+app.get('/api/portal/knowledgebase', (req, res) => {
+  // API_KEY tokens leave req.user undefined and are treated as admin per the
+  // role-check middleware; client and admin user-role sessions both pass.
+  if (req.user && req.user.role !== 'client' && req.user.role !== 'admin') {
+    return res.status(403).json({ ok: false, error: 'auth required' });
+  }
+  try {
+    const manifest = knowledgebaseScanner.getManifest();
+    const decorated = knowledgebaseVisibility.decorateManifest(manifest);
+    const topics = (decorated.topics || [])
+      .map(t => ({
+        topic: t.topic,
+        items: (t.items || [])
+          .filter(i => i.visibility === 'public')
+          .map(i => ({
+            id: i.id,
+            title: i.title,
+            url: i.url,
+            content_type: i.content_type,
+            description: i.description || '',
+            date: i.date || null,
+            read_time: i.read_time || null,
+            series: i.series || null,
+            series_part: i.series_part || null,
+          })),
+      }))
+      .filter(t => t.items.length > 0);
+    const total = topics.reduce((s, t) => s + t.items.length, 0);
+    res.json({
+      ok: true,
+      available: decorated.available !== false,
+      generated_at: decorated.generated_at || null,
+      counts: { total, topics: topics.length },
+      topics,
+      as_of: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error('[portal-knowledgebase] failed:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // ─── Validation helper ──────────────────────────────────────────────────────

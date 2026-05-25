@@ -92,6 +92,29 @@
 
   .footer-note { text-align: center; font-size: 12px; color: var(--mid); margin-top: 30px; padding: 20px; }
   .footer-note a { color: var(--royal); text-decoration: none; font-weight: 600; }
+
+  /* T-077 — Resources (public-only Knowledgebase mirror) */
+  .res-meta { font-size: 12px; color: var(--mid); margin-bottom: 16px; }
+  .res-meta strong { color: var(--navy); }
+  .res-topic { margin-bottom: 18px; }
+  .res-topic:last-child { margin-bottom: 0; }
+  .res-topic-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--blue-lt); margin-bottom: 12px; }
+  .res-topic-title { color: var(--navy); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; flex: 1; }
+  .res-topic-count { color: var(--mid); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .res-list { list-style: none; margin: 0; padding: 0; }
+  .res-item { display: flex; align-items: baseline; gap: 10px; padding: 6px 0; line-height: 1.5; border-bottom: 1px dashed transparent; }
+  .res-item:not(:last-child) { border-bottom-color: var(--blue-mid); }
+  .res-item-type { flex-shrink: 0; min-width: 86px; font-size: 10px; font-weight: 700; color: var(--royal); letter-spacing: 0.1em; text-transform: uppercase; }
+  .res-item a { color: var(--navy); text-decoration: none; font-size: 13.5px; font-weight: 600; border-bottom: 1px solid transparent; transition: border-color 0.15s, color 0.15s; }
+  .res-item a:hover { color: var(--royal); border-bottom-color: var(--royal); }
+  .res-item-series { font-size: 11px; color: var(--gold); font-weight: 600; margin-left: 4px; }
+  .res-item-meta { font-size: 11px; color: var(--mid); margin-left: auto; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .res-empty { text-align: center; padding: 28px 20px; color: var(--mid); font-size: 13px; font-style: italic; }
+  @media (max-width: 640px) {
+    .res-item { flex-wrap: wrap; }
+    .res-item-type { min-width: 0; }
+    .res-item-meta { margin-left: 0; padding-left: 0; width: 100%; }
+  }
 </style>
 </head>
 <body><!-- T-032: client-facing portal kept LIGHT by intent. Activate prism-themed only after a deliberate brand decision (would need a prism-themed-light variant, since current theme is dark-only). -->
@@ -241,6 +264,75 @@ function renderRecsCard(portal) {
   '</div>';
 }
 
+// T-077 — Resources section. Renders the public-only Knowledgebase manifest
+// as a read-only outline grouped by topic. Maps content_type to a readable
+// label and links straight to the canonical URL (blog posts to the marketing
+// site, local artifacts to dashboard-served paths).
+const RES_TYPE_LABEL = {
+  blog: 'Article',
+  article: 'Article',
+  infographic: 'Infographic',
+  'service-page': 'Service',
+  assessment: 'Assessment',
+  download: 'Download',
+  image: 'Image',
+  'podcast-index': 'Podcast',
+  page: 'Page',
+};
+function resBuildExternalUrl(item) {
+  if (item.content_type === 'blog' || item.content_type === 'service-page' || item.content_type === 'assessment' || item.content_type === 'podcast-index' || item.content_type === 'page') {
+    return 'https://prismaianalytics.com' + item.url;
+  }
+  return item.url;
+}
+function resFmtDateShort(d) {
+  if (!d) return null;
+  const ymd = String(d).slice(0, 10);
+  const parsed = new Date(ymd + 'T00:00:00');
+  if (isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function renderResourcesCard(kb) {
+  if (!kb || kb.ok === false || kb.available === false || !kb.topics || kb.topics.length === 0) {
+    return '<div class="card">' +
+      '<h3>Resources <span class="sub">curated reading list</span></h3>' +
+      '<div class="res-empty">No resources published yet. Check back soon &mdash; new articles, briefs, and downloads are added regularly.</div>' +
+    '</div>';
+  }
+  const generated = kb.generated_at
+    ? new Date(kb.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+  const meta = '<div class="res-meta"><strong>' + kb.counts.total + '</strong> resources across <strong>' + kb.counts.topics + '</strong> topics' + (generated ? ' &middot; updated ' + escapeHtml(generated) : '') + '</div>';
+
+  const topics = kb.topics.map(topic => {
+    const items = topic.items.map(item => {
+      const typeLabel = RES_TYPE_LABEL[item.content_type] || item.content_type;
+      const href = resBuildExternalUrl(item);
+      const dateStr = resFmtDateShort(item.date);
+      const metaBits = [dateStr, item.read_time].filter(Boolean).join(' &middot; ');
+      const series = item.series
+        ? '<span class="res-item-series">&#x21B3; ' + escapeHtml(item.series) + (item.series_part ? ' &middot; ' + escapeHtml(item.series_part) : '') + '</span>'
+        : '';
+      return '<li class="res-item">' +
+        '<span class="res-item-type">' + escapeHtml(typeLabel) + '</span>' +
+        '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener">' + escapeHtml(item.title) + '</a>' +
+        series +
+        (metaBits ? '<span class="res-item-meta">' + metaBits + '</span>' : '') +
+      '</li>';
+    }).join('');
+    return '<div class="res-topic">' +
+      '<div class="res-topic-head"><span class="res-topic-title">' + escapeHtml(topic.topic) + '</span><span class="res-topic-count">' + topic.items.length + '</span></div>' +
+      '<ul class="res-list">' + items + '</ul>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="card">' +
+    '<h3>Resources <span class="sub">curated reading list</span></h3>' +
+    meta +
+    topics +
+  '</div>';
+}
+
 function renderCatalog(services) {
   const grouped = { 'Data & Analytics': [], 'Compliance & Security': [] };
   for (const s of services) {
@@ -296,18 +388,22 @@ async function boot() {
     return;
   }
   const services = await api('services') || [];
+  // T-077: Resources card. Failure is non-fatal — the rest of the portal still renders.
+  let kb = null;
+  try { kb = await api('portal/knowledgebase'); } catch (e) { kb = null; }
 
   renderUserBlock(portal);
   const welcome = '<div class="welcome">' +
     '<h2>Welcome, ' + escapeHtml(portal.client.company_name) + '</h2>' +
-    '<p>This is your private portal. Take your readiness assessment, review tailored service recommendations, and browse the full catalog — all in one place.</p>' +
+    '<p>This is your private portal. Take your readiness assessment, review tailored service recommendations, browse the full catalog, and dig into our resource library — all in one place.</p>' +
   '</div>';
 
   document.getElementById('page-content').innerHTML =
     welcome +
     renderAssessmentCard(portal) +
     renderRecsCard(portal) +
-    renderCatalog(services);
+    renderCatalog(services) +
+    renderResourcesCard(kb);
 }
 
 boot();
