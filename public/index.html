@@ -5629,6 +5629,16 @@ function lifecycleRowActions(item) {
       : '';
     return `<button type="button" onclick="triageInbox('${pageId}','ticket')" title="Promote to ticket — adjust category/due date in Notion" style="background:var(--lifecycle-handoff, #C18A4F);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">&rarr; Ticket</button> <button type="button" onclick="triageInbox('${pageId}','dismiss')" title="Dismiss — archives the Notion page" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;margin-left:6px">Dismiss</button>${openLink}`;
   }
+  if (item.state === 'pending') {
+    // T-084: Pending → Active promote + Dismiss actions.
+    // item.id is `pending:<slug>` per lifecycleAggregator.js — strip prefix.
+    // → Active opens a modal capturing ticket_spec / decision_date / note
+    // (multi-field, so divergence from the T-082 inline-handler pattern is
+    // justified). Dismiss is one confirm() → POST, no modal.
+    const slug = lifecycleEsc(String(item.id || '').replace(/^pending:/, ''));
+    const name = lifecycleEsc(item.title || '').replace(/'/g, "\\'");
+    return `<button type="button" onclick="openPendingActivateRow('${slug}', '${name}')" title="Approve this plan — captures ticket range/IDs and decision date" style="background:var(--lifecycle-active, #4FB48A);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">&rarr; Active</button> <button type="button" onclick="dismissPending('${slug}')" title="Remove from pending — does not touch the underlying plan file" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;margin-left:6px">Dismiss</button>`;
+  }
   if (item.state === 'active' && item.ready_to_ship) {
     return `<button type="button" onclick="openShipPlanRow('${lifecycleEsc(item.slug || '')}', '${lifecycleEsc(item.title || '').replace(/'/g, "\\'")}')" style="background:var(--lifecycle-shipped, #8A6AD9);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Ship this plan &rarr;</button>`;
   }
@@ -5799,6 +5809,150 @@ async function submitShipPlan(slug) {
   } catch (e) {
     if (status) { status.textContent = 'Ship failed (network).'; status.style.color = 'var(--danger)'; }
     if (btn) btn.disabled = false;
+  }
+}
+
+// T-084: Pending → Active modal. Captures ticket_spec (range or ids),
+// decision_date, and optional note. Submits to POST /api/mission-control/
+// pending-plans/:slug/activate. Pattern mirrors openShipPlanRow but with
+// multiple inputs.
+function openPendingActivateRow(slug, name) {
+  const wrap = document.getElementById('lifecycle-table-wrap');
+  if (!wrap) return;
+  const existing = document.getElementById('pending-activate-panel');
+  if (existing) { existing.remove(); return; }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const panel = document.createElement('div');
+  panel.id = 'pending-activate-panel';
+  panel.style.cssText = 'margin-top:12px;padding:14px;background:rgba(79,180,138,0.08);border:1px solid var(--lifecycle-active, #4FB48A);border-radius:10px';
+  panel.innerHTML = `
+    <div style="font-size:13px;color:var(--text);margin-bottom:6px">
+      <span style="color:var(--lifecycle-active)">&#9728;</span>
+      Activate <strong>${lifecycleEsc(name)}</strong>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+      Capture which tickets this plan covers so progress can be computed. Plan moves to Active on submit.
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;font-size:12px;margin-bottom:8px">
+      <label style="color:var(--text);cursor:pointer">
+        <input type="radio" name="pending-spec-kind" value="range" checked onchange="_pendingSpecKindChange()" style="margin-right:6px">Range
+      </label>
+      <label style="color:var(--text);cursor:pointer">
+        <input type="radio" name="pending-spec-kind" value="ids" onchange="_pendingSpecKindChange()" style="margin-right:6px">Explicit IDs
+      </label>
+    </div>
+    <div id="pending-spec-range-row" style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="pending-spec-from" type="text" placeholder="From (e.g. T-083)" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit">
+      <input id="pending-spec-to" type="text" placeholder="To (e.g. T-090)" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit">
+    </div>
+    <div id="pending-spec-ids-row" style="display:none;margin-bottom:10px">
+      <input id="pending-spec-ids" type="text" placeholder="Comma-separated (e.g. T-100, T-102, T-105)" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit">
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="pending-decision-date" type="date" value="${lifecycleEsc(today)}" style="flex:0 0 160px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit">
+      <input id="pending-note" type="text" placeholder="Note (optional)" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit">
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div id="pending-activate-status" style="font-size:11px;color:var(--muted)"></div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="document.getElementById('pending-activate-panel').remove()" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit">Cancel</button>
+        <button type="button" id="pending-activate-submit" onclick="submitPendingActivate('${lifecycleEsc(slug)}')" style="background:var(--lifecycle-active, #4FB48A);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Activate</button>
+      </div>
+    </div>`;
+  wrap.parentNode.appendChild(panel);
+  const fromEl = document.getElementById('pending-spec-from');
+  if (fromEl) fromEl.focus();
+}
+
+function _pendingSpecKindChange() {
+  const kindEl = document.querySelector('input[name="pending-spec-kind"]:checked');
+  const kind = kindEl ? kindEl.value : 'range';
+  const rangeRow = document.getElementById('pending-spec-range-row');
+  const idsRow = document.getElementById('pending-spec-ids-row');
+  if (rangeRow) rangeRow.style.display = kind === 'range' ? 'flex' : 'none';
+  if (idsRow) idsRow.style.display = kind === 'ids' ? 'block' : 'none';
+}
+
+// T-NUMBER comparator (e.g. T-90 < T-100 by numeric suffix, not lexicographic).
+function _parseTNum(s) {
+  const m = String(s || '').trim().match(/^([A-Za-z]+)[\s\-_]?(\d+)$/);
+  return m ? { prefix: m[1].toUpperCase(), num: parseInt(m[2], 10) } : null;
+}
+
+async function submitPendingActivate(slug) {
+  const kindEl = document.querySelector('input[name="pending-spec-kind"]:checked');
+  const kind = kindEl ? kindEl.value : 'range';
+  const status = document.getElementById('pending-activate-status');
+  const btn = document.getElementById('pending-activate-submit');
+  const setErr = (msg) => { if (status) { status.textContent = msg; status.style.color = 'var(--amber)'; } };
+
+  let ticket_spec;
+  if (kind === 'range') {
+    const from = (document.getElementById('pending-spec-from')?.value || '').trim();
+    const to = (document.getElementById('pending-spec-to')?.value || '').trim();
+    if (!from || !to) { setErr('From and To are both required for a range.'); return; }
+    const fromP = _parseTNum(from);
+    const toP = _parseTNum(to);
+    if (fromP && toP && fromP.prefix === toP.prefix && fromP.num > toP.num) {
+      setErr(`Out of order — ${from} comes after ${to}. Swap or use Explicit IDs.`);
+      return;
+    }
+    ticket_spec = { kind: 'range', value: [from, to] };
+  } else {
+    const raw = (document.getElementById('pending-spec-ids')?.value || '').trim();
+    if (!raw) { setErr('Enter at least one ticket ID.'); return; }
+    const ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+    if (ids.length === 0) { setErr('Enter at least one ticket ID.'); return; }
+    ticket_spec = { kind: 'ids', value: ids };
+  }
+
+  const decision_date = (document.getElementById('pending-decision-date')?.value || '').trim();
+  const note = (document.getElementById('pending-note')?.value || '').trim();
+  const body = { ticket_spec };
+  if (decision_date) body.decision_date = decision_date;
+  if (note) body.note = note;
+
+  if (btn) btn.disabled = true;
+  if (status) { status.textContent = 'Activating…'; status.style.color = 'var(--muted)'; }
+  try {
+    const r = await api(`mission-control/pending-plans/${encodeURIComponent(slug)}/activate`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (r && r.ok) {
+      if (status) { status.textContent = 'Activated → moved to Active column.'; status.style.color = 'var(--success)'; }
+      setTimeout(() => {
+        const panel = document.getElementById('pending-activate-panel');
+        if (panel) panel.remove();
+        loadLifecyclePage();
+      }, 700);
+    } else {
+      const msg = (r && r.error) || 'Activate failed';
+      if (status) { status.textContent = msg; status.style.color = 'var(--danger)'; }
+      if (btn) btn.disabled = false;
+    }
+  } catch (e) {
+    if (status) { status.textContent = 'Activate failed (network).'; status.style.color = 'var(--danger)'; }
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function dismissPending(slug) {
+  if (!confirm('Dismiss this pending plan? The entry will be removed from config/pending-plans.json. The underlying plan file in ~/.claude/plans/ is NOT touched.')) return;
+  try {
+    const r = await api(`mission-control/pending-plans/${encodeURIComponent(slug)}/dismiss`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (r && r.ok) {
+      loadLifecyclePage();
+    } else {
+      alert((r && r.error) || 'Dismiss failed');
+    }
+  } catch (e) {
+    alert('Dismiss failed (network).');
   }
 }
 

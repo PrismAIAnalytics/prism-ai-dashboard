@@ -5490,7 +5490,9 @@ app.get('/api/mission-control/plans', requireAuth, async (req, res) => {
 // Auto-scan returns empty when the plans directory is unavailable (Railway).
 app.get('/api/mission-control/pending-plans', requireAuth, async (req, res) => {
   try {
-    const result = await pendingPlansAggregator.getPendingPlans();
+    // T-084: pass plansAggregator so the self-healing dedup filter masks any
+    // slug that landed in both pending and active manifests via a partial write.
+    const result = await pendingPlansAggregator.getPendingPlans(plansAggregator);
     res.json({
       ok: true,
       pending_plans: result.pending_plans,
@@ -5544,6 +5546,48 @@ app.post('/api/mission-control/plans/:slug/ship', requireAuth, [
     return res.json(out);
   } catch (e) {
     console.warn('[mission-control/plans/:slug/ship] failed:', e.message);
+    return res.status(e.status || 500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-084: Pending → Active promote. Moves an entry from config/pending-plans.json
+// to config/active-roadmaps.json, capturing the ticket spec the user provided
+// in the activate modal. Atomicity: active append first; if active write
+// succeeds but pending remove fails, the self-healing dedup in
+// pendingPlansAggregator.getPendingPlans masks the dup on render.
+// Admin-only via the /api role middleware at server.js:690.
+app.post('/api/mission-control/pending-plans/:slug/activate', requireAuth, [
+  body('ticket_spec').isObject().withMessage('ticket_spec object is required'),
+  body('ticket_spec.kind').isIn(['range', 'ids']).withMessage('ticket_spec.kind must be "range" or "ids"'),
+  body('ticket_spec.value').isArray({ min: 1 }).withMessage('ticket_spec.value must be a non-empty array'),
+  body('decision_date').optional().isString(),
+  body('note').optional().isString(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ ok: false, errors: errors.array() });
+  }
+  try {
+    const out = await lifecycleAggregator.activatePendingPlan(req.params.slug, {
+      ticket_spec: req.body.ticket_spec,
+      decision_date: req.body.decision_date,
+      note: req.body.note,
+    });
+    return res.json(out);
+  } catch (e) {
+    console.warn('[mission-control/pending-plans/:slug/activate] failed:', e.message);
+    return res.status(e.status || 500).json({ ok: false, error: e.message });
+  }
+});
+
+// T-084: Pending Dismiss. Removes an entry from config/pending-plans.json.
+// Does NOT touch the underlying ~/.claude/plans/*.md file — that's user data.
+app.post('/api/mission-control/pending-plans/:slug/dismiss', requireAuth, async (req, res) => {
+  try {
+    const out = await lifecycleAggregator.dismissPendingPlan(req.params.slug);
+    return res.json(out);
+  } catch (e) {
+    console.warn('[mission-control/pending-plans/:slug/dismiss] failed:', e.message);
     return res.status(e.status || 500).json({ ok: false, error: e.message });
   }
 });
