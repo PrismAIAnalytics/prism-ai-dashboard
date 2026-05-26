@@ -262,7 +262,7 @@ async function compute(notionAdapter, { useCache = true } = {}) {
   // ─── 3. Pending plans ──────────────────────────────────────────────────
   let pendingItems = [];
   try {
-    const pending = await pendingPlansAggregator.getPendingPlans();
+    const pending = await pendingPlansAggregator.getPendingPlans(plansAggregator);
     pendingItems = (pending.pending_plans || []).map(p => ({
       id: `pending:${p.slug}`,
       state: 'pending',
@@ -499,9 +499,118 @@ async function shipPlan(slug, closingComment, notionAdapter) {
   return { ok: true, shipped: shippedEntry };
 }
 
+// ─── T-084: Pending → Active promote + dismiss ────────────────────────────
+// Slug allowlist matches the filenames produced by ~/.claude/plans/ auto-scan
+// (slugified plan filenames, hyphen/underscore only). Defends against path
+// traversal even though slugs are JSON keys here, not filesystem paths —
+// suggested plans (T-085) will use the same regex for file-path containment.
+const SLUG_ALLOWLIST = /^[a-z0-9][a-z0-9\-_]{0,80}$/i;
+
+function _assertValidSlug(slug) {
+  if (!slug || typeof slug !== 'string' || !SLUG_ALLOWLIST.test(slug)) {
+    const e = new Error('invalid slug');
+    e.status = 400;
+    throw e;
+  }
+}
+
+// Activate a Pending plan → Active. Body:
+//   ticket_spec: { kind: 'range', value: [from, to] } | { kind: 'ids', value: [...] }
+//   decision_date?: 'YYYY-MM-DD' (default today)
+//   note?: string
+// Atomic ordering: append to active first; if that fails, no state change.
+// Then remove from pending. Partial write (active appended, pending remove
+// failed) is masked by the self-healing dedup in pendingPlansAggregator.
+async function activatePendingPlan(slug, { ticket_spec, decision_date, note } = {}) {
+  _assertValidSlug(slug);
+
+  if (!ticket_spec || typeof ticket_spec !== 'object') {
+    const e = new Error('ticket_spec is required');
+    e.status = 422;
+    throw e;
+  }
+  if (ticket_spec.kind !== 'range' && ticket_spec.kind !== 'ids') {
+    const e = new Error('ticket_spec.kind must be "range" or "ids"');
+    e.status = 422;
+    throw e;
+  }
+  if (!Array.isArray(ticket_spec.value) || ticket_spec.value.length === 0) {
+    const e = new Error('ticket_spec.value must be a non-empty array');
+    e.status = 422;
+    throw e;
+  }
+  if (ticket_spec.kind === 'range' && ticket_spec.value.length !== 2) {
+    const e = new Error('ticket_spec.value must be [from, to] for kind="range"');
+    e.status = 422;
+    throw e;
+  }
+
+  // Look up the pending entry. readManifest is raw — sees entries even if the
+  // self-healing dedup has hidden them from getPendingPlans output.
+  const pending = pendingPlansAggregator.readManifest();
+  const entry = pending.find(p => p.slug === slug);
+  if (!entry) {
+    const e = new Error(`pending plan not found: ${slug}`);
+    e.status = 404;
+    throw e;
+  }
+
+  // Build the active manifest entry. Only one of ticket_id_range / ticket_ids
+  // per plansAggregator convention.
+  const activeEntry = {
+    slug: entry.slug,
+    name: entry.name,
+    decision_date: (decision_date || '').toString().trim() || new Date().toISOString().slice(0, 10),
+  };
+  if (ticket_spec.kind === 'range') {
+    activeEntry.ticket_id_range = [String(ticket_spec.value[0]), String(ticket_spec.value[1])];
+  } else {
+    activeEntry.ticket_ids = ticket_spec.value.map(v => String(v));
+  }
+  if (note && String(note).trim()) activeEntry.note = String(note).trim();
+
+  // Step 1: append to active. Throws 409 on slug collision (caller decides).
+  plansAggregator.appendToManifest(activeEntry);
+
+  // Step 2: remove from pending. If this throws, partial state — self-healing
+  // dedup masks it on the next render; log and re-throw as a soft warning.
+  try {
+    const remaining = pending.filter(p => p.slug !== slug);
+    pendingPlansAggregator.writeManifest(remaining);
+  } catch (e) {
+    console.warn('[lifecycleAggregator] activatePendingPlan: active append OK but pending write failed — self-healing dedup will mask:', e.message);
+  }
+
+  invalidateCache();
+  return { ok: true, activated: activeEntry };
+}
+
+// Dismiss a Pending plan: remove from config/pending-plans.json only. Does
+// NOT touch the underlying ~/.claude/plans/*.md file — that's the user's data.
+async function dismissPendingPlan(slug) {
+  _assertValidSlug(slug);
+
+  const pending = pendingPlansAggregator.readManifest();
+  const entry = pending.find(p => p.slug === slug);
+  if (!entry) {
+    const e = new Error(`pending plan not found: ${slug}`);
+    e.status = 404;
+    throw e;
+  }
+
+  const remaining = pending.filter(p => p.slug !== slug);
+  pendingPlansAggregator.writeManifest(remaining);
+
+  invalidateCache();
+  return { ok: true, dismissed: slug };
+}
+
 module.exports = {
   compute,
   shipPlan,
+  // T-084 exports for Pending → Active + Dismiss
+  activatePendingPlan,
+  dismissPendingPlan,
   invalidateCache,
   // Exposed for tests
   NOTION_CATEGORY_TO_WORKSTREAM,

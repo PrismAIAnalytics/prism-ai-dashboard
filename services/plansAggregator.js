@@ -209,6 +209,23 @@ function writeManifestRaw(entries) {
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(payload, null, 2) + '\n', 'utf8');
 }
 
+// T-084: append helper consumed by lifecycleAggregator.activatePendingPlan
+// (Pending → Active promote). Declared here rather than inlined at the call
+// site so T-085's `→ Add to Pending` action can reuse the same helper for its
+// own append path. Throws if a slug collision exists — caller decides 409.
+function appendToManifest(entry) {
+  if (!entry || typeof entry.slug !== 'string' || !entry.slug) {
+    throw new Error('appendToManifest: entry.slug is required');
+  }
+  const current = readManifestRaw();
+  if (current.some(e => e.slug === entry.slug)) {
+    const err = new Error(`appendToManifest: slug already present in active manifest: ${entry.slug}`);
+    err.status = 409;
+    throw err;
+  }
+  writeManifestRaw([...current, entry]);
+}
+
 module.exports = {
   getActiveRoadmaps,
   parseTicketId,
@@ -219,4 +236,6 @@ module.exports = {
   // T-078 exports for lifecycleAggregator + Ship transition endpoint
   readManifestRaw,
   writeManifestRaw,
+  // T-084 export for Pending → Active promote (also reused by T-085 if/when shipped)
+  appendToManifest,
 };

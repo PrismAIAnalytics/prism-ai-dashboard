@@ -129,9 +129,36 @@ function scanPlansDir(manifestBasenames) {
   return { suggested, available: true };
 }
 
-async function getPendingPlans() {
+// T-084: writer counterpart to readManifest. Preserves the existing wrapper
+// shape `{ pending_plans: [...] }` and prepends a self-documenting _comment
+// matching the convention used by plansAggregator.writeManifestRaw.
+function writeManifest(entries) {
+  const payload = {
+    _comment: 'T-065: Plans awaiting Michele\'s approval. Surfaces as Pending-state rows on the Daily Agenda Lifecycle table. T-084 added the activate/dismiss endpoints — entries are removed from this file when promoted to Active (via plansAggregator.appendToManifest) or dismissed outright.',
+    pending_plans: entries,
+  };
+  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+}
+
+async function getPendingPlans(plansAggregator) {
   const manifest = readManifest();
   const manifestPresent = fs.existsSync(MANIFEST_PATH);
+
+  // T-084: self-healing dedup — if a partial two-file write left a slug in
+  // both pending and active manifests, surface it in Active only. plansAggregator
+  // is passed in (rather than required at the top) to avoid a circular
+  // dependency since plansAggregator never imports this module today.
+  let displayManifest = manifest;
+  if (plansAggregator && typeof plansAggregator.readManifestRaw === 'function') {
+    try {
+      const activeSlugs = new Set(plansAggregator.readManifestRaw().map(e => e.slug).filter(Boolean));
+      displayManifest = manifest.filter(p => !activeSlugs.has(p.slug));
+    } catch (e) {
+      // Don't fail the Pending render if active manifest is unreadable —
+      // fall back to raw manifest. Logged at warn.
+      console.warn('[pendingPlansAggregator] dedup filter failed:', e.message);
+    }
+  }
 
   const manifestBasenames = new Set(
     manifest.map((p) => (p.plan_file ? path.basename(p.plan_file) : '')).filter(Boolean)
@@ -139,7 +166,7 @@ async function getPendingPlans() {
   const scan = scanPlansDir(manifestBasenames);
 
   return {
-    pending_plans: manifest,
+    pending_plans: displayManifest,
     suggested_plans: scan.suggested,
     manifest_present: manifestPresent,
     manifest_path: MANIFEST_PATH,
@@ -154,4 +181,7 @@ module.exports = {
   PLANS_DIR,
   inspectPlanFile,
   scanPlansDir,
+  // T-084 exports for activate/dismiss handlers
+  readManifest,
+  writeManifest,
 };
