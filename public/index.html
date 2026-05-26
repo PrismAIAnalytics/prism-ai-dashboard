@@ -5619,6 +5619,16 @@ function lifecycleProgressBar(item) {
 }
 
 function lifecycleRowActions(item) {
+  if (item.state === 'idea') {
+    // T-082: restore Inbox triage actions after T-078 dropped the Idea Vault accordion.
+    // item.id is `idea:<notion-page-uuid>` per lifecycleAggregator.js — strip the prefix
+    // before handing to triageInbox, which POSTs to /api/mission-control/inbox/:id/triage.
+    const pageId = lifecycleEsc(String(item.id || '').replace(/^idea:/, ''));
+    const openLink = item.drill_link && /^https?:/.test(item.drill_link)
+      ? `<a href="${lifecycleEsc(item.drill_link)}" target="_blank" rel="noopener" title="Open in Notion to adjust category/due date" style="font-size:11px;color:var(--blue);margin-left:6px">&#8599;</a>`
+      : '';
+    return `<button type="button" onclick="triageInbox('${pageId}','ticket')" title="Promote to ticket — adjust category/due date in Notion" style="background:var(--lifecycle-handoff, #C18A4F);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">&rarr; Ticket</button> <button type="button" onclick="triageInbox('${pageId}','dismiss')" title="Dismiss — archives the Notion page" style="background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;margin-left:6px">Dismiss</button>${openLink}`;
+  }
   if (item.state === 'active' && item.ready_to_ship) {
     return `<button type="button" onclick="openShipPlanRow('${lifecycleEsc(item.slug || '')}', '${lifecycleEsc(item.title || '').replace(/'/g, "\\'")}')" style="background:var(--lifecycle-shipped, #8A6AD9);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Ship this plan &rarr;</button>`;
   }
@@ -5966,8 +5976,8 @@ loaders['daily-agenda'] = async () => {
   // T-078: Lifecycle Spectrum view supersedes the prior three loaders
   // (loadInboxPanel, renderAgendaPlans, renderAgendaPendingPlans). Single
   // aggregator endpoint feeds 7 KPI tiles + 3 charts + sortable detail table.
-  // The legacy panel renderers stay in this file (vestigial) but are no
-  // longer invoked; their DOM targets were removed in the same change.
+  // T-082 deleted the orphaned loadInboxPanel / _renderInboxItem renderers
+  // and restored Inbox→Ticket triage actions on Idea-state Lifecycle rows.
   loadLifecyclePage();
 
   // Recommended for To Do panel — Phase C (2026-05-24). Independent failure mode.
@@ -6005,11 +6015,10 @@ loaders['daily-agenda'] = async () => {
 
 // ═══════════════════════════════════════════════════════════════
 // --- T-037: Mission Control Inbox handlers ---
-// Sticky capture submit, inbox panel render, triage actions.
-
-function _inboxEscapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+// Sticky capture submit + triage actions. The inbox panel renderer
+// (loadInboxPanel + _renderInboxItem) was removed by T-082 — captures
+// now surface as Idea-state rows on the Lifecycle table (T-078), and
+// triage actions hang off lifecycleRowActions().
 
 async function submitInboxCapture() {
   const input = document.getElementById('inbox-capture-input');
@@ -6033,9 +6042,11 @@ async function submitInboxCapture() {
     if (r && r.ok) {
       if (status) { status.textContent = 'Captured'; status.style.color = 'var(--green, #4FB48A)'; }
       setTimeout(() => { if (status) status.textContent = ''; }, 2000);
-      // Refresh the inbox panel if Daily Agenda is the active page.
+      // T-082: refresh the Lifecycle table if Daily Agenda is active so the new
+      // capture appears as an Idea-state row immediately (replaces the prior
+      // loadInboxPanel() call against the dropped Idea Vault accordion).
       const dailyAgenda = document.getElementById('page-daily-agenda');
-      if (dailyAgenda && dailyAgenda.classList.contains('active')) loadInboxPanel();
+      if (dailyAgenda && dailyAgenda.classList.contains('active') && typeof loadLifecyclePage === 'function') loadLifecyclePage();
     } else {
       // Rollback — restore the input so the user can retry.
       input.value = text;
@@ -6320,57 +6331,6 @@ async function pastDuePromoteAll() {
   loadPastDueBacklog(); // refresh from API to reflect server-side state
 }
 
-async function loadInboxPanel() {
-  const body = document.getElementById('agenda-inbox-body');
-  const countEl = document.getElementById('agenda-inbox-count');
-  const slaEl = document.getElementById('agenda-inbox-sla');
-  if (!body) return;
-  try {
-    const r = await api('mission-control/inbox');
-    if (!r || !r.ok) {
-      body.innerHTML = '<em style="color:var(--muted)">Idea Vault temporarily unavailable.</em>';
-      if (countEl) countEl.textContent = '';
-      if (slaEl) slaEl.style.display = 'none';
-      return;
-    }
-    const captures = r.captures || [];
-    if (countEl) countEl.textContent = `· ${r.count} ${r.count === 1 ? 'item' : 'items'}`;
-    if (slaEl) slaEl.style.display = r.sla_breached ? 'inline' : 'none';
-    if (captures.length === 0) {
-      body.innerHTML = '<em style="color:var(--muted)">Idea Vault is clear.</em>';
-      return;
-    }
-    body.innerHTML = captures.map(_renderInboxItem).join('');
-  } catch (e) {
-    body.innerHTML = '<em style="color:var(--muted)">Idea Vault failed to load.</em>';
-  }
-}
-
-function _renderInboxItem(c) {
-  const id = _inboxEscapeHtml(c.id);
-  const title = _inboxEscapeHtml(c.title || '(no title)');
-  const ts = c.created_at ? new Date(c.created_at).toLocaleString() : '';
-  // T-057: surface the captured-by user inline when present (no "by " prefix
-  // per Michele 2026-05-23 — the username and timestamp on the same line are
-  // self-explanatory).
-  const by = c.captured_by ? `${_inboxEscapeHtml(c.captured_by)} · ` : '';
-  const meta = `${by}${_inboxEscapeHtml(ts)}`;
-  const btnStyle = 'background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit';
-  return `
-    <div class="inbox-item" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-      <div style="flex:1;min-width:0">
-        <div style="color:var(--text);font-size:13px;word-break:break-word">${title}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">${meta}</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-        <button type="button" style="${btnStyle}" onclick="triageInbox('${id}','ticket')" title="Promote to ticket — adjust category/due date in Notion">&rarr; Ticket</button>
-        <button type="button" style="${btnStyle}" onclick="triageInbox('${id}','open_question')" title="Promote to open question (T-040 vault writer required)">&rarr; Question</button>
-        <button type="button" style="${btnStyle};color:var(--muted)" onclick="triageInbox('${id}','dismiss')" title="Dismiss — archives the Notion page">Dismiss</button>
-      </div>
-    </div>
-  `;
-}
-
 async function triageInbox(id, action) {
   if (action === 'dismiss' && !confirm('Dismiss this capture? It will be archived in Notion.')) return;
   try {
@@ -6380,7 +6340,9 @@ async function triageInbox(id, action) {
       headers: { 'Content-Type': 'application/json' },
     });
     if (r && r.ok) {
-      loadInboxPanel();
+      // T-082: refresh the Lifecycle table — the old Idea Vault panel that
+      // loadInboxPanel() targeted was dropped by T-078.
+      if (typeof loadLifecyclePage === 'function') loadLifecyclePage();
     } else {
       const msg = (r && r.error) || 'Triage failed';
       // 503 path for open_question — friendly fallback per leverage brief.
