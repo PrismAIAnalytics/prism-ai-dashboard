@@ -1172,6 +1172,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
             </div>
             <input id="lifecycle-search" type="text" placeholder="Search&hellip;" oninput="renderLifecycleTable()"
               style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;font-family:inherit;width:200px"/>
+            <!-- T-086: refresh button bypasses the 60s lifecycle cache via ?refresh=1 -->
+            <button id="lifecycle-refresh-btn" type="button" onclick="loadLifecyclePage({ refresh: true })" title="Refresh — bypass the 60s server cache" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:14px;line-height:1;cursor:pointer;font-family:inherit">&#x21bb;</button>
           </div>
         </div>
 
@@ -5431,10 +5433,19 @@ let chartLifecycleDistribution = null;
 let chartWorkstreamMix = null;
 let chartPipelineByState = null;
 
-async function loadLifecyclePage() {
+async function loadLifecyclePage(options = {}) {
   const tableEl = document.getElementById('lifecycle-table');
+  // T-086: when called from the refresh button, send ?refresh=1 to bypass the
+  // 60s server-side cache. Other callers (page boot, action-handler success
+  // refreshes) pass no options and hit the cache as normal.
+  const refreshBtn = document.getElementById('lifecycle-refresh-btn');
+  if (options.refresh && refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.style.opacity = '0.5';
+  }
   try {
-    const r = await api('mission-control/lifecycle');
+    const url = options.refresh ? 'mission-control/lifecycle?refresh=1' : 'mission-control/lifecycle';
+    const r = await api(url);
     if (!r || !r.ok) {
       if (tableEl) tableEl.innerHTML = '<em style="color:var(--muted)">Lifecycle view temporarily unavailable.</em>';
       return;
@@ -5447,6 +5458,11 @@ async function loadLifecyclePage() {
     renderLifecycleTable();
   } catch (e) {
     if (tableEl) tableEl.innerHTML = '<em style="color:var(--muted)">Lifecycle view failed to load.</em>';
+  } finally {
+    if (refreshBtn) {
+      refreshBtn.disabled = false;
+      refreshBtn.style.opacity = '1';
+    }
   }
 }
 
