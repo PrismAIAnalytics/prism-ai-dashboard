@@ -32,22 +32,39 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const plansAggregator = require('./plansAggregator');
 const pendingPlansAggregator = require('./pendingPlansAggregator');
 const inboxRouter = require('./inboxRouter');
 
-// parseFrontMatter lives at workspace-root Handoffs/parseFrontMatter.js so it
-// can be shared with the CLI build-index. On Railway the workspace root is not
-// shipped, so require() fails — fall back to a no-op parser that returns null
-// for every input (handoffs surface as "needs front-matter").
+// parseFrontMatter + serializeFrontMatter (T-083) live at workspace-root
+// Handoffs/parseFrontMatter.js so they can be shared with the CLI build-index.
+// On Railway the workspace root is not shipped, so require() fails — fall back
+// to no-op stubs (handoffs surface as "needs front-matter"; spawn-plan returns
+// 503 before reaching the serializer anyway since ~/.claude/plans/ is absent).
 let parseFrontMatter;
+let serializeFrontMatter;
 try {
   // eslint-disable-next-line global-require, import/no-unresolved
-  ({ parseFrontMatter } = require('../../../Handoffs/parseFrontMatter'));
+  const mod = require('../../../Handoffs/parseFrontMatter');
+  parseFrontMatter = typeof mod.parseFrontMatter === 'function' ? mod.parseFrontMatter : () => null;
+  // Older versions of the workspace-root module may not export
+  // serializeFrontMatter (added in T-083). Detect that explicitly so we
+  // don't silently destructure to `undefined` and crash spawn-plan at call
+  // time — fall back to a marker that throws, surfacing the workflow gap.
+  serializeFrontMatter = typeof mod.serializeFrontMatter === 'function'
+    ? mod.serializeFrontMatter
+    : () => { throw new Error('serializeFrontMatter not present in workspace-root Handoffs/parseFrontMatter.js — upgrade it (T-083 introduced this export)'); };
 } catch (_) {
   parseFrontMatter = () => null;
+  serializeFrontMatter = () => { throw new Error('Handoffs/parseFrontMatter module not available in this environment (Railway / non-local clone)'); };
 }
+
+// T-083: home for spawned plan files. Absolute path so containment checks
+// against arbitrary slug input are predictable. Local-only — Railway has
+// no ~/.claude/ directory, so spawn-plan returns 503 if this isn't writable.
+const PLANS_DIR_ABS = path.resolve(path.join(os.homedir(), '.claude', 'plans'));
 
 // Resolve workspace-root + handoff scan paths. WORKSPACE_ROOT is __dirname / ../../..
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -605,13 +622,143 @@ async function dismissPendingPlan(slug) {
   return { ok: true, dismissed: slug };
 }
 
+// ─── T-083: Handoff → Plan spawn ───────────────────────────────────────────
+// Reads a Handoff .md file, writes a new plan file to ~/.claude/plans/ with a
+// "Draft for review" marker so pendingPlansAggregator.REVIEW_MARKERS picks it
+// up as a suggested_plan, and bumps the source handoff's frontmatter with
+// last_updated + spawned_plan: <basename> for traceability.
+//
+// Atomicity gate (per peer-review): rewrite the source handoff FIRST. If that
+// fails, no new file is created. If the new-plan write fails after the source
+// was bumped, the dangling `spawned_plan:` ref is more visible/recoverable
+// than the inverse orphan.
+//
+// Local-only: Railway has no ~/.claude/plans/. Returns 503 when paths absent.
+async function spawnPlanFromHandoff(handoffSlug) {
+  _assertValidSlug(handoffSlug);
+
+  // Find the handoff. listHandoffs filters by status:active OR no-front-matter
+  // — we additionally require has_front_matter (can't bump frontmatter on a
+  // legacy file that doesn't have a parseable block).
+  const handoffs = listHandoffs();
+  const handoff = handoffs.find(h => h.slug === handoffSlug);
+  if (!handoff) {
+    const e = new Error(`handoff not found: ${handoffSlug}`);
+    e.status = 404;
+    throw e;
+  }
+  if (!handoff.has_front_matter) {
+    const e = new Error(`handoff has no front-matter — can't bump it. Add a YAML block first.`);
+    e.status = 422;
+    throw e;
+  }
+
+  // Verify destination directory exists. Local-dev only — Railway has no ~/.claude/.
+  if (!fs.existsSync(PLANS_DIR_ABS)) {
+    const e = new Error('Handoff→Plan is local-only (~/.claude/plans/ not present in this environment)');
+    e.status = 503;
+    throw e;
+  }
+
+  // TOCTOU guard: lstat the source handoff and abort on symlink.
+  let srcStat;
+  try {
+    srcStat = fs.lstatSync(handoff.source_path);
+  } catch (e) {
+    const err = new Error(`source handoff unreadable: ${e.code || e.message}`);
+    err.status = 500;
+    throw err;
+  }
+  if (srcStat.isSymbolicLink()) {
+    const e = new Error('source handoff is a symlink — refusing to write through it');
+    e.status = 409;
+    throw e;
+  }
+
+  // Read source and split into frontmatter + body.
+  const sourceContent = fs.readFileSync(handoff.source_path, 'utf8');
+  const fmMatch = sourceContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!fmMatch) {
+    // Shouldn't happen — listHandoffs already verified front-matter — but guard.
+    const e = new Error('source handoff frontmatter block missing');
+    e.status = 422;
+    throw e;
+  }
+  const body = sourceContent.slice(fmMatch[0].length);
+  if (!body.replace(/\s/g, '')) {
+    const e = new Error('source handoff body is empty');
+    e.status = 422;
+    throw e;
+  }
+
+  // Compute target path with containment check. Slug already passed allowlist;
+  // path.resolve + startsWith is defense in depth against any future bypass.
+  const today = new Date().toISOString().slice(0, 10);
+  const baseName = `handoff-${handoffSlug}-${today}.md`;
+  let targetPath = path.resolve(PLANS_DIR_ABS, baseName);
+  if (!targetPath.startsWith(PLANS_DIR_ABS + path.sep)) {
+    const e = new Error('target path escapes plans directory');
+    e.status = 400;
+    throw e;
+  }
+
+  // Collision handling: -1, -2, ... if a file already exists for this slug+date.
+  let suffix = 0;
+  while (fs.existsSync(targetPath)) {
+    suffix += 1;
+    if (suffix > 99) {
+      const e = new Error('too many collisions — ran out of suffix slots');
+      e.status = 409;
+      throw e;
+    }
+    targetPath = path.resolve(PLANS_DIR_ABS, `handoff-${handoffSlug}-${today}-${suffix}.md`);
+    if (!targetPath.startsWith(PLANS_DIR_ABS + path.sep)) {
+      const e = new Error('target path escapes plans directory');
+      e.status = 400;
+      throw e;
+    }
+  }
+
+  // Step 1 (atomicity gate): bump source handoff frontmatter FIRST.
+  // Build a new frontmatter object from the parsed one, updating last_updated +
+  // adding spawned_plan: <basename>. Basename only (not full path) — defense
+  // in depth against path-leak through the serialized value.
+  const newFm = { ...handoff.front_matter };
+  newFm.last_updated = today;
+  newFm.spawned_plan = path.basename(targetPath);
+  const newFmBlock = serializeFrontMatter(newFm);
+  const newSourceContent = `${newFmBlock}\n${body.startsWith('\n') ? body.slice(1) : body}`;
+  fs.writeFileSync(handoff.source_path, newSourceContent, 'utf8');
+
+  // Step 2: write the new plan file. If this throws, the source has been
+  // bumped but the plan file doesn't exist — surfaces as a dangling
+  // spawned_plan: reference on next listHandoffs scan.
+  const planFm = {
+    source_handoff: path.basename(handoff.source_path),
+    created: today,
+  };
+  const planContent = `${serializeFrontMatter(planFm)}\n\nDraft for review\n\n# ${handoff.title}\n\n${body.trim()}\n`;
+  fs.writeFileSync(targetPath, planContent, 'utf8');
+
+  invalidateCache();
+  return {
+    ok: true,
+    plan_path: targetPath,
+    source_handoff_path: handoff.source_path,
+  };
+}
+
 module.exports = {
   compute,
   shipPlan,
   // T-084 exports for Pending → Active + Dismiss
   activatePendingPlan,
   dismissPendingPlan,
+  // T-083 export for Handoff → Plan spawn
+  spawnPlanFromHandoff,
   invalidateCache,
+  // T-083 exposed for tests
+  PLANS_DIR_ABS,
   // Exposed for tests
   NOTION_CATEGORY_TO_WORKSTREAM,
   ALL_WORKSTREAMS,
