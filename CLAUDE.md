@@ -39,6 +39,14 @@ If In Progress in TASKS.md is non-empty and the owner isn't you, **stop and ask 
 - Prefer minimal, targeted edits over broad rewrites
 - After any frontend change, verify the result visually using the preview tool
 
+## Plan file convention
+
+Plan files written to `~/.claude/plans/` (typically via `ExitPlanMode` in plan mode) need the literal phrase **`Draft for review`** in their first 4 KB to surface as Pending suggestions on the Daily Agenda Lifecycle table. The scanner is `services/pendingPlansAggregator.js` `REVIEW_MARKERS` — it also accepts `For review:`, `Not approved`, `Awaiting review`, `Awaiting approval`, `Deferred for review` (case-insensitive). The cleanest placement is a `**Status:** Draft for review` line between the H1 and the first section.
+
+Plans without a marker silently stay invisible to the dashboard — by design (covers scratch / superseded / shipped artifacts). **Watch for near-misses** like `Draft for approval` — close-but-not-matching phrases cause silent surface failures.
+
+Full rule, override conditions, and rationale: workspace-root [CLAUDE.md](../../CLAUDE.md) → "Plan file convention" (canonical source).
+
 ## Commands
 
 ```bash
