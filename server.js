@@ -5592,6 +5592,22 @@ app.post('/api/mission-control/pending-plans/:slug/dismiss', requireAuth, async 
   }
 });
 
+// T-083: Handoff → Plan spawn. Reads a Handoff .md file, writes a new plan
+// file to ~/.claude/plans/ with a "Draft for review" marker so the pending-
+// plans auto-scanner picks it up, and bumps the source handoff's frontmatter
+// with last_updated + spawned_plan:<basename>. Local-only — returns 503 on
+// Railway where ~/.claude/plans/ doesn't exist. Admin-only via /api role
+// middleware (server.js:690).
+app.post('/api/mission-control/handoffs/:slug/spawn', requireAuth, async (req, res) => {
+  try {
+    const out = await lifecycleAggregator.spawnPlanFromHandoff(req.params.slug);
+    return res.json(out);
+  } catch (e) {
+    console.warn('[mission-control/handoffs/:slug/spawn] failed:', e.message);
+    return res.status(e.status || 500).json({ ok: false, error: e.message });
+  }
+});
+
 // T-076: Knowledgebase manifest endpoint. Reads the committed manifest at
 // config/knowledgebase-manifest.json (produced by
 // scripts/rebuild-knowledgebase-manifest.js) and decorates each item with

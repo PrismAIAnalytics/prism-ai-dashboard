@@ -5642,8 +5642,17 @@ function lifecycleRowActions(item) {
   if (item.state === 'active' && item.ready_to_ship) {
     return `<button type="button" onclick="openShipPlanRow('${lifecycleEsc(item.slug || '')}', '${lifecycleEsc(item.title || '').replace(/'/g, "\\'")}')" style="background:var(--lifecycle-shipped, #8A6AD9);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Ship this plan &rarr;</button>`;
   }
-  if (item.state === 'handoff' && !item.has_front_matter) {
-    return `<span style="font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:0.4px;font-weight:500">Needs front-matter</span>`;
+  if (item.state === 'handoff') {
+    // T-083: Handoff → Plan spawn. Preserve the existing "Needs front-matter"
+    // warning when the file has no parseable YAML block (the backend can't
+    // bump frontmatter that doesn't exist). Otherwise render the → Plan
+    // button, which POSTs to /api/mission-control/handoffs/:slug/spawn.
+    if (!item.has_front_matter) {
+      return `<span style="font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:0.4px;font-weight:500">Needs front-matter</span>`;
+    }
+    // item.id is `handoff:<slug>` per lifecycleAggregator.js — strip prefix.
+    const slug = lifecycleEsc(String(item.id || '').replace(/^handoff:/, ''));
+    return `<button type="button" onclick="spawnHandoffPlan('${slug}')" title="Spawn a Draft for review plan in ~/.claude/plans/ from this Handoff" style="background:var(--lifecycle-pending, #6B8FB5);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">&rarr; Plan</button>`;
   }
   if (item.drill_link) {
     const isUrl = /^https?:/.test(item.drill_link);
@@ -5953,6 +5962,32 @@ async function dismissPending(slug) {
     }
   } catch (e) {
     alert('Dismiss failed (network).');
+  }
+}
+
+// T-083: Handoff → Plan spawn. POSTs to /api/mission-control/handoffs/:slug/
+// spawn, which writes a new plan file in ~/.claude/plans/ with a "Draft for
+// review" marker (auto-scanner picks it up) and bumps the source Handoff's
+// frontmatter (`last_updated:` + `spawned_plan:<basename>`).
+async function spawnHandoffPlan(slug) {
+  try {
+    const r = await api(`mission-control/handoffs/${encodeURIComponent(slug)}/spawn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (r && r.ok) {
+      // Plan now lives in ~/.claude/plans/. Suggested-plans auto-scan will
+      // surface it as a Pending candidate on the next Lifecycle render (or in
+      // T-085's suggestions panel when that ships). Bumped source handoff
+      // shows fresh last_updated.
+      const planName = (r.plan_path || '').split(/[\\/]/).pop() || 'plan';
+      toast(`Plan created: ${planName}`, false);
+      loadLifecyclePage();
+    } else {
+      alert((r && r.error) || 'Spawn plan failed');
+    }
+  } catch (e) {
+    alert('Spawn plan failed (network).');
   }
 }
 
