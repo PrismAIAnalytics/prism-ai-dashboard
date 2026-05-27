@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<!--
+workflow-diagram:
+  name: reply_and_resume_workflow
+  source: Development/dashboard/server.js
+  source_hash: a9a1c5479b902de442bba036efdb710b875e8aa9a56cecc3f738c496b5f1dfe3
+  created: 2026-05-27
+  last_verified: 2026-05-27
+  mermaid_blocks: 3
+  status: active
+  regenerated_by: /diagram-from-source
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="Interactive diagram of the Reply & Resume composer round-trip — agent tags a Status=Review question with [NEEDS-DECISION], Michele's one-click composer posts a reply and atomically flips the ticket back to In Progress. Four views: Overview, Swim-Lane, Procedural, API Spec Reference. Source: Development/dashboard/server.js (POST /api/tickets/:id/comments).">
+<title>Reply &amp; Resume Composer — Workflow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root {
+    /* Prism brand palette */
+    --prism-navy: #17135C;
+    --prism-royal: #3A5998;
+    --prism-blue: #4A6DB5;
+    --prism-sky: #BDC9DD;
+    --prism-gold: #C8A45A;
+    --prism-charcoal: #1A1A2E;
+    --prism-deep-royal: #2E4EAD;
+    --prism-steel: #5C7BB8;
+
+    --off-white: #F4F7FB;
+    --light-gray: #D0D7DE;
+    --bg: #F4F7FB;
+    --panel: #FFFFFF;
+    --border: #D0D7DE;
+    --text: #1A1A2E;
+    --muted: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(135deg, var(--prism-navy) 0%, #2a2580 100%);
+    color: white;
+    padding: 24px 32px;
+    border-bottom: 4px solid var(--prism-gold);
+  }
+  header h1 { margin: 0 0 4px 0; font-size: 24px; font-weight: 600; }
+  header .sub { font-size: 14px; opacity: 0.85; }
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(23,19,92,0.06);
+  }
+  .tab {
+    padding: 14px 22px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--prism-navy); background: var(--off-white); }
+  .tab.active {
+    color: var(--prism-navy);
+    border-bottom-color: var(--prism-royal);
+    background: var(--off-white);
+  }
+  .tab .num {
+    display: inline-block;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    margin-right: 6px;
+    font-weight: 600;
+  }
+  .tab.active .num { background: var(--prism-navy); }
+  main { padding: 24px 32px 60px 32px; max-width: 1600px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { margin-bottom: 16px; }
+  .view-header h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--prism-navy); }
+  .view-header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(23,19,92,0.04);
+    overflow-x: auto;
+  }
+  .mermaid { text-align: center; min-height: 200px; overflow-x: auto; }
+  .mermaid svg { max-width: 100% !important; height: auto !important; display: block; margin: 0 auto; }
+  .mermaid .nodeLabel, .mermaid .edgeLabel { font-size: 12px !important; }
+  .mermaid .nodeLabel { white-space: nowrap; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--off-white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(23,19,92,0.15); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--prism-royal);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .kpi-card h4 { margin: 0 0 6px 0; font-size: 13px; color: var(--prism-navy); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card p { margin: 0; font-size: 14px; color: var(--text); }
+  .kpi-card.gold { border-left-color: var(--prism-gold); }
+  .kpi-card.blue { border-left-color: var(--prism-blue); }
+  .kpi-card.deep { border-left-color: var(--prism-deep-royal); }
+  .kpi-card.navy { border-left-color: var(--prism-navy); }
+  .kpi-card.charcoal { border-left-color: var(--prism-charcoal); }
+  table.spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  table.spec-table th { text-align: left; background: var(--off-white); padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--prism-navy); font-weight: 600; }
+  table.spec-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.spec-table tr:nth-child(even) { background: var(--off-white); }
+  table.spec-table tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; }
+  .pill.royal { background: var(--prism-royal); }
+  .pill.gold { background: var(--prism-gold); }
+  .pill.navy { background: var(--prism-navy); }
+  .pill.blue { background: var(--prism-blue); }
+  .pill.deep { background: var(--prism-deep-royal); }
+  .pill.charcoal { background: var(--prism-charcoal); }
+  .pill.steel { background: var(--prism-steel); }
+  .footer-note {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--off-white);
+    border-left: 3px solid var(--prism-gold);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li {
+    counter-increment: step;
+    padding: 12px 12px 12px 48px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 26px;
+    height: 26px;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .step-list li strong { color: var(--prism-navy); }
+  code { background: var(--off-white); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Reply &amp; Resume Composer — Workflow Diagram</h1>
+  <div class="sub">Agent question → Review status → Michele's one-click reply → atomic comment + status flip → agent resumes</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-view="v1"><span class="num">1</span>High-level Overview</button>
+  <button class="tab" data-view="v2"><span class="num">2</span>Detailed Swim-Lane</button>
+  <button class="tab" data-view="v3"><span class="num">3</span>Step-by-Step Procedural</button>
+  <button class="tab" data-view="v4"><span class="num">4</span>API Spec Reference</button>
+</nav>
+
+<main>
+
+<!-- VIEW 1: HIGH-LEVEL OVERVIEW -->
+<section class="view active" id="v1">
+  <div class="view-header">
+    <h2>1 · High-Level Overview</h2>
+    <p>The full agent-question round-trip on a single page. Agent tags a question with <code>[NEEDS-DECISION]</code>, server flips to Review (Phase D2), Michele's composer posts a reply and flips back to In Progress (Phase D1) in one round-trip.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Michele (user)</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Agent</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Server (server.js)</div>
+    <div class="legend-item"><span class="swatch" style="background:#4A6DB5;"></span>Decision</div>
+    <div class="legend-item"><span class="swatch" style="background:#5C7BB8;"></span>Frontend / UI</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>Status flip</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+    A(["Agent in In Progress"]):::agent
+    Dec{"Needs Michele's<br/>decision?"}:::decision
+    Tag["Agent POSTs comment<br/>with [NEEDS-DECISION]"]:::agent
+    D2["Server D2: detect tag<br/>auto-flip status → review"]:::server
+    Surface["Dashboard surfaces:<br/>Needs-Decision tile +<br/>Tickets nav badge"]:::ui
+    M(["Michele opens<br/>Review ticket"]):::user
+    Comp["Amber Reply &amp; Resume<br/>composer renders<br/>(Review-only)"]:::ui
+    Submit["POST { comment,<br/>status: in_progress }"]:::ui
+    D1["Server D1: explicit status<br/>atomic comment+status patch"]:::server
+    Flip["Ticket → In Progress<br/>comment in thread"]:::flip
+    Resume(["Agent resumes<br/>from comment"]):::agent
+
+    A --> Dec
+    Dec -->|yes| Tag
+    Dec -->|no| A
+    Tag --> D2
+    D2 --> Surface
+    Surface --> M
+    M --> Comp
+    Comp --> Submit
+    Submit --> D1
+    D1 --> Flip
+    Flip --> Resume
+
+    classDef user fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+    classDef agent fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+    classDef server fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+    classDef ui fill:#5C7BB8,stroke:#42619a,color:#fff,stroke-width:2px
+    classDef flip fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card">
+      <h4>Endpoint</h4>
+      <p><code>POST /api/tickets/:id/comments</code> — defined at <code>server.js:4896-5000</code>. Accepts <code>{ comment, author?, status? }</code>. Single endpoint handles both the agent-side tag flow (D2) and Michele's reply flow (D1).</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>The atomicity guarantee</h4>
+      <p>SQLite path runs inside <code>db.transaction()</code> — comment + status flip roll back together. Notion path can't be truly atomic across two API calls; runs comment first, then status (best-effort, caller can retry).</p>
+    </div>
+    <div class="kpi-card deep">
+      <h4>D1 wins over D2</h4>
+      <p>If a reply happens to contain <code>[NEEDS-DECISION]</code> AND an explicit <code>status</code>, the explicit status wins. Michele's reply can't be clobbered by a stray tag in her own comment body.</p>
+    </div>
+    <div class="kpi-card navy">
+      <h4>Two surface integrations</h4>
+      <p>Review-status tickets count up the <strong>Needs-Decision tile</strong> on the Daily Agenda (<code>tiles.needs_decision</code>) and add a red badge to the <strong>Tickets nav</strong>. Reply &amp; Resume composer renders only when <code>ticket.status === 'review'</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW 2: DETAILED SWIM-LANE -->
+<section class="view" id="v2">
+  <div class="view-header">
+    <h2>2 · Detailed Swim-Lane</h2>
+    <p>Who/what owns each step. Lanes = roles and systems. Cross-lane arrows = handoffs.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Michele</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Agent</div>
+    <div class="legend-item"><span class="swatch" style="background:#5C7BB8;"></span>Frontend (public/index.html)</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Server (server.js)</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Storage</div>
+    <div class="legend-item"><span class="swatch" style="background:#4A6DB5;"></span>Decision</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  subgraph AG["AGENT"]
+    direction TB
+    A1(["Working In Progress<br/>ticket"]):::agent
+    A2(["Hits decision point"]):::agent
+    A3["POST comment with<br/>[NEEDS-DECISION] token"]:::agent
+    A4(["Reads Michele's reply<br/>resumes work"]):::agent
+  end
+
+  subgraph MI["MICHELE"]
+    direction TB
+    M1(["Sees red badge on<br/>Tickets nav"]):::user
+    M2(["Opens Review ticket"]):::user
+    M3(["Types decision"]):::user
+    M4(["Clicks Reply &amp; Resume<br/>→ In Progress"]):::user
+  end
+
+  subgraph FE["FRONTEND public/index.html"]
+    direction TB
+    F1["ticketShowDetail()<br/>renders modal"]:::ui
+    F2{"status === 'review' ?"}:::decision
+    F3[".td-reply-resume<br/>amber composer renders"]:::ui
+    F4["ticketReplyAndResume(id)<br/>handler"]:::ui
+    F5["POST /api/tickets/:id/comments<br/>{ comment, status: in_progress }"]:::ui
+  end
+
+  subgraph BE["BACKEND server.js"]
+    direction TB
+    B1["POST handler<br/>express-validator gate"]:::server
+    B2{"req.body.status<br/>explicit?"}:::decision
+    B3{"body contains<br/>[NEEDS-DECISION] ?"}:::decision
+    B4["statusPatch = body.status<br/>reason = 'explicit'"]:::server
+    B5["statusPatch = 'review'<br/>reason = 'needs-decision-tag'"]:::server
+    B6["Atomic write"]:::server
+  end
+
+  subgraph ST["STORAGE"]
+    direction TB
+    S1[("SQLite local<br/>db.transaction()<br/>fully atomic")]:::data
+    S2[("Notion source<br/>comment then status<br/>best-effort")]:::data
+  end
+
+  A1 --> A2
+  A2 --> A3
+  A3 -.POST.-> B1
+  B1 -.flip to review.-> S1
+  B1 -.flip to review.-> S2
+  S1 -.bump tile + badge.-> M1
+  S2 -.bump tile + badge.-> M1
+  M1 --> M2
+  M2 --> F1
+  F1 --> F2
+  F2 -->|yes| F3
+  F2 -->|no| F1
+  F3 --> M3
+  M3 --> M4
+  M4 --> F4
+  F4 --> F5
+  F5 -.POST.-> B1
+  B1 --> B2
+  B2 -->|yes| B4
+  B2 -->|no| B3
+  B3 -->|yes| B5
+  B3 -->|no| B6
+  B4 --> B6
+  B5 --> B6
+  B6 --> S1
+  B6 --> S2
+  S1 -.in_progress flip.-> A4
+  S2 -.in_progress flip.-> A4
+
+  classDef user fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef agent fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+  classDef ui fill:#5C7BB8,stroke:#42619a,color:#fff,stroke-width:1.5px
+  classDef server fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:1.5px
+  classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:1.5px
+  classDef data fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="footer-note">
+    <strong>The two write paths are NOT semantically equal.</strong> SQLite path is fully atomic — if the status flip fails, the comment is rolled back. Notion path posts the comment first and then attempts the status flip; if the status call fails, the comment is already in Notion and the caller sees the error. Reply &amp; Resume frontend handler reports failures via <code>toast()</code> and re-enables the submit button so Michele can retry.
+  </div>
+</section>
+
+<!-- VIEW 3: STEP-BY-STEP PROCEDURAL -->
+<section class="view" id="v3">
+  <div class="view-header">
+    <h2>3 · Step-by-Step Procedural</h2>
+    <p>Every decision point and branch in the <code>POST /api/tickets/:id/comments</code> handler — SOP-grade detail.</p>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  Start(["POST /api/tickets/:id/comments"]):::start --> V{"express-validator<br/>passes?"}:::dec
+  V -->|no| E400["400 errors.array()"]:::warn
+  V -->|yes| AU["author = req.user?.username<br/>or req.body.author<br/>or 'system'"]:::ops
+  AU --> SP{"req.body.status<br/>explicit?"}:::dec
+  SP -->|yes| EX["statusPatch = body.status<br/>reason = 'explicit'<br/>(D1 path)"]:::ops
+  SP -->|no| NDC{"comment includes<br/>'[NEEDS-DECISION]' ?"}:::dec
+  NDC -->|yes| ND["statusPatch = 'review'<br/>reason = 'needs-decision-tag'<br/>(D2 path)"]:::ops
+  NDC -->|no| NoOp["statusPatch = undefined"]:::ops
+  EX --> Tx{"Backend?"}:::dec
+  ND --> Tx
+  NoOp --> Tx
+  Tx -->|SQLite| Atom["db.transaction(() => {<br/>  insert comment<br/>  patch status if set<br/>})"]:::server
+  Tx -->|Notion| Best["1. POST Notion comment<br/>2. PATCH Notion status<br/>(no rollback on step 2 fail)"]:::server
+  Atom --> R200["201 { ok: true,<br/>status, reason }"]:::output
+  Best --> BestOK{"both ok?"}:::dec
+  BestOK -->|yes| R200
+  BestOK -->|comment ok,<br/>status fail| R500["500 partial<br/>(comment landed)"]:::warn
+  BestOK -->|comment fail| R500x["500 nothing landed"]:::warn
+
+  classDef start fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef dec fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+  classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:1.5px
+  classDef server fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:1.5px
+  classDef warn fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:1.5px
+  classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <ol class="step-list">
+    <li><strong>Validator gate</strong> — <code>express-validator</code> rejects requests missing <code>comment</code> (or violating any registered constraints) with 400 + <code>{ ok: false, errors }</code>. The handler never proceeds past this on bad input.</li>
+    <li><strong>Author resolution</strong> — <code>req.user?.username</code> (from the Bearer-token auth middleware) wins; falls back to <code>req.body.author</code>, then <code>'system'</code>. The composer leaves author unset, so authenticated requests carry the logged-in user automatically.</li>
+    <li><strong>Phase D1 — explicit status path</strong> — if the request includes a <code>status</code> field, <code>statusPatch</code> takes that value and <code>statusReason = 'explicit'</code>. Reply &amp; Resume always lands here with <code>status: 'in_progress'</code>. This branch wins over D2 even when both conditions are true.</li>
+    <li><strong>Phase D2 — tag auto-flip</strong> — only checked when D1 didn't fire. If the comment body contains the literal token <code>[NEEDS-DECISION]</code> (case-sensitive, <code>.includes()</code>), <code>statusPatch = 'review'</code> and <code>statusReason = 'needs-decision-tag'</code>. This is how agents move a ticket to Review without a separate PATCH request.</li>
+    <li><strong>No-op branch</strong> — comments without an explicit status and without the tag leave <code>statusPatch</code> undefined; only the comment is written, status is untouched.</li>
+    <li><strong>SQLite write (local backend)</strong> — the entire write is wrapped in <code>db.transaction()</code>: insert into <code>ticket_comments</code>, then UPDATE <code>tickets</code> if <code>statusPatch</code> is set. Either both land or neither does.</li>
+    <li><strong>Notion write (source-of-truth backend)</strong> — Notion has no transactional API across two operations. The handler posts the comment first, then attempts the status PATCH. If the status PATCH fails, the comment is already in Notion; the caller sees a 500 and can retry the status flip explicitly.</li>
+    <li><strong>Response shape</strong> — success returns <code>201 { ok: true, comment, status, reason }</code>. <code>reason</code> is the canary that tells the client which branch fired (<code>'explicit'</code>, <code>'needs-decision-tag'</code>, or absent for no-op).</li>
+    <li><strong>Frontend cleanup</strong> — <code>ticketReplyAndResume()</code> re-fetches the ticket on success, re-renders the modal (which now shows In Progress and the new comment in the thread), and toasts the failure path with <code>toast('Reply failed: ' + e.message, true)</code>. The submit button is restored to its default label in a <code>finally</code> block so retries are always available.</li>
+  </ol>
+</section>
+
+<!-- VIEW 4: API SPEC REFERENCE -->
+<section class="view" id="v4">
+  <div class="view-header">
+    <h2>4 · API Spec Reference</h2>
+    <p>Request, response, and status-flip rules for <code>POST /api/tickets/:id/comments</code>.</p>
+  </div>
+
+  <div class="panel" style="padding: 0;">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 18%;">Field / Behavior</th>
+          <th style="width: 22%;">Shape</th>
+          <th style="width: 35%;">Rules</th>
+          <th style="width: 25%;">Source location</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill royal">comment</span><br/><small>request body</small></td>
+          <td><code>string</code> (required)</td>
+          <td>Validator-required. Comment body text. Becomes the <code>comment</code> column on the new <code>ticket_comments</code> row (SQLite) or the comment block content (Notion).</td>
+          <td><code>server.js</code> ~4896</td>
+        </tr>
+        <tr>
+          <td><span class="pill royal">author</span><br/><small>request body</small></td>
+          <td><code>string</code> (optional)</td>
+          <td>Resolved server-side: <code>req.user?.username</code> wins, then <code>req.body.author</code>, then <code>'system'</code>. The composer never passes this; auth middleware supplies it.</td>
+          <td><code>server.js</code> ~4902</td>
+        </tr>
+        <tr>
+          <td><span class="pill gold">status</span><br/><small>request body (D1)</small></td>
+          <td><code>'in_progress' | 'review' | 'backlog' | 'done' | 'blocked'</code></td>
+          <td><strong>Phase D1.</strong> Explicit status patch — flips the ticket atomically with the comment write. Reply &amp; Resume always sends <code>'in_progress'</code>. Wins over D2.</td>
+          <td><code>server.js</code> ~4915, <code>index.html</code> ~3590</td>
+        </tr>
+        <tr>
+          <td><span class="pill gold">[NEEDS-DECISION]</span><br/><small>tag in comment body</small></td>
+          <td>literal token, case-sensitive</td>
+          <td><strong>Phase D2.</strong> When present AND no explicit <code>status</code> was passed, server auto-sets <code>statusPatch = 'review'</code>. Used by agents to surface decision-needed questions without a second API call.</td>
+          <td><code>server.js</code> ~4917</td>
+        </tr>
+        <tr>
+          <td><span class="pill navy">SQLite write</span><br/><small>local backend</small></td>
+          <td><code>db.transaction()</code></td>
+          <td>Comment INSERT + ticket status UPDATE in one transaction. Fully atomic — either both land or neither does.</td>
+          <td><code>server.js</code> ~4924</td>
+        </tr>
+        <tr>
+          <td><span class="pill navy">Notion write</span><br/><small>source-of-truth backend</small></td>
+          <td>2 sequential API calls</td>
+          <td>Post comment → PATCH status. No cross-call transaction available. If status PATCH fails, comment is already in Notion; caller sees a 500 and retries the status flip.</td>
+          <td><code>server.js</code> ~4960, <code>services/notionAdapter.js</code></td>
+        </tr>
+        <tr>
+          <td><span class="pill deep">reason</span><br/><small>response field</small></td>
+          <td><code>'explicit' | 'needs-decision-tag' | null</code></td>
+          <td>Canary that tells the caller which branch fired. <code>'explicit'</code> = D1, <code>'needs-decision-tag'</code> = D2, absent = no-op (no status change).</td>
+          <td><code>server.js</code> ~4916</td>
+        </tr>
+        <tr>
+          <td><span class="pill blue">Composer render gate</span><br/><small>frontend</small></td>
+          <td><code>ticket.status === 'review'</code></td>
+          <td>The amber <code>.td-reply-resume</code> block only renders for Review-status tickets. Read-only modal (<code>ticketShowDetailReadOnly</code>) gets the same composer under the same gate.</td>
+          <td><code>index.html</code> ~3459, ~3549</td>
+        </tr>
+        <tr>
+          <td><span class="pill blue">Composer handler</span><br/><small>frontend</small></td>
+          <td><code>async ticketReplyAndResume(id)</code></td>
+          <td>Reads <code>#td-reply-resume-text</code>, refuses empty input, disables the button while in flight, POSTs <code>{ comment, status: 'in_progress' }</code>, reloads the ticket on success, toasts on failure. Button label is restored in <code>finally</code>.</td>
+          <td><code>index.html</code> ~3572-3611</td>
+        </tr>
+        <tr>
+          <td><span class="pill steel">Dashboard surface tiles</span><br/><small>integration</small></td>
+          <td><code>tiles.needs_decision</code></td>
+          <td>Mission Control's <code>GET /api/mission-control/today</code> counts Review-status tickets into the Needs-Decision tile. Same count drives the red badge on the Tickets nav. Chloe surfaces both in the auto-load opening line when count &gt; 0.</td>
+          <td><code>server.js</code> — Mission Control routes; workspace-root <code>CLAUDE.md</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card navy">
+      <h4>The protocol this implements</h4>
+      <p>Workspace-root CLAUDE.md "Ticket discipline" section: <em>"When you need a decision mid-work, POST the specific question to <code>/api/tickets/:id/comments</code> with the literal token <code>[NEEDS-DECISION]</code> somewhere in the comment body. The server auto-flips Status to Review in the same request — no separate PATCH needed."</em></p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Why D1 wins over D2</h4>
+      <p>Without this rule, Michele's reply could contain <code>[NEEDS-DECISION]</code> (quoting the agent's question, or referencing the convention), and the server would flip the ticket back to Review immediately — clobbering her own resume action. D1's explicit status always wins.</p>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <strong>Source files:</strong> <code>Development/dashboard/server.js</code> (POST endpoint, lines ~4896-5000) · <code>Development/dashboard/public/index.html</code> (composer CSS ~435, modal render ~3459 + ~3549, handler ~3572-3611) · <code>Development/dashboard/services/notionAdapter.js</code> (Notion comment+status path) · workspace-root <code>CLAUDE.md</code> "Ticket discipline" (the convention this enforces).
+  </div>
+</section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      fontSize: '14px',
+      primaryColor: '#3A5998',
+      primaryTextColor: '#FFFFFF',
+      primaryBorderColor: '#2c4577',
+      lineColor: '#475569',
+      textColor: '#1A1A2E',
+      mainBkg: '#3A5998',
+      secondaryColor: '#4A6DB5',
+      tertiaryColor: '#F4F7FB',
+      /* Subgraph (cluster) styling — defaults render red, banned by brand */
+      clusterBkg: '#F4F7FB',
+      clusterBorder: '#BDC9DD',
+      titleColor: '#17135C',
+      edgeLabelBackground: '#FFFFFF',
+      noteBkgColor: '#F4F7FB',
+      noteBorderColor: '#BDC9DD',
+      noteTextColor: '#1A1A2E'
+    },
+    flowchart: {
+      htmlLabels: true,
+      curve: 'basis',
+      nodeSpacing: 25,
+      rankSpacing: 45,
+      padding: 8,
+      useMaxWidth: true,
+      diagramPadding: 8
+    },
+    securityLevel: 'loose'
+  });
+
+  function captureSources() {
+    document.querySelectorAll('.mermaid').forEach(d => {
+      if (!d.dataset.src) d.dataset.src = d.textContent.trim();
+    });
+  }
+  async function renderView(viewId) {
+    const diagrams = document.querySelectorAll('#' + viewId + ' .mermaid');
+    for (const d of diagrams) {
+      if (d.dataset.rendered) continue;
+      try {
+        const src = d.dataset.src || d.textContent.trim();
+        const id = 'm_' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, src);
+        d.innerHTML = svg;
+        d.dataset.rendered = '1';
+      } catch (err) {
+        d.innerHTML = '<div style="color:#C8A45A;padding:20px;font-family:monospace;font-size:12px;text-align:left;">Mermaid render error:<br>' + (err && err.message ? err.message : err) + '</div>';
+      }
+    }
+  }
+
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-view');
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      renderView(target);
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    captureSources();
+    renderView('v1');
+  });
+</script>
+
+</body>
+</html>
