@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-25T23:34:25.749Z",
+  "generated_at": "2026-05-27T21:48:43.255Z",
   "website_root": "C:\\Users\\miche\\Prism AI\\PRISM AI Analytics\\prism_website_project",
   "counts": {
-    "total": 42,
+    "total": 43,
     "by_topic": {
       "Configuration Management": 11,
       "AI Readiness": 7,
@@ -11,7 +11,7 @@
       "Compliance & Regulation": 4,
       "General": 7,
       "Architecture & Platform": 2,
-      "Internal Workflows": 1
+      "Internal Workflows": 2
     },
     "by_content_type": {
       "blog": 18,
@@ -20,7 +20,7 @@
       "podcast-index": 1,
       "page": 1,
       "download": 1,
-      "infographic": 19
+      "infographic": 20
     }
   },
   "topics": [
@@ -41,7 +41,7 @@
           "date": "2026-06-25",
           "read_time": "11 min",
           "author": "Michele Fisher",
-          "description": "This is the closing post in the main thread of a six-part series on configuration management for AI agents. The preceding posts staked out the latency gap in agentic AI governance, introduced a four-d..."
+          "description": "The AIGP Body of Knowledge defines what AI governance professionals are accountable for. Configuration management provides the operational mechanic that turns those accountabilities into runtime contr"
         },
         {
           "id": "blog/inside-the-prism-cm-ai-control-plane",
@@ -56,7 +56,7 @@
           "date": "2026-06-25",
           "read_time": "12 min",
           "author": "Michele Fisher",
-          "description": "The framework I have been describing across this series — Baseline, Change Control, Drift Detection, Audit & Remediation, layered with a Key Risk Indicator tier model — is not theoretical. It is opera..."
+          "description": "An evidence walkthrough of the four-discipline framework running in production at Prism today — not a product demo. What the implementation does, and what it does not yet do."
         },
         {
           "id": "blog/microsoft-agent-governance-toolkit-and-the-cm-layer-above-it",
@@ -71,7 +71,7 @@
           "date": "2026-06-18",
           "read_time": "9 min",
           "author": "Michele Fisher",
-          "description": "Microsoft [launched the Agent Governance Toolkit on April 2, 2026](https://opensource.microsoft.com/blog/2026/04/02/introducing-the-agent-governance-toolkit-open-source-runtime-security-for-ai-agents/..."
+          "description": "Microsoft&#39;s Agent Governance Toolkit is the kernel for AI agents. Configuration management is the layer above it. An enterprise running production AI agents needs both."
         },
         {
           "id": "blog/nist-ai-rmf-meets-configuration-management",
@@ -86,7 +86,7 @@
           "date": "2026-06-11",
           "read_time": "11 min",
           "author": "Michele Fisher",
-          "description": "This post is the fourth in a series on configuration management for AI agents. The first three posts made the case that AI governance, as currently practiced, has an operational gap — a latency gap be..."
+          "description": "NIST tells you what governance is supposed to achieve. Configuration management tells you how the work gets done day to day. A crosswalk between the two for compliance teams."
         },
         {
           "id": "blog/kri-vs-kpi-for-ai-agents",
@@ -101,7 +101,7 @@
           "date": "2026-06-04",
           "read_time": "12 min",
           "author": "Michele Fisher",
-          "description": "The most common failure mode I see in production AI deployments is treating a Key Performance Indicator as if it were a Key Risk Indicator. The two are not the same. They answer different questions, t..."
+          "description": "The most common failure mode in production AI is treating a Key Performance Indicator as if it were a Key Risk Indicator. Borrowed discipline from financial services, applied to autonomous agents."
         },
         {
           "id": "blog/configuration-management-for-ai-agents",
@@ -116,7 +116,7 @@
           "date": "2026-05-28",
           "read_time": "11 min",
           "author": "Michele Fisher",
-          "description": "![The missing mechanic is a 30-year-old operational discipline](/assets/img/blog/cm-ai-deck/image6.png)"
+          "description": "What closes the latency gap is configuration management. The discipline is thirty years old and has been the operational backbone of regulated industry that entire time."
         },
         {
           "id": "blog/observability-isnt-governance",
@@ -131,7 +131,7 @@
           "date": "2026-05-21",
           "read_time": "9 min",
           "author": "Michele Fisher",
-          "description": "![Closing the latency gap in agentic AI governance](/assets/img/blog/cm-ai-deck/image1.png)"
+          "description": "Five percent of LLM call spans fail in production. Observability tools document the latency gap between autonomous action and human intervention. They do not close it."
         },
         {
           "id": "blog/a-hallucination-on-our-own-stack",
@@ -146,7 +146,7 @@
           "date": "2026-05-15",
           "read_time": "8 min",
           "author": "Michele Fisher",
-          "description": "This is a bonus use case in the series, not a numbered entry. I had an agent hallucination on my own stack this morning. I am writing about it because it is exactly the failure mode the rest of this s..."
+          "description": "An agent on our own stack hallucinated a constraint that did not exist. A bonus use case in the series, not a numbered entry — what configuration management would have caught in practice."
         },
         {
           "id": "blog/what-is-ai-agent-governance",
@@ -161,7 +161,7 @@
           "date": "2026-05-14",
           "read_time": "10 min",
           "author": "Michele Fisher",
-          "description": "The phrase *AI agent governance* means different things in different conversations. A CISO at a financial-services firm hears \"perimeter and identity.\" A compliance officer hears \"policy and audit.\" A..."
+          "description": "A working glossary for the Prism CM-AI Framework. Before the rest of the series goes deep on disciplines, the foundational terms need to mean the same thing twice in a row."
         },
         {
           "id": "dashboard/prism-config-drift",
@@ -356,7 +356,7 @@
           "date": "2026-06-01",
           "read_time": "10 min",
           "author": "Michele Fisher",
-          "description": "When we launched Prism AI Analytics two months ago, the conviction was simple: Claude would be foundational to how we work. The execution was not. For the first three weeks, every session started the ..."
+          "description": "Two months into Prism AI Analytics, we figured out how to wire Claude into our business operations in a way that actually works. Here is what we learned."
         },
         {
           "id": "dashboard/prism-data-silos",
@@ -545,7 +545,7 @@
     },
     {
       "topic": "Internal Workflows",
-      "count": 1,
+      "count": 2,
       "items": [
         {
           "id": "kb/workflows/prism_dashboard_workflow.html",
@@ -569,6 +569,33 @@
             "drift": false,
             "created": "2026-05-25",
             "last_verified": "2026-05-25",
+            "mermaid_blocks": 3,
+            "status": "active",
+            "regenerated_by": "/diagram-from-source"
+          }
+        },
+        {
+          "id": "kb/workflows/reply_and_resume_workflow.html",
+          "slug": "workflows/reply_and_resume_workflow.html",
+          "title": "Reply & Resume Composer — Workflow",
+          "url": "/knowledgebase/workflows/reply_and_resume_workflow.html",
+          "content_type": "infographic",
+          "topic": "Internal Workflows",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Interactive diagram of the Reply & Resume composer round-trip — agent tags a Status=Review question with [NEEDS-DECISION], Michele's one-click composer posts a reply and atomically flips the ticket back to In Progress. Four views: Overview, Swim-Lane, Procedural, API Spec Reference. Source: Development/dashboard/server.js (POST /api/tickets/:id/comments).",
+          "workflow_diagram": {
+            "name": "reply_and_resume_workflow",
+            "source": "Development/dashboard/server.js",
+            "source_hash_recorded": "a9a1c5479b902de442bba036efdb710b875e8aa9a56cecc3f738c496b5f1dfe3",
+            "source_hash_current": "a9a1c5479b902de442bba036efdb710b875e8aa9a56cecc3f738c496b5f1dfe3",
+            "drift": false,
+            "created": "2026-05-27",
+            "last_verified": "2026-05-27",
             "mermaid_blocks": 3,
             "status": "active",
             "regenerated_by": "/diagram-from-source"
