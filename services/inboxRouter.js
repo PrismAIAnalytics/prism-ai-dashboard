@@ -29,12 +29,41 @@ const ALLOWED_CATEGORIES = new Set([
 const ALLOWED_ACTIONS = new Set(['ticket', 'open_question', 'dismiss']);
 
 // Title derivation: first line of the capture, trimmed and truncated to
-// TITLE_MAX chars with an ellipsis when cut. The full text rides as the
-// `description` field where Notion's page body would be once T-040 ships.
+// TITLE_MAX chars with an ellipsis when cut. The full untruncated text lands
+// in the Notion page body via deriveOriginBody — see T-090 (audit-defensible
+// ticket bodies), which closes the long-standing T-040 vault-writer gap.
 function deriveTitle(text) {
   const firstLine = String(text).split(/\r?\n/)[0].trim();
   if (firstLine.length <= TITLE_MAX) return firstLine;
   return firstLine.slice(0, TITLE_MAX - 1).trimEnd() + '…';
+}
+
+// T-090 audit-defensible body: build the Origin block for a fresh inbox
+// capture. Lands in the Notion page body so a triager (or auditor) opening
+// the ticket later sees who captured it, when, from where, and the full
+// untruncated text — not just the 60-char title derived from line 1.
+//
+// `surface` defaults to "Dashboard Inbox" because every capture comes through
+// the sticky-input on a dashboard page. A future caller can override (e.g.,
+// "Cowork session", "Daily Brief") if other surfaces start using this path.
+function deriveOriginBody(text, capturedBy, capturedAt, surface = 'Dashboard Inbox') {
+  const who = capturedBy && String(capturedBy).trim() ? String(capturedBy).trim() : 'unattributed';
+  const when = capturedAt || new Date().toISOString();
+  const fullText = String(text).trim();
+  return [
+    '### Origin',
+    '',
+    `- Created by: ${who}`,
+    `- Captured at: ${when}`,
+    `- Source surface: ${surface}`,
+    '- Original ask:',
+    '',
+    fullText,
+    '',
+    '### Trail',
+    '',
+    '_(triage event, status transitions, artifacts, closing comment append here as work progresses)_',
+  ].join('\n');
 }
 
 function validateCaptureText(text) {
@@ -55,18 +84,24 @@ function makeRouter(adapter = realNotionAdapter) {
     }
     const trimmed = String(text).trim();
     const title = deriveTitle(trimmed);
+    const capturedAt = new Date().toISOString();
+    const body = deriveOriginBody(trimmed, capturedBy, capturedAt);
     // Priority Medium / Status backlog (= Notion 'Not started') per leverage
     // brief. Category intentionally omitted — triage assigns it.
     // capturedBy is the dashboard session username (null when not authenticated
     // via a session token — e.g., raw API_KEY use). Adapter writes it to the
     // optional "Captured By" Notion property; missing-property is safe (see
     // notionAdapter.createTicket fallback).
+    // body carries the full untruncated text + Origin metadata into the Notion
+    // page body so the ticket survives audit (T-090). createTicket no-ops on
+    // body for adapters that don't support it — safe for tests that pass stubs.
     const ticket = await adapter.createTicket({
       title,
       status: 'backlog',
       priority: 'medium',
       source: SOURCE_PREFIX,
       captured_by: capturedBy || null,
+      body,
     });
     return ticket;
   }
@@ -132,6 +167,30 @@ function makeRouter(adapter = realNotionAdapter) {
         // No category or due_date supplied — still triage, just less metadata.
       }
       const ticket = await adapter.updateTicket(pageId, updates);
+      // T-090 audit trail: append a [TRIAGE-EVENT] comment so the promotion
+      // is recorded on the ticket itself (greppable, matches the existing
+      // [NEEDS-DECISION] token convention from Phase D2 2026-05-24). Trail is
+      // best-effort — a comment-create failure must not unwind the triage.
+      const triagedBy = params.triaged_by && String(params.triaged_by).trim()
+        ? String(params.triaged_by).trim()
+        : 'unattributed';
+      const parts = [`Triaged from Inbox by ${triagedBy} on ${new Date().toISOString()} → ticket`];
+      if (updates.category) parts.push(`category: ${updates.category}`);
+      if (updates.due_date) parts.push(`due: ${updates.due_date}`);
+      parts.push('[TRIAGE-EVENT]');
+      const commentText = parts.join(' · ');
+      try {
+        if (typeof adapter.createComment === 'function') {
+          await adapter.createComment(pageId, { text: commentText });
+        }
+      } catch (commentErr) {
+        // Don't fail triage if the comment append blows up — the trail is
+        // worth less than the triage itself. Log so operators can investigate.
+        console.warn(
+          '[inboxRouter] triage→ticket [TRIAGE-EVENT] comment failed (non-fatal):',
+          commentErr && commentErr.message,
+        );
+      }
       return { ok: true, action, ticket };
     }
 
@@ -170,5 +229,6 @@ module.exports = {
   ALLOWED_CATEGORIES,
   ALLOWED_ACTIONS,
   deriveTitle,
+  deriveOriginBody,
   validateCaptureText,
 };

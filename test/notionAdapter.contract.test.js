@@ -517,6 +517,82 @@ test('summary() includes byCategory aggregation so snapshot cron can filter dev_
   assert.strictEqual(cats.dev_insight, 1, 'Dev Insight → dev_insight (unknown-cat normalization)');
 });
 
+// ─── Body content (T-090 audit-defensible tickets) ──────────────────────────
+// createTicket accepts an optional `body` string and writes it into Notion
+// page children. Backward-compatible: omitted body = no children sent.
+
+const { bodyTextToNotionChildren } = require('../services/notionAdapter');
+
+test('bodyTextToNotionChildren returns [] for null/empty/whitespace', () => {
+  assert.deepStrictEqual(bodyTextToNotionChildren(null), []);
+  assert.deepStrictEqual(bodyTextToNotionChildren(undefined), []);
+  assert.deepStrictEqual(bodyTextToNotionChildren(''), []);
+  assert.deepStrictEqual(bodyTextToNotionChildren('   \n  \n'), []);
+});
+
+test('bodyTextToNotionChildren produces one paragraph block per line', () => {
+  const blocks = bodyTextToNotionChildren('first line\nsecond line');
+  assert.strictEqual(blocks.length, 2);
+  assert.strictEqual(blocks[0].type, 'paragraph');
+  assert.strictEqual(blocks[0].paragraph.rich_text[0].text.content, 'first line');
+  assert.strictEqual(blocks[1].paragraph.rich_text[0].text.content, 'second line');
+});
+
+test('bodyTextToNotionChildren preserves blank lines as empty paragraphs', () => {
+  const blocks = bodyTextToNotionChildren('a\n\nb');
+  assert.strictEqual(blocks.length, 3);
+  assert.deepStrictEqual(blocks[1].paragraph.rich_text, []);
+});
+
+test('bodyTextToNotionChildren chunks lines longer than 2000 chars', () => {
+  const longLine = 'x'.repeat(4500);
+  const blocks = bodyTextToNotionChildren(longLine);
+  assert.strictEqual(blocks.length, 3, '4500 chars → 2000 + 2000 + 500');
+  assert.strictEqual(blocks[0].paragraph.rich_text[0].text.content.length, 2000);
+  assert.strictEqual(blocks[1].paragraph.rich_text[0].text.content.length, 2000);
+  assert.strictEqual(blocks[2].paragraph.rich_text[0].text.content.length, 500);
+});
+
+test('createTicket passes body as children on the POST payload', async (t) => {
+  let postBody = null;
+  withStubbedFetch(t, async (url, opts) => {
+    const method = (opts && opts.method) || 'GET';
+    if (method === 'POST' && url.endsWith('/pages')) {
+      postBody = JSON.parse(opts.body);
+      return { ok: true, json: async () => stubPage };
+    }
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  await adapter.createTicket({
+    title: 'X',
+    body: 'Origin block line 1\nOrigin block line 2',
+  });
+  assert.ok(postBody, 'POST was issued');
+  assert.ok(Array.isArray(postBody.children), 'children array is present');
+  assert.strictEqual(postBody.children.length, 2);
+  assert.strictEqual(
+    postBody.children[0].paragraph.rich_text[0].text.content,
+    'Origin block line 1',
+  );
+});
+
+test('createTicket omits children when body is not provided (backward-compat)', async (t) => {
+  let postBody = null;
+  withStubbedFetch(t, async (url, opts) => {
+    const method = (opts && opts.method) || 'GET';
+    if (method === 'POST' && url.endsWith('/pages')) {
+      postBody = JSON.parse(opts.body);
+      return { ok: true, json: async () => stubPage };
+    }
+    return { ok: false, status: 500, json: async () => ({}) };
+  });
+  const adapter = makeAdapter(() => ({ NOTION_API_KEY: 'k', NOTION_TICKETS_DB_ID: 'db' }));
+  await adapter.createTicket({ title: 'X' });
+  assert.ok(postBody, 'POST was issued');
+  assert.strictEqual(postBody.children, undefined, 'children key absent');
+});
+
 test('updateTicket still PATCHes when at least one field is mappable', async (t) => {
   let patchCalled = false;
   let patchBody = null;

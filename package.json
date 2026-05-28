@@ -9,7 +9,7 @@
     "import:crm": "node import-excel-crm.js",
     "snapshot:tickets": "node scripts/snapshot-tickets.js",
     "knowledgebase:rebuild": "node scripts/rebuild-knowledgebase-manifest.js",
-    "test": "node --test test/notionAdapter.contract.test.js test/notionAdapter.comments.test.js"
+    "test": "node --test test/notionAdapter.contract.test.js test/notionAdapter.comments.test.js test/inboxRouter.test.js"
   },
   "engines": {
     "node": ">=18.0.0"
