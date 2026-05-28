@@ -848,6 +848,21 @@ body.prism-themed .brief-empty {
   font-style: italic;
 }
 
+/* — Stale-brief banner (shown when dashboard fell back to yesterday's brief) — */
+body.prism-themed .brief-stale-banner {
+  display: block;
+  margin-bottom: var(--space-3);
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: var(--weight-medium, 500);
+  color: var(--text);
+  background: color-mix(in oklch, var(--warning) 18%, transparent);
+  border: 1px solid color-mix(in oklch, var(--warning) 45%, transparent);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-md, 6px);
+  line-height: 1.4;
+}
+
 /* — Header — */
 body.prism-themed .brief-header {
   display: flex;

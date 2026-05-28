@@ -6015,9 +6015,15 @@ function renderAgendaBrief(brief) {
     return;
   }
   const s = brief.sections || {};
-  const dateLabel = brief.is_today ? 'Today' : `${brief.date} (yesterday's brief — today's not yet written)`;
+  const dateLabel = brief.is_today ? 'Today' : escapeHtml(brief.date);
   const headline = escapeHtml(brief.headline || 'Morning Brief');
   const subheader = brief.subheader ? `<div class="brief-subheader">${escapeHtml(brief.subheader)}</div>` : '';
+  // Stale-brief banner: surfaced when the dashboard fell back to yesterday's brief
+  // because today's orchestrator run hasn't produced one yet. Previously this state
+  // was only hinted at by a muted right-aligned chip that was easy to miss.
+  const staleBanner = brief.is_today === false
+    ? `<div class="brief-stale-banner" role="status">⚠ Showing yesterday's brief (${escapeHtml(brief.date)}) — today's hasn't been generated yet.</div>`
+    : '';
 
   // "Today looks like" narrative
   const today_html = s.today_looks_like
@@ -6052,6 +6058,7 @@ function renderAgendaBrief(brief) {
     : '';
 
   el.innerHTML = `
+    ${staleBanner}
     <div class="brief-header">
       <div class="brief-header-left">
         <span class="brief-headline">${headline}</span>
