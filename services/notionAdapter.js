@@ -294,7 +294,11 @@ function notionPageToActionItem(page) {
 // ─── Write API (T-026 Phase 4) ─────────────────────────────────────────────
 // Thin wrappers around Notion's pages endpoint. Each surfaces a structured
 // Error on non-2xx so the caller can map back to HTTP status.
-async function notionCreatePage({ apiKey, dbId, properties }) {
+async function notionCreatePage({ apiKey, dbId, properties, children }) {
+  const payload = { parent: { database_id: dbId }, properties };
+  if (Array.isArray(children) && children.length > 0) {
+    payload.children = children;
+  }
   const r = await fetch(`${NOTION_API}/pages`, {
     method: 'POST',
     headers: {
@@ -302,7 +306,7 @@ async function notionCreatePage({ apiKey, dbId, properties }) {
       'Notion-Version': NOTION_VERSION,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ parent: { database_id: dbId }, properties }),
+    body: JSON.stringify(payload),
   });
   if (!r.ok) {
     const j = await r.json().catch(() => ({}));
@@ -311,6 +315,39 @@ async function notionCreatePage({ apiKey, dbId, properties }) {
     throw err;
   }
   return r.json();
+}
+
+// T-090 audit-defensible body: split a body string into Notion paragraph blocks
+// (one block per line). Notion's API caps a single rich_text fragment at 2000
+// chars, so each line is hard-split on that boundary. Returns [] for null /
+// empty / whitespace-only input so callers can pass it straight to the
+// children-array guard in `notionCreatePage` without branching.
+const NOTION_RICH_TEXT_MAX = 2000;
+function bodyTextToNotionChildren(body) {
+  if (body == null) return [];
+  const text = String(body);
+  if (!text.trim()) return [];
+  const lines = text.split(/\r?\n/);
+  const blocks = [];
+  for (const line of lines) {
+    if (line === '') {
+      blocks.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: { rich_text: [] },
+      });
+      continue;
+    }
+    for (let i = 0; i < line.length; i += NOTION_RICH_TEXT_MAX) {
+      const chunk = line.slice(i, i + NOTION_RICH_TEXT_MAX);
+      blocks.push({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: { rich_text: [{ type: 'text', text: { content: chunk } }] },
+      });
+    }
+  }
+  return blocks;
 }
 
 async function notionUpdatePage({ apiKey, pageId, properties }) {
@@ -671,8 +708,13 @@ function makeAdapter(getEnv = () => process.env) {
       e.status = 400;
       throw e;
     }
+    // T-090 audit-defensible body: when `input.body` is a non-empty string,
+    // serialize it into Notion block children (paragraph per line, blank
+    // lines preserved as empty paragraphs). Omitted body keeps the prior
+    // blank-page behavior — backward compatible with every existing caller.
+    const children = bodyTextToNotionChildren(input.body);
     try {
-      const page = await notionCreatePage({ apiKey, dbId, properties });
+      const page = await notionCreatePage({ apiKey, dbId, properties, children });
       invalidate();
       return notionPageToTicket(page);
     } catch (e) {
@@ -685,7 +727,7 @@ function makeAdapter(getEnv = () => process.env) {
       if (properties['Captured By'] && e.status === 400 && /Captured By/.test(msg)) {
         const { 'Captured By': _omit, ...rest } = properties;
         console.warn('[notionAdapter] createTicket: "Captured By" property not in Notion schema; retrying without it. Add the property in Notion to enable user attribution.');
-        const page = await notionCreatePage({ apiKey, dbId, properties: rest });
+        const page = await notionCreatePage({ apiKey, dbId, properties: rest, children });
         invalidate();
         return notionPageToTicket(page);
       }
@@ -844,4 +886,5 @@ module.exports = {
   composeCommentBody,
   parseCommentBody,
   dashboardToNotionProperties,
+  bodyTextToNotionChildren,
 };
