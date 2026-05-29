@@ -61,6 +61,24 @@ const NOTION_API = 'https://api.notion.com/v1';
 const NOTION_VERSION = '2022-06-28';
 const MAX_NOTION_TEXT = 1900; // Notion rich_text per-block limit is 2000; leave headroom
 
+// ─── Effective sync mode (T-059) ───────────────────────────────────────────
+// Two paths through main() depending on whether the dashboard reads from
+// Notion (`USE_NOTION_SOURCE=true`) or still owns the SQLite mirror.
+//
+//   'notion-only' — Skip the dashboard POST/PATCH path entirely. The Notion
+//                   DB is authoritative; the dashboard reads from it via
+//                   services/notionAdapter.js. Running the dashboard POST
+//                   here creates a parallel, orphaned page tree (the bug
+//                   T-059 fixes — see TASKS.md row).
+//   'dual-write'  — Pre-cutover behavior: write to both dashboard and
+//                   Notion. Matches the script's original 2026-04-28
+//                   intent before T-026 flipped the cutover flag.
+//
+// Read once at boot in main(); never re-read mid-run.
+function getEffectiveMode(env) {
+  return env.USE_NOTION_SOURCE === 'true' ? 'notion-only' : 'dual-write';
+}
+
 // ─── Status mapping (TASKS.md section header → dashboard / Notion) ─────────
 // "Up Next" maps to To Do (approved-and-ready-to-work) rather than Backlog,
 // since TASKS.md only lists work that's already been sanctioned via WIP=1.
@@ -291,12 +309,56 @@ async function upsertNotionPage(task, existing, dashboardKey) {
   return { page, action: 'updated' };
 }
 
+// ─── Per-task processor (T-059) ────────────────────────────────────────────
+// Extracted from main() to make the gating logic unit-testable. Pure logic
+// w.r.t. its inputs — all I/O is reached via `deps`, all decisions flow from
+// `mode` + `dryRun`. The for-loop body in main() is now a thin caller.
+//
+// Contract:
+//   In 'notion-only' mode: deps.upsertDashboardTicket and deps.linkBackDashboard
+//   are NEVER called. dashTickets is ignored (caller passes an empty Map).
+//   Only deps.upsertNotionPage runs, which is idempotent via T-ID match.
+//
+//   In 'dual-write' mode: behavior matches the pre-T-059 script — dashboard
+//   POST/PATCH fires first, Notion direct-upsert fires second, cross-link
+//   PATCH fires third when the dashboard ticket has no notion_page_id yet.
+async function processTask({ task, mode, dryRun, deps, dashTickets, notionPages }) {
+  let dashResult = { ticket: null, action: 'skipped' };
+  let existingDash;
+  if (mode !== 'notion-only') {
+    existingDash = dashTickets.get(task.id);
+    dashResult = await deps.upsertDashboardTicket(task, existingDash);
+  }
+  const dashKey = dashResult.ticket?.ticket_key || existingDash?.ticket_key || '';
+
+  const existingNotion = notionPages.get(task.id);
+  const notionResult = await deps.upsertNotionPage(task, existingNotion, dashKey);
+
+  // Cross-link only when both surfaces are real and we just created a fresh
+  // pairing. In 'notion-only' mode dashResult.ticket is always null, so this
+  // never fires — Notion's T-ID property is the only identity that matters.
+  const needsLink = mode !== 'notion-only'
+    && !dryRun
+    && dashResult.ticket && notionResult.page
+    && (!existingDash || existingDash.notion_page_id !== notionResult.page.id);
+  if (needsLink) await deps.linkBackDashboard(dashResult.ticket.id, notionResult.page.id);
+
+  const overall = (dashResult.action === 'created' || notionResult.action === 'created') ? 'CREATED'
+    : (dashResult.action === 'updated' || notionResult.action === 'updated') ? 'UPDATED'
+    : 'SKIPPED';
+
+  return { dashResult, notionResult, overall };
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────
 async function main() {
   if (!process.env.NOTION_API_KEY) throw new Error('NOTION_API_KEY not set (check .env or env)');
   if (!process.env.NOTION_TICKETS_DB_ID) throw new Error('NOTION_TICKETS_DB_ID not set');
 
+  const mode = getEffectiveMode(process.env);
+
   console.log(`Mode:      ${DRY_RUN ? 'DRY RUN (no writes)' : 'WRITE'}`);
+  console.log(`Sync mode: ${mode}${mode === 'notion-only' ? ' (USE_NOTION_SOURCE=true — dashboard write path disabled; Notion direct-upsert handles all writes per T-059)' : ''}`);
   console.log(`Dashboard: ${DASHBOARD_URL}`);
   console.log(`Notion DB: ${process.env.NOTION_TICKETS_DB_ID}`);
   console.log(`TASKS.md:  ${TASKS_MD_PATH}\n`);
@@ -310,31 +372,21 @@ async function main() {
   for (const t of tasks) console.log(`  ${t.id} [${t.status}] ${t.title.slice(0, 70)}`);
   console.log('');
 
-  const dashTickets = await getDashboardTickets();
-  console.log(`Dashboard has ${dashTickets.size} existing engineering tickets tagged task-md`);
+  // T-059: in notion-only mode, skip the dashboard fetch entirely. The result
+  // (empty Map) flows into processTask which then short-circuits the upsert.
+  const dashTickets = mode === 'notion-only' ? new Map() : await getDashboardTickets();
+  console.log(`Dashboard has ${dashTickets.size} existing engineering tickets tagged task-md${mode === 'notion-only' ? ' (skipped — notion-only mode)' : ''}`);
   const notionPages = await getNotionPages();
   console.log(`Notion has ${notionPages.size} existing pages with T-ID set\n`);
 
+  const deps = { upsertDashboardTicket, upsertNotionPage, linkBackDashboard };
   const stats = { created: 0, updated: 0, skipped: 0, errors: 0 };
 
   for (const task of tasks) {
     try {
-      const existingDash = dashTickets.get(task.id);
-      const dashResult = await upsertDashboardTicket(task, existingDash);
-      const dashKey = dashResult.ticket?.ticket_key || existingDash?.ticket_key || '';
-
-      const existingNotion = notionPages.get(task.id);
-      const notionResult = await upsertNotionPage(task, existingNotion, dashKey);
-
-      // Cross-link: dashboard.notion_page_id ← Notion page UUID
-      const needsLink = !DRY_RUN
-        && dashResult.ticket && notionResult.page
-        && (!existingDash || existingDash.notion_page_id !== notionResult.page.id);
-      if (needsLink) await linkBackDashboard(dashResult.ticket.id, notionResult.page.id);
-
-      const overall = (dashResult.action === 'created' || notionResult.action === 'created') ? 'CREATED'
-        : (dashResult.action === 'updated' || notionResult.action === 'updated') ? 'UPDATED'
-        : 'SKIPPED';
+      const { dashResult, notionResult, overall } = await processTask({
+        task, mode, dryRun: DRY_RUN, deps, dashTickets, notionPages,
+      });
       console.log(`  ${task.id} → ${overall}  (dash:${dashResult.action}, notion:${notionResult.action})`);
       stats[overall.toLowerCase()]++;
     } catch (e) {
@@ -347,4 +399,18 @@ async function main() {
   if (stats.errors > 0) process.exit(1);
 }
 
-main().catch(e => { console.error('FATAL:', e.message); process.exit(1); });
+// Export pure helpers + the testable processor. Keeps CLI behavior unchanged
+// when invoked directly (`node scripts/sync-tasks.js`).
+module.exports = {
+  getEffectiveMode,
+  processTask,
+  parseTasksMd,
+  dashboardPayload,
+  notionPropsFor,
+  notionPageDiffers,
+  tagsEqual,
+};
+
+if (require.main === module) {
+  main().catch(e => { console.error('FATAL:', e.message); process.exit(1); });
+}
