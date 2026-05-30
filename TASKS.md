@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-095 | Close-out Action: green run under org PR-policy + branch-name polish | chore/closeout-action-green-run | Claude Code | 2026-05-30 |
 
 ---
 
