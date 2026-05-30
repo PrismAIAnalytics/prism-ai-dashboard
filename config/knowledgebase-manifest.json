@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-05-27T21:48:43.255Z",
+  "generated_at": "2026-05-30T21:46:50.744Z",
   "website_root": "C:\\Users\\miche\\Prism AI\\PRISM AI Analytics\\prism_website_project",
   "counts": {
-    "total": 43,
+    "total": 45,
     "by_topic": {
       "Configuration Management": 11,
       "AI Readiness": 7,
       "Data & Analytics": 6,
       "Advisory & Practice": 4,
+      "General": 8,
       "Compliance & Regulation": 4,
-      "General": 7,
       "Architecture & Platform": 2,
-      "Internal Workflows": 2
+      "Internal Workflows": 3
     },
     "by_content_type": {
-      "blog": 18,
+      "blog": 19,
       "service-page": 1,
       "assessment": 1,
       "podcast-index": 1,
       "page": 1,
       "download": 1,
-      "infographic": 20
+      "infographic": 21
     }
   },
   "topics": [
@@ -190,6 +190,90 @@
       ]
     },
     {
+      "topic": "General",
+      "count": 8,
+      "items": [
+        {
+          "id": "blog/i-convened-a-council",
+          "slug": "i-convened-a-council",
+          "title": "I Was Done Trusting the Process. So I Convened a Council.",
+          "url": "/blog/i-convened-a-council/",
+          "content_type": "blog",
+          "topic": "General",
+          "category": "Claude for Business",
+          "series": null,
+          "series_part": null,
+          "date": "2026-06-08",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "Two production wipes convinced a small consultancy that another retrospective wouldn&#39;t fix it. Structured disagreement produced a protocol that fits on a notecard — and has held."
+        },
+        {
+          "id": "site/about",
+          "slug": "about",
+          "title": "About Prism AI",
+          "url": "/about/",
+          "content_type": "page",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-stats-counter",
+          "slug": "prism-stats-counter",
+          "title": "Animated Stats",
+          "url": "/prism-stats-counter.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-client-journey",
+          "slug": "prism-client-journey",
+          "title": "Client Journey",
+          "url": "/prism-client-journey.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-data-vs-gut",
+          "slug": "prism-data-vs-gut",
+          "title": "Data vs Gut Decisions",
+          "url": "/prism-data-vs-gut.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "site/podcast",
+          "slug": "podcast",
+          "title": "Podcast",
+          "url": "/podcast/",
+          "content_type": "podcast-index",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-revenue-streams",
+          "slug": "prism-revenue-streams",
+          "title": "Revenue Streams",
+          "url": "/prism-revenue-streams.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-floating-cards",
+          "slug": "prism-floating-cards",
+          "title": "Service Offerings",
+          "url": "/prism-floating-cards.html",
+          "content_type": "infographic",
+          "topic": "General",
+          "description": ""
+        }
+      ]
+    },
+    {
       "topic": "AI Readiness",
       "count": 7,
       "items": [
@@ -267,75 +351,6 @@
           "read_time": null,
           "author": null,
           "description": "Learn what an AI readiness assessment covers, why it matters for small businesses, and how to determine if your organization is prepared to adopt AI successfully."
-        }
-      ]
-    },
-    {
-      "topic": "General",
-      "count": 7,
-      "items": [
-        {
-          "id": "site/about",
-          "slug": "about",
-          "title": "About Prism AI",
-          "url": "/about/",
-          "content_type": "page",
-          "topic": "General",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-stats-counter",
-          "slug": "prism-stats-counter",
-          "title": "Animated Stats",
-          "url": "/prism-stats-counter.html",
-          "content_type": "infographic",
-          "topic": "General",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-client-journey",
-          "slug": "prism-client-journey",
-          "title": "Client Journey",
-          "url": "/prism-client-journey.html",
-          "content_type": "infographic",
-          "topic": "General",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-data-vs-gut",
-          "slug": "prism-data-vs-gut",
-          "title": "Data vs Gut Decisions",
-          "url": "/prism-data-vs-gut.html",
-          "content_type": "infographic",
-          "topic": "General",
-          "description": ""
-        },
-        {
-          "id": "site/podcast",
-          "slug": "podcast",
-          "title": "Podcast",
-          "url": "/podcast/",
-          "content_type": "podcast-index",
-          "topic": "General",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-revenue-streams",
-          "slug": "prism-revenue-streams",
-          "title": "Revenue Streams",
-          "url": "/prism-revenue-streams.html",
-          "content_type": "infographic",
-          "topic": "General",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-floating-cards",
-          "slug": "prism-floating-cards",
-          "title": "Service Offerings",
-          "url": "/prism-floating-cards.html",
-          "content_type": "infographic",
-          "topic": "General",
-          "description": ""
         }
       ]
     },
@@ -476,6 +491,21 @@
       "count": 4,
       "items": [
         {
+          "id": "blog/the-2026-ai-regulation-clock-is-ticking",
+          "slug": "the-2026-ai-regulation-clock-is-ticking",
+          "title": "The 2026 AI Regulation Clock Is Ticking — What Small Businesses Need to Know Right Now",
+          "url": "/blog/the-2026-ai-regulation-clock-is-ticking/",
+          "content_type": "blog",
+          "topic": "Compliance & Regulation",
+          "category": "Industry Insights",
+          "series": null,
+          "series_part": null,
+          "date": "2026-04-23",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "The EU AI Act, state AI laws, and new governance standards all have concrete 2026 deadlines. Here&#39;s the timeline every small business using AI should have on their calendar."
+        },
+        {
           "id": "dashboard/prism-compliance-checks",
           "slug": "prism-compliance-checks",
           "title": "20 Compliance Automation Checks",
@@ -501,52 +531,40 @@
           "content_type": "download",
           "topic": "Compliance & Regulation",
           "description": ""
-        },
+        }
+      ]
+    },
+    {
+      "topic": "Internal Workflows",
+      "count": 3,
+      "items": [
         {
-          "id": "blog/the-2026-ai-regulation-clock-is-ticking",
-          "slug": "the-2026-ai-regulation-clock-is-ticking",
-          "title": "The 2026 AI Regulation Clock Is Ticking — What Small Businesses Need to Know Right Now",
-          "url": "/blog/the-2026-ai-regulation-clock-is-ticking/",
-          "content_type": "blog",
-          "topic": "Compliance & Regulation",
+          "id": "kb/workflows/brand_pass_pipeline.html",
+          "slug": "workflows/brand_pass_pipeline.html",
+          "title": "Brand-Pass Pipeline — Workflow",
+          "url": "/knowledgebase/workflows/brand_pass_pipeline.html",
+          "content_type": "infographic",
+          "topic": "Internal Workflows",
           "category": null,
           "series": null,
           "series_part": null,
           "date": null,
           "read_time": null,
           "author": null,
-          "description": "The EU AI Act, state AI laws, and new governance standards all have concrete 2026 deadlines. Here's the timeline every small business using AI should have on their calendar."
-        }
-      ]
-    },
-    {
-      "topic": "Architecture & Platform",
-      "count": 2,
-      "items": [
-        {
-          "id": "dashboard/prism-3-layer-delivery",
-          "slug": "prism-3-layer-delivery",
-          "title": "3-Layer Delivery Model",
-          "url": "/prism-3-layer-delivery.html",
-          "content_type": "infographic",
-          "topic": "Architecture & Platform",
-          "description": ""
+          "description": "Interactive diagram of the Prism brand-pass pipeline — NotebookLM blog artifacts to a published website post + LinkedIn companions. Claude does the vision and authoring; the Python toolkit does the pixels deterministically; a human gate sits before publish. Four views: Overview, Swim-Lane, Procedural, Stage Reference. Source: brand-pass SKILL.md.",
+          "workflow_diagram": {
+            "name": "brand_pass_pipeline",
+            "source": "Development/prism-notebooklm/.claude/skills/brand-pass/SKILL.md",
+            "source_hash_recorded": "60cec9feefbbf734a20cd6f7136dcd5d2c68b4eeeb9d0c91c3ff4f36ec713a58",
+            "source_hash_current": "60cec9feefbbf734a20cd6f7136dcd5d2c68b4eeeb9d0c91c3ff4f36ec713a58",
+            "drift": false,
+            "created": "2026-05-30",
+            "last_verified": "2026-05-30",
+            "mermaid_blocks": 3,
+            "status": "active",
+            "regenerated_by": "/diagram-from-source"
+          }
         },
-        {
-          "id": "dashboard/prism-self-drawing",
-          "slug": "prism-self-drawing",
-          "title": "Self-Drawing Architecture",
-          "url": "/prism-self-drawing.html",
-          "content_type": "infographic",
-          "topic": "Architecture & Platform",
-          "description": ""
-        }
-      ]
-    },
-    {
-      "topic": "Internal Workflows",
-      "count": 2,
-      "items": [
         {
           "id": "kb/workflows/prism_dashboard_workflow.html",
           "slug": "workflows/prism_dashboard_workflow.html",
@@ -600,6 +618,30 @@
             "status": "active",
             "regenerated_by": "/diagram-from-source"
           }
+        }
+      ]
+    },
+    {
+      "topic": "Architecture & Platform",
+      "count": 2,
+      "items": [
+        {
+          "id": "dashboard/prism-3-layer-delivery",
+          "slug": "prism-3-layer-delivery",
+          "title": "3-Layer Delivery Model",
+          "url": "/prism-3-layer-delivery.html",
+          "content_type": "infographic",
+          "topic": "Architecture & Platform",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-self-drawing",
+          "slug": "prism-self-drawing",
+          "title": "Self-Drawing Architecture",
+          "url": "/prism-self-drawing.html",
+          "content_type": "infographic",
+          "topic": "Architecture & Platform",
+          "description": ""
         }
       ]
     }

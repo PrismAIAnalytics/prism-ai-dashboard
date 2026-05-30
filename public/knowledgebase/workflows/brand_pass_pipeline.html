@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<!--
+workflow-diagram:
+  name: brand_pass_pipeline
+  source: Development/prism-notebooklm/.claude/skills/brand-pass/SKILL.md
+  source_hash: 60cec9feefbbf734a20cd6f7136dcd5d2c68b4eeeb9d0c91c3ff4f36ec713a58
+  created: 2026-05-30
+  last_verified: 2026-05-30
+  mermaid_blocks: 3
+  status: active
+  regenerated_by: /diagram-from-source
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="Interactive diagram of the Prism brand-pass pipeline — NotebookLM blog artifacts to a published website post + LinkedIn companions. Claude does the vision and authoring; the Python toolkit does the pixels deterministically; a human gate sits before publish. Four views: Overview, Swim-Lane, Procedural, Stage Reference. Source: brand-pass SKILL.md.">
+<title>Brand-Pass Pipeline — Workflow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root {
+    /* Prism brand palette */
+    --prism-navy: #17135C;
+    --prism-royal: #3A5998;
+    --prism-blue: #4A6DB5;
+    --prism-sky: #BDC9DD;
+    --prism-gold: #C8A45A;
+    --prism-charcoal: #1A1A2E;
+    --prism-deep-royal: #2E4EAD;
+    --prism-steel: #5C7BB8;
+
+    --off-white: #F4F7FB;
+    --light-gray: #D0D7DE;
+    --bg: #F4F7FB;
+    --panel: #FFFFFF;
+    --border: #D0D7DE;
+    --text: #1A1A2E;
+    --muted: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(135deg, var(--prism-navy) 0%, #2a2580 100%);
+    color: white;
+    padding: 24px 32px;
+    border-bottom: 4px solid var(--prism-gold);
+  }
+  header h1 { margin: 0 0 4px 0; font-size: 24px; font-weight: 600; }
+  header .sub { font-size: 14px; opacity: 0.85; }
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(23,19,92,0.06);
+  }
+  .tab {
+    padding: 14px 22px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--prism-navy); background: var(--off-white); }
+  .tab.active {
+    color: var(--prism-navy);
+    border-bottom-color: var(--prism-royal);
+    background: var(--off-white);
+  }
+  .tab .num {
+    display: inline-block;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    margin-right: 6px;
+    font-weight: 600;
+  }
+  .tab.active .num { background: var(--prism-navy); }
+  main { padding: 24px 32px 60px 32px; max-width: 1600px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { margin-bottom: 16px; }
+  .view-header h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--prism-navy); }
+  .view-header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(23,19,92,0.04);
+    overflow-x: auto;
+  }
+  .mermaid { text-align: center; min-height: 200px; overflow-x: auto; }
+  .mermaid svg { max-width: 100% !important; height: auto !important; display: block; margin: 0 auto; }
+  .mermaid .nodeLabel, .mermaid .edgeLabel { font-size: 12px !important; }
+  .mermaid .nodeLabel { white-space: nowrap; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--off-white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(23,19,92,0.15); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--prism-royal);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .kpi-card h4 { margin: 0 0 6px 0; font-size: 13px; color: var(--prism-navy); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card p { margin: 0; font-size: 14px; color: var(--text); }
+  .kpi-card.gold { border-left-color: var(--prism-gold); }
+  .kpi-card.blue { border-left-color: var(--prism-blue); }
+  .kpi-card.deep { border-left-color: var(--prism-deep-royal); }
+  .kpi-card.navy { border-left-color: var(--prism-navy); }
+  .kpi-card.charcoal { border-left-color: var(--prism-charcoal); }
+  table.spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  table.spec-table th { text-align: left; background: var(--off-white); padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--prism-navy); font-weight: 600; }
+  table.spec-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.spec-table tr:nth-child(even) { background: var(--off-white); }
+  table.spec-table tr:last-child td { border-bottom: none; }
+  table.spec-table tr.highlight td { background: #FBF4E6; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; }
+  .pill.royal { background: var(--prism-royal); }
+  .pill.gold { background: var(--prism-gold); }
+  .pill.navy { background: var(--prism-navy); }
+  .pill.blue { background: var(--prism-blue); }
+  .pill.deep { background: var(--prism-deep-royal); }
+  .pill.charcoal { background: var(--prism-charcoal); }
+  .pill.steel { background: var(--prism-steel); }
+  .footer-note {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--off-white);
+    border-left: 3px solid var(--prism-gold);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li {
+    counter-increment: step;
+    padding: 12px 12px 12px 48px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 26px;
+    height: 26px;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .step-list li strong { color: var(--prism-navy); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Brand-Pass Pipeline — Workflow Diagram</h1>
+  <div class="sub">NotebookLM artifacts → branded blog + LinkedIn companions • Vision → Toolkit → Human gate → Publish</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-view="v1"><span class="num">1</span>High-level Overview</button>
+  <button class="tab" data-view="v2"><span class="num">2</span>Detailed Swim-Lane</button>
+  <button class="tab" data-view="v3"><span class="num">3</span>Step-by-Step Procedural</button>
+  <button class="tab" data-view="v4"><span class="num">4</span>Stage Reference</button>
+</nav>
+
+<main>
+
+<!-- VIEW 1: HIGH-LEVEL OVERVIEW -->
+<section class="view active" id="v1">
+  <div class="view-header">
+    <h2>1 · High-Level Overview</h2>
+    <p>The ten-stage pipeline from blog request to live post, end-to-end on a single page.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Trigger</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Process step</div>
+    <div class="legend-item"><span class="swatch" style="background:#4A6DB5;"></span>Human gate</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Toolkit / publish</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>Rename-on-date</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Output</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+    Start(["Blog request"]):::trigger
+    F1["1. Create bundle folder<br/>_work/[slug]/"]:::ops
+    NB["2. NotebookLM generate<br/>infographic + deck"]:::ops
+    DL["3. Download → inputs/"]:::ops
+    BP["4. /brand-pass<br/>vision → job.yaml → toolkit → QA"]:::exec
+    AU["5. Author blog + 2 LinkedIn"]:::ops
+    Gate{"6. Human gate<br/>approve + set date"}:::decision
+    RN["7. Rename folder<br/>YYYY-MM-DD_slug"]:::gold
+    ST["8. stage_blog_post.py"]:::ops
+    PV["9. Local preview"]:::ops
+    PUB["10. PR → merge → Netlify"]:::exec
+    Out(["Live + LinkedIn, same day"]):::output
+
+    Start --> F1 --> NB --> DL --> BP --> AU --> Gate --> RN --> ST --> PV --> PUB --> Out
+
+    classDef trigger fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+    classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+    classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+    classDef gold fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card">
+      <h4>The deliverable is a bundle</h4>
+      <p>Three parts in one <code>_work/&lt;slug&gt;/</code> folder: the blog (mirrors <code>blog-sources/&lt;slug&gt;.md</code>) + <code>linkedin-institutional.md</code> (firm voice) + <code>linkedin-personal.md</code> (founder voice).</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Rename-on-date (stage 7)</h4>
+      <p>The moment the publish date is decided, the work folder gains a <code>YYYY-MM-DD_</code> prefix. Website slug stays bare; <code>paths.work_dir()</code> resolves either form, so no flag changes.</p>
+    </div>
+    <div class="kpi-card deep">
+      <h4>Separation of concerns</h4>
+      <p>Claude does the <strong>vision</strong> (locate the fake logo, classify bg, pin bboxes) and authoring; the Python toolkit does the <strong>pixels</strong> deterministically and self-scans for the stray-blue defect class.</p>
+    </div>
+    <div class="kpi-card navy">
+      <h4>Hard rule</h4>
+      <p>Never touch the website before the human gate. Staging writes to the working tree only — release is Michele's explicit commit + merge. Future-dated posts render as stubs until their date (UTC).</p>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW 2: DETAILED SWIM-LANE -->
+<section class="view" id="v2">
+  <div class="view-header">
+    <h2>2 · Detailed Swim-Lane</h2>
+    <p>Who/what owns each step. Lanes = roles and systems. Cross-lane arrows = handoffs.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Michele (user)</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Claude (vision + authoring)</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>NotebookLM</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Brandpass toolkit (Python)</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>Rename-on-date</div>
+    <div class="legend-item"><span class="swatch" style="background:#BDC9DD;border:1px solid #94a4c5;"></span>Website (Eleventy)</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  subgraph User["MICHELE"]
+    direction TB
+    U1(["Requests blog"]):::user
+    U2(["Drops NotebookLM<br/>downloads"]):::user
+    U3(["Approves +<br/>decides date"]):::user
+    U4(["Publishes:<br/>PR merge"]):::user
+  end
+
+  subgraph Claude["CLAUDE · vision + authoring"]
+    direction TB
+    C1["Inspect images<br/>author job.yaml"]:::cos
+    C2["Review cohesion<br/>report · QA loop"]:::cos
+    C3["Draft blog +<br/>2 LinkedIn companions"]:::cos
+    C4["Rename folder<br/>YYYY-MM-DD_slug"]:::gold
+  end
+
+  subgraph NLM["NOTEBOOKLM"]
+    direction TB
+    NB[("Infographic + deck<br/>plus audio")]:::data
+  end
+
+  subgraph Kit["BRANDPASS TOOLKIT · Python"]
+    direction TB
+    K1["brand_pass.py<br/>execute + cohesion report"]:::spec
+    K2["stage_blog_post.py<br/>--date"]:::spec
+  end
+
+  subgraph Web["WEBSITE · Eleventy"]
+    direction TB
+    W1["blog-sources/[slug].md"]:::ext
+    W2["assets/img/blog/[slug]/"]:::ext
+    W3["_build_blog_html.js"]:::ext
+    W4["Netlify deploy"]:::ext
+  end
+
+  U1 --> NB
+  NB -->|"download"| U2
+  U2 -->|"inputs/"| C1
+  C1 -->|"job.yaml"| K1
+  K1 -->|"report"| C2
+  C2 -->|"defects, max 2x"| C1
+  C2 --> C3
+  C3 --> U3
+  U3 -->|"date decided"| C4
+  C4 --> K2
+  K2 --> W1
+  K2 --> W2
+  K2 --> W3
+  W3 --> U4
+  U4 --> W4
+
+  classDef user fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef cos fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+  classDef data fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+  classDef spec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+  classDef gold fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+  classDef ext fill:#BDC9DD,stroke:#94a4c5,color:#1A1A2E,stroke-width:1.5px
+    </pre>
+  </div>
+
+  <div class="footer-note">
+    <strong>The human gate sits between C3 and U3:</strong> Claude presents the processed folder, the cohesion report (with any harmonize-exception banner), and the exact staging command — then stops. Nothing touches the website until Michele approves and the date is set.
+  </div>
+</section>
+
+<!-- VIEW 3: STEP-BY-STEP PROCEDURAL -->
+<section class="view" id="v3">
+  <div class="view-header">
+    <h2>3 · Step-by-Step Procedural</h2>
+    <p>Every decision point and loop — the QA gate, the harmonize banner, the human gate, rename-on-date, and the future-date stub branch.</p>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  A(["Blog request"]):::start --> F1["Create _work/[slug]/"]:::ops
+  F1 --> NB["NotebookLM:<br/>infographic + deck"]:::fetch
+  NB --> DL["Download → inputs/"]:::ops
+  DL --> J1["Inspect images<br/>author job.yaml"]:::ops
+  J1 --> RUN["brand_pass.py --slug"]:::exec
+  RUN --> QA{"Stray-blue<br/>gate pass?"}:::dec
+  QA -->|"fail, max 2x"| J1
+  QA -->|"pass"| HB{"Harmonize<br/>banner?"}:::dec
+  HB -->|"yes"| SURF["Surface exception<br/>to Michele"]:::warn
+  HB -->|"no"| AUTH["Draft post.md +<br/>2 LinkedIn"]:::ops
+  SURF --> AUTH
+  AUTH --> SCAN{"Banned-phrase<br/>scan clean?"}:::dec
+  SCAN -->|"hits"| AUTH
+  SCAN -->|"clean"| GATE{{"HUMAN GATE<br/>approve?"}}:::esc
+  GATE -->|"changes"| J1
+  GATE -->|"approved + date set"| RN["Rename →<br/>YYYY-MM-DD_slug"]:::gold
+  RN --> STG["stage_blog_post.py --date"]:::ops
+  STG --> PRV["npm build + serve<br/>local preview"]:::ops
+  PRV --> PR["Website PR → merge"]:::exec
+  PR --> FD{"Future-dated?"}:::dec
+  FD -->|"yes"| STUB["Stub until<br/>date UTC"]:::warn
+  FD -->|"no"| LIVE(["Live + LinkedIn<br/>same day"]):::start
+  STUB -->|"unstub on/after date"| LIVE
+
+  classDef start fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef dec fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+  classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:1.5px
+  classDef fetch fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:1.5px
+  classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:1.5px
+  classDef esc fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:1.5px
+  classDef gold fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+  classDef warn fill:#BDC9DD,stroke:#94a4c5,color:#1A1A2E,stroke-width:1.5px
+  classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <ol class="step-list">
+    <li><strong>Create the work folder</strong> — one bare <code>_work/&lt;slug&gt;/</code> per blog (the date prefix is added later, at the human gate). Scaffold the three bundle files.</li>
+    <li><strong>Generate in NotebookLM</strong> — build the notebook, generate the infographic (website hero) + slide deck (body visuals). Manual today; auto-pull is the deferred Phase 4.</li>
+    <li><strong>Download</strong> — drop <code>infographic.png</code> + <code>deck.pdf</code> into <code>&lt;work&gt;/inputs/</code>.</li>
+    <li><strong>Author job.yaml</strong> — Claude inspects each image (Read tool): classify bg light/dark, pin a tight fake-logo bbox, decide mark + placement. Pinned bboxes make reruns deterministic.</li>
+    <li><strong>Run the toolkit</strong> — <code>brand_pass.py --slug</code> executes the job into <code>&lt;work&gt;/processed/</code> and writes <code>cohesion-report.md</code>.</li>
+    <li><strong>Stray-blue gate</strong> — the report FAILS if a recolored wordmark kept a bright-blue stroke (the known bug class). Fix the bbox/mode and rerun, capped at ~2 iterations.</li>
+    <li><strong>Harmonize banner</strong> — whenever a logo was harmonized, the report prints a GUIDELINE EXCEPTION banner; surface it to Michele, never let it pass silently.</li>
+    <li><strong>Author the bundle</strong> — write <code>post.md</code> (the staged body, mirrors <code>blog-sources/&lt;slug&gt;.md</code>) plus the two LinkedIn companions; <code>post_by</code> equals the blog <code>date:</code>.</li>
+    <li><strong>Banned-phrase scan</strong> — the cohesion report runs the Node scanner on <code>post.md</code> against <code>do-not-do.md</code>; fix any hits.</li>
+    <li><strong>Human gate</strong> — present processed folder + report + staging command, then STOP. Michele approves and decides the publish date (or requests changes → back to job.yaml).</li>
+    <li><strong>Rename-on-date</strong> — with the date now set, rename <code>_work/&lt;slug&gt;/</code> → <code>_work/YYYY-MM-DD_&lt;slug&gt;/</code>. Folder move only; bare <code>--slug</code> unchanged. If the date later changes, rename again.</li>
+    <li><strong>Stage</strong> — <code>stage_blog_post.py --date</code> copies images to <code>assets/img/blog/&lt;slug&gt;/</code>, writes <code>blog-sources/&lt;slug&gt;.md</code>, registers the slug in <code>_build_blog_html.js</code>. Working tree only — no commit, no deploy.</li>
+    <li><strong>Preview &amp; publish</strong> — review at <code>/blog/&lt;slug&gt;/</code>, then PR → merge → Netlify. Future-dated posts render as stubs until their date (UTC); unstub merge lands on/after the publish day.</li>
+  </ol>
+</section>
+
+<!-- VIEW 4: STAGE REFERENCE -->
+<section class="view" id="v4">
+  <div class="view-header">
+    <h2>4 · Stage Reference</h2>
+    <p>Driver, command/tool, output, and gate per pipeline stage.</p>
+  </div>
+
+  <div class="panel" style="padding: 0;">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 6%;">#</th>
+          <th style="width: 20%;">Stage</th>
+          <th style="width: 18%;">Driver</th>
+          <th style="width: 28%;">Command / tool</th>
+          <th style="width: 28%;">Output / gate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pill navy">1</span></td>
+          <td>Create bundle folder</td>
+          <td>Claude</td>
+          <td><code>_work/&lt;slug&gt;/</code> (bare slug)</td>
+          <td>3 scaffolds: blog + 2 LinkedIn</td>
+        </tr>
+        <tr>
+          <td><span class="pill charcoal">2</span></td>
+          <td>NotebookLM generate</td>
+          <td>Michele (manual)</td>
+          <td>NotebookLM web UI</td>
+          <td>infographic + deck (+ audio). Auto-pull = deferred Phase 4</td>
+        </tr>
+        <tr>
+          <td><span class="pill royal">3</span></td>
+          <td>Download artifacts</td>
+          <td>Michele</td>
+          <td>save to <code>&lt;work&gt;/inputs/</code></td>
+          <td><code>infographic.png</code>, <code>deck.pdf</code></td>
+        </tr>
+        <tr>
+          <td><span class="pill blue">4</span></td>
+          <td>Author job.yaml</td>
+          <td>Claude (vision)</td>
+          <td>Read tool + <code>jobspec.py</code> schema</td>
+          <td>pinned bboxes → deterministic reruns</td>
+        </tr>
+        <tr>
+          <td><span class="pill deep">5</span></td>
+          <td>Run toolkit</td>
+          <td>Python</td>
+          <td><code>brand_pass.py --slug</code></td>
+          <td><code>processed/</code> + <code>cohesion-report.md</code></td>
+        </tr>
+        <tr>
+          <td><span class="pill gold">6</span></td>
+          <td>QA loop</td>
+          <td>Claude</td>
+          <td>read report; fix bbox/mode</td>
+          <td><strong>stray-blue gate</strong> + harmonize banner + banned-phrase scan</td>
+        </tr>
+        <tr>
+          <td><span class="pill royal">7</span></td>
+          <td>Author bundle</td>
+          <td>Claude</td>
+          <td><code>post.md</code> + 2 LinkedIn <code>.md</code></td>
+          <td><code>post_by</code> == blog <code>date:</code>; do-not-do compliance</td>
+        </tr>
+        <tr>
+          <td><span class="pill gold">8</span></td>
+          <td>Human gate</td>
+          <td>Michele</td>
+          <td>review processed + report</td>
+          <td><strong>STOP</strong> — approve + decide date, or request changes</td>
+        </tr>
+        <tr class="highlight">
+          <td><span class="pill gold">9</span></td>
+          <td>Rename-on-date</td>
+          <td>Claude / folder move</td>
+          <td><code>_work/&lt;slug&gt;/</code> → <code>_work/YYYY-MM-DD_&lt;slug&gt;/</code></td>
+          <td>bare <code>--slug</code> unchanged; <code>paths.work_dir()</code> resolves either</td>
+        </tr>
+        <tr>
+          <td><span class="pill deep">10</span></td>
+          <td>Stage</td>
+          <td>Python</td>
+          <td><code>stage_blog_post.py --date</code></td>
+          <td>writes working tree only — no commit/deploy</td>
+        </tr>
+        <tr>
+          <td><span class="pill royal">11</span></td>
+          <td>Local preview</td>
+          <td>Michele / Claude</td>
+          <td><code>npm run build &amp;&amp; npm run serve</code></td>
+          <td><code>/blog/&lt;slug&gt;/</code></td>
+        </tr>
+        <tr>
+          <td><span class="pill charcoal">12</span></td>
+          <td>Publish</td>
+          <td>Michele</td>
+          <td>website PR → merge → Netlify</td>
+          <td>future-dated = stub until date (UTC); unstub on/after</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card navy">
+      <h4>Work-folder naming</h4>
+      <p>Folders carry a <code>YYYY-MM-DD_</code> prefix once a date is set. Blog <code>date:</code>, LinkedIn <code>post_by:</code>, and the folder prefix must all agree (same-day rule).</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Deferred</h4>
+      <p>NotebookLM auto-pull (Phase 4) — drive generate + download from a notebook ID. On hold until the folder-first flow is tested in anger. Audio routing is an open question.</p>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <strong>Source files:</strong> <code>.claude/skills/brand-pass/SKILL.md</code> (canonical process) · <code>scripts/brand_pass.py</code> · <code>scripts/stage_blog_post.py</code> · <code>scripts/pull_artifacts.py</code> · <code>brandpass/paths.py</code> (<code>work_dir</code> resolver) · workspace <code>CLAUDE.md</code> "Blog request workflow" + "Work-folder naming" · <code>brandpass/_work/README.md</code>.
+  </div>
+</section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      fontSize: '14px',
+      primaryColor: '#3A5998',
+      primaryTextColor: '#FFFFFF',
+      primaryBorderColor: '#2c4577',
+      lineColor: '#475569',
+      textColor: '#1A1A2E',
+      mainBkg: '#3A5998',
+      secondaryColor: '#4A6DB5',
+      tertiaryColor: '#F4F7FB',
+      /* Subgraph (cluster) styling — this is what was rendering red */
+      clusterBkg: '#F4F7FB',
+      clusterBorder: '#BDC9DD',
+      titleColor: '#17135C',
+      edgeLabelBackground: '#FFFFFF',
+      noteBkgColor: '#F4F7FB',
+      noteBorderColor: '#BDC9DD',
+      noteTextColor: '#1A1A2E'
+    },
+    flowchart: {
+      htmlLabels: true,
+      curve: 'basis',
+      nodeSpacing: 25,
+      rankSpacing: 45,
+      padding: 8,
+      useMaxWidth: true,
+      diagramPadding: 8
+    },
+    securityLevel: 'loose'
+  });
+
+  // Cache the original mermaid source on first read so subsequent renders use it
+  function captureSources() {
+    document.querySelectorAll('.mermaid').forEach(d => {
+      if (!d.dataset.src) d.dataset.src = d.textContent.trim();
+    });
+  }
+  async function renderView(viewId) {
+    const diagrams = document.querySelectorAll('#' + viewId + ' .mermaid');
+    for (const d of diagrams) {
+      if (d.dataset.rendered) continue;
+      try {
+        const src = d.dataset.src || d.textContent.trim();
+        const id = 'm_' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, src);
+        d.innerHTML = svg;
+        d.dataset.rendered = '1';
+      } catch (err) {
+        d.innerHTML = '<div style="color:#C8A45A;padding:20px;font-family:monospace;font-size:12px;text-align:left;">Mermaid render error:<br>' + (err && err.message ? err.message : err) + '</div>';
+      }
+    }
+  }
+
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-view');
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      renderView(target);
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    captureSources();
+    renderView('v1');
+  });
+</script>
+
+</body>
+</html>
