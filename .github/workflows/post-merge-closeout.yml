@@ -1,0 +1,133 @@
+# Post-merge close-out — T-094
+#
+# Releases the WIP=1 lock at merge time. The lock is the single "In Progress"
+# row in TASKS.md (WORKFLOW.md §3). A task claims it inside its feature PR, but
+# the close-out (move the row to Done This Week WITH the squash SHA) can't ship
+# in that same PR — the squash SHA doesn't exist until after merge. §4's
+# "bundle into the next task's first commit" workaround leaves a STALE row on
+# main whenever there's no next task soon. Recurred 4× (T-059/T-088/T-090/T-093).
+#
+# What this does, when a feature PR squash-merges to main:
+#   1. Reads the single In Progress T-ID from TASKS.md on main.
+#   2. Cross-checks that row's Branch cell == the merged PR's head ref. On any
+#      mismatch / empty / >1 row, it NO-OPS and warns — it never guesses.
+#   3. Opens a `chore/auto-close-tNNN` PR moving the row to Done This Week with
+#      the merge metadata. It does NOT auto-merge — a human squash-merges it,
+#      preserving the PR-to-self speed bump (WORKFLOW.md §4).
+#
+# Why an auto-PR and not a direct push to main:
+#   main is branch-protected (T-004: PR required, bypass list empty, applies to
+#   admins). A direct push from CI is rejected (GH013) unless the Actions bot is
+#   added to a bypass list — which would punch an automation hole in the exact
+#   protection that closed wipe #3. So we open a PR instead.
+#
+# ⚠️  This workflow NEVER runs scripts/sync-tasks.js — T-091 flags it
+#     DO-NOT-RUN-LIVE (notion-only mass-create risk). It edits the TASKS.md
+#     markdown file only; the dashboard + Notion mirrors are reconciled
+#     separately once T-091 ships.
+#
+# One-time manual setup (mirrors T-007's secret / T-017's setup pattern):
+#   Settings → Actions → General → Workflow permissions →
+#     ☑ "Allow GitHub Actions to create and approve pull requests"
+#   Without it, `gh pr create` returns 403.
+
+name: Post-merge close-out
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# This job opens a PR and pushes a feature branch — needs write on both.
+# (Pushing a NEW branch is fine; only main is protected.)
+permissions:
+  contents: write
+  pull-requests: write
+
+# Serialize so two near-simultaneous merges can't race on TASKS.md. cancel
+# disabled so each merge gets its own close-out attempt.
+concurrency:
+  group: post-merge-closeout
+  cancel-in-progress: false
+
+jobs:
+  closeout:
+    # Only on a real merge, and never on our own auto-close PRs (loop guard:
+    # the chore/auto-close-* PR's merge would otherwise re-trigger this).
+    if: >-
+      github.event.pull_request.merged == true &&
+      !startsWith(github.event.pull_request.head.ref, 'chore/auto-close-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compute close-out edit
+        id: close
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +%Y-%m-%d)
+          # No deps needed — pure node stdlib. Emits closed=true|false + tid to
+          # $GITHUB_OUTPUT. The --expect-branch cross-check is what makes a
+          # mismatched (e.g. no-ticket override) merge a safe no-op.
+          node scripts/close-merged-task.js \
+            --pr="${PR_NUMBER}" \
+            --sha="${MERGE_SHA}" \
+            --date="${DATE}" \
+            --expect-branch="${HEAD_REF}"
+
+      - name: Open auto close-out PR
+        if: steps.close.outputs.closed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TID: ${{ steps.close.outputs.tid }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          TID_LC=$(echo "$TID" | tr '[:upper:]' '[:lower:]')
+          BRANCH="chore/auto-close-${TID_LC}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add TASKS.md
+          git commit -m "chore: close ${TID} (post-merge auto close-out, PR #${PR_NUMBER} as ${MERGE_SHA})"
+          git push -u origin "$BRANCH"
+
+          BODY=$(printf '%s\n' \
+            "Automated WIP=1 lock release for **${TID}**, whose feature PR #${PR_NUMBER} squash-merged as \`${MERGE_SHA}\`." \
+            "" \
+            "Moves the ${TID} row **In Progress → Done This Week** in TASKS.md, clearing the lock that would otherwise carry stale on \`main\` until the next task's first commit — the recurring close-out gap (T-059 / T-088 / T-090 / T-093)." \
+            "" \
+            "- Markdown-only change to TASKS.md." \
+            "- \`scripts/sync-tasks.js\` was **NOT** run (T-091 DO-NOT-RUN-LIVE)." \
+            "- **Squash-merge this** to release the lock. No-op safe to close if a human already cleared the row." \
+            "" \
+            "🤖 Opened by the post-merge close-out Action (T-094).")
+
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore: close ${TID} (post-merge auto close-out)" \
+            --body "$BODY"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Post-merge close-out" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.close.outputs.closed }}" = "true" ]; then
+            echo "Opened a close-out PR for \`${{ steps.close.outputs.tid }}\` (lock released on merge)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No close-out PR opened — In Progress was empty, ambiguous, or the merged branch didn't match the locked row. Lock left unchanged." >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-094 | Post-merge close-out Action — auto-clear stale WIP=1 lock | chore/post-merge-closeout-action | Claude Code | 2026-05-30 |
 
 ---
 

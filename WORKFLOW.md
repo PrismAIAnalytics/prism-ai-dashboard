@@ -135,9 +135,17 @@ git branch -d task/csv-export
 
 Also click **"Delete branch"** on the merged PR's GitHub page so the remote branch isn't left dangling.
 
-### Closing a task — bundle into the next task's first commit
+### Closing a task — the post-merge close-out Action does it for you (T-094)
 
-The merge SHA only exists *after* merge, which makes a clean close-out edit to TASKS.md impossible to bundle into the same PR that did the work. Instead of opening a tiny follow-up PR for every closure, **the close-out edit is bundled into the next task's first commit.** Lifecycle:
+The merge SHA only exists *after* merge, which makes a clean close-out edit to TASKS.md impossible to bundle into the same PR that did the work. For a long time the workaround was "bundle the close-out into the next task's first commit" — but that left a **stale In Progress row on `main` whenever no next task came soon**, and it recurred at least four times (T-059, T-088, T-090, T-093).
+
+**As of T-094 this is automated.** When a feature PR squash-merges to main, the `Post-merge close-out` GitHub Action ([.github/workflows/post-merge-closeout.yml](.github/workflows/post-merge-closeout.yml)) reads the single In Progress row, confirms its **Branch cell matches the merged PR's head branch** (so a "no ticket" override merge can't clear someone else's lock), and opens a `chore/auto-close-tNNN` PR that moves the row to Done This Week with the squash SHA. **It does not auto-merge** — you squash-merge that one-file PR (one click) to release the lock. If In Progress is empty, ambiguous (>1 row), or the branch doesn't match, the Action no-ops and warns rather than guessing.
+
+So the normal close-out is now: **merge your PR → a `chore/auto-close-tNNN` PR appears → squash-merge it.** The lock is released at merge time instead of drifting until the next task.
+
+> The Action **never** runs `scripts/sync-tasks.js` (T-091 flags it DO-NOT-RUN-LIVE — notion-only mass-create risk). It edits the TASKS.md markdown only; the dashboard + Notion mirrors are reconciled separately once T-091 ships. The same script is runnable locally as a manual fallback: `node scripts/close-merged-task.js --pr=<n> --sha=<sha> --date=<YYYY-MM-DD>` (add `--dry-run` to preview).
+
+**Fallback — bundle into the next task's first commit.** If the Action is unavailable (or you're closing out by hand), the original manual lifecycle still works:
 
 1. Michele dispatches T-NEXT to an AI: *"Take T-NEXT. Branch `task/whatever`. You own In Progress."*
 2. AI runs `git fetch && git status` and announces (per Section 3).
@@ -146,7 +154,7 @@ The merge SHA only exists *after* merge, which makes a clean close-out edit to T
    ```bash
    node scripts/sync-tasks.js
    ```
-   See §4.6 below for what this does and when to skip it.
+   See §4.6 below for what this does and when to skip it. **Caveat (T-091):** `sync-tasks.js` is currently **DO-NOT-RUN-LIVE** (notion-only mass-create risk) until T-091 ships — `--dry-run` only, or skip and note it in the close-out (as the recent Done rows do).
 5. Subsequent commits on the same branch do the actual work for T-NEXT.
 6. PR ships everything together.
 
