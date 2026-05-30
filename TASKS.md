@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-093 | Brand-pass pipeline workflow diagram — add `public/knowledgebase/workflows/brand_pass_pipeline.html` (4-view, drift-tracked) under Internal Workflows | feat/diagram-brand-pass-pipeline | Cowork | 2026-05-30 |
 
 ---
 
