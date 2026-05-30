@@ -67,7 +67,7 @@ Single-file Express.js backend (`server.js`) serving a vanilla JS single-page ap
 
 **Auth**: Optional Bearer token via `API_KEY` env var. If `API_KEY` is not set, all `/api/*` routes are open. `/health` is always public.
 
-**All backend logic lives in `server.js`** — routes, middleware, DB schema, seed data, and migrations are all in this one file (~864 lines).
+**All backend logic lives in `server.js`** — routes, middleware, DB schema, seed data, and migrations are all in this one file (**~7,270 lines** as of 2026-05-29; well over the 800-line cap — decomposition into `routes/`/`db/`/`middleware/` is a tracked tech-debt project).
 
 ## API Structure
 
@@ -124,4 +124,6 @@ QBO_ENVIRONMENT=production
 ## Known Issues
 
 - `better-sqlite3` requires native compilation (node-gyp + Visual Studio C++ Build Tools + Python). On Windows, ensure the "Desktop development with C++" workload is installed in VS Build Tools before running `npm install`.
-- The `xlsx` package has unpatched vulnerabilities (prototype pollution, ReDoS) — only use it with trusted input files.
+- Excel import/export uses **`exceljs`** (not `xlsx`). Earlier docs warned about `xlsx` prototype-pollution/ReDoS — that package is not a dependency here, so the warning was stale and has been removed.
+- `sql.js` is listed in `package.json` but is **not imported anywhere** (the real driver is `better-sqlite3`). It is a dead dependency and a candidate for removal.
+- `npm audit` reports vulnerabilities (several high) via transitive deps of `node-quickbooks` (→ axios/underscore) and `exceljs`/`uuid`. Fixes are breaking-change upgrades — handle deliberately, **do not** run `npm audit fix --force` blind.
