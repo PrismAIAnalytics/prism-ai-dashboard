@@ -287,6 +287,8 @@ Before you click "Squash and merge":
 
 **Near-term fix to plan:** Either turn off Railway auto-deploy and make `railway up` a manual command, or move SQLite to a Railway volume that survives redeploys. Until then, treat the merge button like a deploy button — because it is.
 
+**No "deploy commit" needed.** A merge to `main` deploys against the merge SHA on its own — you do **not** push a second/empty commit to make Railway pick it up. That workaround was caused by a TruffleHog CI failure on push (fixed under T-074 / PRISM-485, 2026-05-25). If a deploy ever hangs, check the push-event Security Gate run for the merge SHA, not a missing second commit. See [DEPLOY_RUNBOOK.md](DEPLOY_RUNBOOK.md) → "Deploy contract".
+
 ---
 
 ## 6. Recovery moves

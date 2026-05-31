@@ -113,6 +113,16 @@ Copy-Item "backups/prism-$ts.zip" "$env:OneDrive\PrismBackups\"
 
 ---
 
+## Deploy contract — no "deploy commit" needed (PRISM-485, fixed 2026-05-25)
+
+Merging to `main` auto-deploys against the **merge commit SHA**. You do **not** need a second/empty "deploy commit" to push the change through. If you ever find one is required, treat it as a **regression**, not normal — find the failing CI job and fix it.
+
+**History (why operators learned the workaround):** From the Security Gate CI landing (T-060, 2026-05-22) until the fix (T-074, 2026-05-25), every push to `main` failed the **TruffleHog** job with `BASE and HEAD commits are the same. TruffleHog won't scan anything.` The job passed on PRs but hard-failed on the post-merge push. Railway's "Wait for CI" saw the red combined status on the merge commit and held the deploy, so operators pushed a follow-up commit to unstick it. T-074 fixed it by removing the explicit `base`/`head` inputs in `.github/workflows/security-gate.yml` so the TruffleHog action resolves them from the event. Validated on PR #58 (`8598ec0`): the push-event Security Gate went green for the first time in the repo's history, and 25+ subsequent merges deployed clean with no follow-up commit.
+
+**If a deploy ever hangs again:** open the **push-event** Security Gate run for the merge SHA in the Actions tab. A red job (TruffleHog, SBOM, npm-audit, Semgrep) blocking Railway's "Wait for CI" is the cause — **not** a missing second commit. Fix the failing job; do not paper over it with an empty commit.
+
+---
+
 ## Post-deploy verification (within 5 minutes)
 
 - [ ] `curl /health` returns `200` and expected JSON body
