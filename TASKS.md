@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-096 | Document the deploy contract in DEPLOY_RUNBOOK.md + WORKFLOW.md §5 (PRISM-485 doc follow-up) | docs/prism-485-deploy-contract | Claude Code | 2026-05-31 |
 
 ---
 
