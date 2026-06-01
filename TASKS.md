@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-097 | Lighten dashboard dark theme — raise surface scale off near-black to true Prism navy | fix/lighten-dashboard-theme | Claude Code | 2026-06-01 |
 
 ---
 
