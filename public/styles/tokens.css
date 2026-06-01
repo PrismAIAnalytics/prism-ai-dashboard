@@ -55,17 +55,20 @@ body.prism-themed {
      R > G and reads purple at full-page scale; for the dark interface
      scale we rotate hue toward cyan-navy while keeping equivalent
      darkness. */
-  /* Surface scale raised off near-black to read as true Prism navy
-     (2026-06-01). The original scale bottomed out at #060B1F — almost
-     black — which lost the brand navy at full-page scale. These values
-     keep the same cyan-navy hue rotation and relative step spacing,
-     lifted ~5–6% in lightness so cards/tiles sit as navy on navy
-     rather than charcoal on black. Text and accent tokens are
-     unchanged; contrast against the lighter surfaces stays AA. */
-  --frame:          #11163A;
-  --shell:          #1A2350;
-  --shell-elevated: #232E63;
-  --core:           #2D3A78;
+  /* Surface scale rebuilt on the brand COOL BLUE (2026-06-01).
+     The original scale bottomed out at #060B1F — near-black — which
+     read as charcoal, not Prism blue. This scale is derived directly
+     from --royal (#3A5998) and --blue (#4A6DB5): graduated darker
+     shades of the cool blue for the frame/shell, with --royal itself
+     as the innermost focal surface. The UI now reads as the brand's
+     cool blue rather than a purple-navy or black.
+       --frame : deepest cool blue (eye-rest layer)
+       --shell : royal working layer where cards/surfaces live
+       --core  : brand --royal as the focal surface */
+  --frame:          #1C2E5E;
+  --shell:          #284088;
+  --shell-elevated: #34509E;
+  --core:           #3A5998;
   --card:           var(--shell);
 
   /* Back-compat aliases for embedded page styles that still use the
@@ -77,8 +80,8 @@ body.prism-themed {
   /* Edges are visible — borders read as faceted construction lines, not
      soft separators. --seam is the prismatic 1px treatment for major
      zone boundaries (nav↔main, section↔section). */
-  --border:         rgba(189, 201, 221, 0.24);
-  --border-strong:  rgba(189, 201, 221, 0.36);
+  --border:         rgba(189, 201, 221, 0.30);
+  --border-strong:  rgba(189, 201, 221, 0.45);
   --seam: linear-gradient(
     90deg,
     transparent 0%,
