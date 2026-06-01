@@ -178,7 +178,10 @@ body.prism-themed {
      family with the rest of the dashboard. */
   --lifecycle-idea:    #E8A33C; /* amber  — raw light */
   --lifecycle-handoff: #E07A3C; /* orange — warming   */
-  --lifecycle-pending: var(--blue);    /* blue — parked */
+  --lifecycle-pending: #6E8FD8;        /* light blue — parked (T-099: lifted off
+                                          brand --blue so the segment reads on the
+                                          cool-navy card; kept in lockstep with
+                                          LIFECYCLE_HEX.pending in index.html) */
   --lifecycle-active:  var(--success); /* green — in motion */
   --lifecycle-shipped: #8A6AD9; /* violet — refracted complete */
 }

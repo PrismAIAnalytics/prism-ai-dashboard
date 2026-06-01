@@ -21,14 +21,19 @@
 
 /** Lead-gold brand palette for categorical / multi-series charts. */
 export const PRISM_CHART_PALETTE = Object.freeze([
+  // T-099: blue-family fills lightened so they read on the cool-navy
+  // card surface (--shell #294781). Brand blue/royal/navy at full
+  // saturation sat at ~1–2:1 against the lighter card and vanished.
+  // These are chart-fill tints, NOT brand primitives — the locked
+  // brand hexes still live in tokens.css :root and are used for accents.
   '#C8A45A', // gold (lead series — the brand signature)
-  '#4A6DB5', // blue
+  '#6E8FD8', // light blue (was brand blue #4A6DB5 — too dark on card)
   '#BDC9DD', // sky
-  '#3A5998', // royal
+  '#5577C0', // mid royal (was brand royal #3A5998 — blended into card)
   '#A8883A', // gold-dark
   '#5189BF', // logo gradient stop
   '#7A85C4', // soft periwinkle
-  '#17135C', // navy (anchor / overlay)
+  '#8E9FDB', // light periwinkle (was navy #17135C — invisible on card)
 ]);
 
 /** Status colors for semantic chart sections (donuts, gauges, heatmaps). */
