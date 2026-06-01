@@ -16,7 +16,7 @@
    /styles/chart-theme.js — keep these in sync. Gold leads the palette
    (chrome / focal accent per Prismatic Clarity philosophy). */
 window.PRISM = {
-  PALETTE: ['#C8A45A','#4A6DB5','#BDC9DD','#3A5998','#A8883A','#5189BF','#7A85C4','#17135C'],
+  PALETTE: ['#C8A45A','#6E8FD8','#BDC9DD','#5577C0','#A8883A','#5189BF','#7A85C4','#8E9FDB'],
   STATUS:  { success: '#4FB48A', warning: '#C8A45A', danger: '#D96A6A', info: '#4A6DB5', neutral: '#BDC9DD' },
   DRIFT:   { built_in: '#4FB48A', limited: '#C8A45A', audit_log_only: '#9C8FE0', none: '#D96A6A', immutable: '#4A6DB5', unknown: '#7A85C4' },
   AUTOMATION: { full: '#4FB48A', partial: '#C8A45A', manual_heavy: '#D96A6A' },
@@ -1730,7 +1730,7 @@ loaders.dashboard = async () => {
       type: 'doughnut',
       data: {
         labels: catLabels.map(c => c.replace(/_/g, ' ')),
-        datasets: [{ data: catData, backgroundColor: catColors.slice(0, catLabels.length), borderWidth: 0 }]
+        datasets: [{ data: catData, backgroundColor: catColors.slice(0, catLabels.length), borderColor: '#0F0C30', borderWidth: 2 }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -5420,7 +5420,7 @@ const LIFECYCLE_STATE_LABELS = { idea: 'Idea', handoff: 'Handoff', pending: 'Pen
 const LIFECYCLE_HEX = {
   idea:    '#E8A33C',
   handoff: '#E07A3C',
-  pending: '#4A6DB5',
+  pending: '#6E8FD8',
   active:  '#4FB48A',
   shipped: '#8A6AD9',
 };
