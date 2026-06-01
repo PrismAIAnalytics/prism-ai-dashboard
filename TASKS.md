@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-097 | Lighten dashboard dark theme — raise surface scale off near-black to true Prism navy | fix/lighten-dashboard-theme | Claude Code | 2026-06-01 |
+| T-098 | Dashboard theme — cool-navy surface scale with proper depth + chart legibility (design-review follow-up to T-097) | fix/dashboard-theme-navy-depth | Claude Code | 2026-06-01 |
 
 ---
 
@@ -47,6 +47,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-097 | Lighten dashboard dark theme — raise surface scale off near-black | 2026-06-01 | Merged via PR #87 (squash) to main. Shipped the conservative navy lift (--frame #11163A). Superseded almost immediately by T-098 after Michele reviewed it live ("I don't see a difference" / "something is still off") and a two-expert design review prescribed a different recipe. Net value retained: moved tokens off #060B1F near-black and proved the centralized tokens.css cascade. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-096 | Document the deploy contract in DEPLOY_RUNBOOK.md + WORKFLOW.md §5 (PRISM-485 doc follow-up) | 2026-05-31 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #85 as `c5604da96722ba277416739d627285ddc3b25fe8` (squash) on 2026-05-31. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-095 | Close-out Action: green run under org PR-policy + branch-name polish | 2026-05-30 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #83 as `d6d2536dc94b352be07d3cf65b0c65d9672f203f` (squash) on 2026-05-30. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-094 | Post-merge close-out Action — auto-clear stale WIP=1 lock | 2026-05-30 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #81 as `0c704867e5b2ade96c29f5dbf0f2e8c8ab4cf78e` (squash) on 2026-05-30. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
