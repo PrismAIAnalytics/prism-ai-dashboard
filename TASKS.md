@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-100 | CRM prospect batch-import endpoint (Apollo→CRM) + apollo_id migration + non-destructive lead_sources seed | task/crm-import-prospects | Cowork | 2026-06-02 |
 
 ---
 
