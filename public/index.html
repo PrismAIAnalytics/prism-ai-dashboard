@@ -798,11 +798,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <a href="javascript:void(0)" data-page="tickets" onclick="showPage('tickets', this)">Tickets<span id="nav-tickets-needs-decision" class="nav-badge-red" style="display:none"></span></a>
     <a href="javascript:void(0)" data-page="prism-studio" onclick="showPage('prism-studio', this)">Prism Studio</a>
     <div class="nav-section">Clients &amp; Sales</div>
-    <a href="javascript:void(0)" data-page="clients" onclick="showPage('clients', this)">Clients</a>
     <a href="javascript:void(0)" data-page="crm" onclick="showPage('crm', this)">CRM</a>
-    <a href="javascript:void(0)" data-page="pipeline" onclick="showPage('pipeline', this)">Pipeline</a>
     <a href="javascript:void(0)" data-page="projects" onclick="showPage('projects', this)">Projects</a>
-    <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">Services</a>
+    <div class="nav-section">Reports</div>
+    <a href="javascript:void(0)" data-page="clients" onclick="showPage('clients', this)">Client Revenue Roster</a>
+    <a href="javascript:void(0)" data-page="services" onclick="showPage('services', this)">Service Catalog</a>
     <div class="nav-section">Finance</div>
     <a href="javascript:void(0)" data-page="dashboard" onclick="showPage('dashboard', this)">KPIs</a>
     <a href="javascript:void(0)" data-page="financials" onclick="showPage('financials', this)">Financials</a>
@@ -856,14 +856,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
     <!-- CLIENTS -->
     <div id="page-clients" class="page">
-      <div class="page-header"><h2>Clients</h2><p>All client accounts</p></div>
+      <div class="page-header"><h2>Client Revenue Roster</h2><p>Report &middot; all client accounts and lifetime revenue (read-only)</p></div>
       <div class="card"><div id="clients-table" class="scroll-y"></div></div>
     </div>
 
     <!-- CRM -->
     <div id="page-crm" class="page">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div><h2>CRM</h2><p>Customer relationship management — track leads through your 12-stage pipeline</p></div>
+        <div><h2>CRM</h2><p>Customer relationship management — track leads through your 13-stage pipeline</p></div>
         <button class="btn-primary" onclick="crmShowAddModal()">+ New Lead</button>
       </div>
       <div id="crm-pipeline-summary" class="pipeline-summary"></div>
@@ -874,11 +874,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <div class="card"><div id="crm-table" class="scroll-y" style="max-height:600px"></div></div>
     </div>
 
-    <!-- PIPELINE -->
-    <div id="page-pipeline" class="page">
-      <div class="page-header"><h2>Pipeline</h2><p>Sales pipeline and lead tracking</p></div>
-      <div class="card"><div id="pipeline-board"></div></div>
-    </div>
 
     <!-- PROJECTS -->
     <div id="page-projects" class="page">
@@ -1092,7 +1087,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     </div>
 
     <div id="page-services" class="page">
-      <div class="page-header"><h2>Services</h2><p>Service catalog and pricing</p></div>
+      <div class="page-header"><h2>Service Catalog</h2><p>Report &middot; service offerings and pricing (read-only)</p></div>
       <div class="card"><div id="services-table"></div></div>
     </div>
 
@@ -1757,28 +1752,6 @@ loaders.clients = async () => {
       <td>${c.is_active ? badge('active') : badge('dormant')}</td>
     </tr>`).join('')}</tbody>
   </table>`;
-};
-
-// --- PIPELINE ---
-loaders.pipeline = async () => {
-  const leads = await api('pipeline');
-  const stages = ['new','contacted','discovery_scheduled','discovery_complete','proposal_sent','negotiating','won','lost'];
-  const grouped = {};
-  stages.forEach(s => grouped[s] = []);
-  leads.forEach(l => { if (grouped[l.status]) grouped[l.status].push(l); });
-
-  const activeStages = stages.filter(s => grouped[s].length > 0 || ['discovery_complete','proposal_sent','won'].includes(s));
-  $('#pipeline-board').innerHTML = `<div class="pipeline-stages">${activeStages.map(s => `
-    <div class="pipeline-stage">
-      <div class="stage-name">${s.replace(/_/g, ' ')}</div>
-      ${grouped[s].map(l => `<div class="lead-card">
-        <div class="company">${l.company_name || 'Unknown'}</div>
-        <div style="font-size:11px;color:var(--muted)">${l.contact_name || ''}</div>
-        <div class="amount">${fmt(l.estimated_value || 0)}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">via ${l.source || '—'}</div>
-      </div>`).join('') || '<div style="font-size:11px;color:var(--muted);padding:8px">No leads</div>'}
-    </div>
-  `).join('')}</div>`;
 };
 
 // --- PROJECTS (with create, status update, milestone management) ---
