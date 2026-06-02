@@ -1392,12 +1392,31 @@ function uuid() {
   });
 }
 
+// Canonical lead-source taxonomy. Kept as module-level data so it is seeded
+// non-destructively on every boot via ensureLeadSources() — never wiped.
+// See Services/PRISM_Lead_Workstream_Blueprint.md §4.
+const CANONICAL_LEAD_SOURCES = [
+  ['LinkedIn','social'],['Website/SEO','organic'],['Google Business Profile','organic'],
+  ['Email Newsletter','email'],['Charlotte Chamber','event'],['SBDC Partnership','referral'],
+  ['Speaking Engagement','event'],['Client Referral','referral'],['Partner Referral','referral'],
+  ['Cold Outreach','outbound'],
+];
+
+// Idempotent, non-destructive: ensures the canonical lead-source rows exist without
+// deleting anything. Runs on every boot (existing DBs self-heal; new sources added on
+// the fly by /api/leads and /api/crm/import-prospects are preserved).
+function ensureLeadSources() {
+  const insLS = db.prepare('INSERT OR IGNORE INTO lead_sources (name, channel) VALUES (?, ?)');
+  CANONICAL_LEAD_SOURCES.forEach(s => insLS.run(...s));
+}
+
 function seedIfEmpty() {
   const count = db.prepare('SELECT COUNT(*) as n FROM clients').get().n;
   if (count > 0) return;
-  // Clean orphaned reference data to avoid UNIQUE conflicts on re-seed
+  // Clean orphaned reference data to avoid UNIQUE conflicts on re-seed.
+  // NOTE: lead_sources is intentionally NOT wiped — it is seeded non-destructively
+  // via ensureLeadSources() so lazily-added attribution sources survive a re-seed.
   try { db.prepare('DELETE FROM industries').run(); } catch(e) {}
-  try { db.prepare('DELETE FROM lead_sources').run(); } catch(e) {}
   try { db.prepare('DELETE FROM services').run(); } catch(e) {}
 
   // Industries
@@ -1405,10 +1424,8 @@ function seedIfEmpty() {
   const insInd = db.prepare('INSERT OR IGNORE INTO industries (name) VALUES (?)');
   industries.forEach(n => insInd.run(n));
 
-  // Lead sources
-  const sources = [['LinkedIn','social'],['Website/SEO','organic'],['Google Business Profile','organic'],['Email Newsletter','email'],['Charlotte Chamber','event'],['SBDC Partnership','referral'],['Speaking Engagement','event'],['Client Referral','referral'],['Partner Referral','referral'],['Cold Outreach','outbound']];
-  const insLS = db.prepare('INSERT OR IGNORE INTO lead_sources (name, channel) VALUES (?, ?)');
-  sources.forEach(s => insLS.run(...s));
+  // Lead sources — non-destructive, canonical taxonomy
+  ensureLeadSources();
 
   // Services
   const svcs = [
@@ -1674,10 +1691,14 @@ function migrateCRMColumns() {
     { name: 'crm_contact_phone',      sql: 'ALTER TABLE clients ADD COLUMN crm_contact_phone TEXT' },
     { name: 'crm_last_status_change', sql: "ALTER TABLE clients ADD COLUMN crm_last_status_change TEXT DEFAULT (datetime('now'))" },
     { name: 'adoption_stage',         sql: 'ALTER TABLE clients ADD COLUMN adoption_stage TEXT' },
+    { name: 'apollo_id',              sql: 'ALTER TABLE clients ADD COLUMN apollo_id TEXT' },
   ];
   crmCols.forEach(c => { if (!cols.includes(c.name)) db.exec(c.sql); });
+  // Dedupe lookups for outbound prospect import (POST /api/crm/import-prospects).
+  try { db.exec("CREATE INDEX IF NOT EXISTS idx_clients_apollo_id ON clients(apollo_id) WHERE apollo_id IS NOT NULL"); } catch(e) {}
 }
 migrateCRMColumns();
+ensureLeadSources();
 
 // Link action_items ↔ tickets + Notion sync tracking
 (function migrateActionTicketLink() {
@@ -3717,6 +3738,116 @@ app.post('/api/crm/activity/:id', [
                 VALUES ('client', ?, ?, ?, ?)`)
       .run(req.params.id, action, summary, now);
     res.status(201).json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST /api/crm/import-prospects — batch import of Apollo-sourced prospects into the CRM.
+// Auth-gated. Clones the /api/dev-insights/import pattern: JSON array body, single
+// transaction, idempotent insert. Each prospect lands as a 'New Lead' client + contact +
+// lead, attributed to lead_source 'Cold Outreach' (channel 'outbound').
+// Deliberately does NOT mint a users / magic-link row — cold prospects get no portal
+// credentials (that path is /api/leads, for self-identified inbound leads). Dedupe is on
+// apollo_id and contact email. See Services/PRISM_Lead_Workstream_Blueprint.md §3.
+app.post('/api/crm/import-prospects', requireAuth, express.json({ limit: '5mb' }), (req, res) => {
+  try {
+    const prospects = Array.isArray(req.body && req.body.prospects) ? req.body.prospects : [];
+    if (!prospects.length) {
+      return res.status(400).json({ ok: false, error: 'Provide a non-empty prospects array' });
+    }
+
+    const findByApollo = db.prepare('SELECT id FROM clients WHERE apollo_id = ?');
+    const findByEmail = db.prepare(
+      'SELECT c.id FROM clients c JOIN contacts ct ON ct.client_id = c.id WHERE lower(ct.email) = ? LIMIT 1'
+    );
+    const ensureIndustry = db.prepare('INSERT OR IGNORE INTO industries (name) VALUES (?)');
+    const getIndustry = db.prepare('SELECT id FROM industries WHERE name = ?');
+    const ensureSource = db.prepare("INSERT OR IGNORE INTO lead_sources (name, channel) VALUES (?, 'outbound')");
+    const getSource = db.prepare('SELECT id FROM lead_sources WHERE name = ?');
+    const insClient = db.prepare(
+      `INSERT INTO clients (id, company_name, industry_id, crm_status, crm_lead_source,
+         crm_budget, crm_contact_name, crm_contact_email, apollo_id, notes)
+       VALUES (?, ?, ?, 'New Lead', ?, ?, ?, ?, ?, ?)`
+    );
+    const insContact = db.prepare(
+      'INSERT INTO contacts (id, client_id, first_name, last_name, email, job_title, is_primary) VALUES (?, ?, ?, ?, ?, ?, 1)'
+    );
+    const insLead = db.prepare(
+      "INSERT INTO leads (id, contact_id, client_id, lead_source_id, status, estimated_value, notes, discovery_date) VALUES (?, ?, ?, ?, 'new', ?, ?, date('now'))"
+    );
+    const insActivity = db.prepare(
+      "INSERT INTO activity_log (entity_type, entity_id, action, summary) VALUES ('client', ?, 'imported', ?)"
+    );
+
+    let imported = 0;
+    const skipped = [];
+
+    const run = db.transaction(() => {
+      for (const p of (prospects || [])) {
+        const company = (p && p.company || '').trim();
+        const contactName = (p && p.contactName || '').trim();
+        const email = (p && p.contactEmail || '').trim().toLowerCase();
+        const apolloId = (p && p.apolloId || '').trim() || null;
+
+        if (!company || !contactName || !email) {
+          skipped.push({ company: company || '(none)', reason: 'missing company, contactName, or contactEmail' });
+          continue;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          skipped.push({ company, reason: 'invalid email' });
+          continue;
+        }
+        if (apolloId && findByApollo.get(apolloId)) {
+          skipped.push({ company, reason: 'duplicate apollo_id' });
+          continue;
+        }
+        if (findByEmail.get(email)) {
+          skipped.push({ company, reason: 'duplicate contact email' });
+          continue;
+        }
+
+        // Resolve industry (optional)
+        let industryId = null;
+        const industry = (p.industry || '').trim();
+        if (industry) {
+          ensureIndustry.run(industry);
+          const row = getIndustry.get(industry);
+          industryId = row ? row.id : null;
+        }
+
+        // Resolve lead source (default Cold Outreach / outbound)
+        const sourceName = (p.leadSource || 'Cold Outreach').trim() || 'Cold Outreach';
+        ensureSource.run(sourceName);
+        const sourceRow = getSource.get(sourceName);
+
+        // Split contact name into first / last (last_name is NOT NULL — default to '')
+        const parts = contactName.split(/\s+/);
+        const first = parts[0];
+        const last = parts.slice(1).join(' ') || '';
+
+        // Estimated value (optional numeric)
+        let estVal = null;
+        if (p.estimatedValue !== undefined && p.estimatedValue !== null && p.estimatedValue !== '') {
+          const n = Number(p.estimatedValue);
+          estVal = Number.isFinite(n) ? n : null;
+        }
+
+        const title = (p.contactTitle || '').trim() || null;
+        const notes = (p.notes || '').trim() || null;
+
+        const clientId = uuid();
+        const contactId = uuid();
+        insClient.run(clientId, company, industryId, sourceName, estVal, contactName, email, apolloId, notes);
+        insContact.run(contactId, clientId, first, last, email, title);
+        insLead.run(uuid(), contactId, clientId, sourceRow.id, estVal, notes);
+        insActivity.run(clientId, `Imported from ${sourceName}${apolloId ? ` (apollo:${apolloId})` : ''}`);
+        imported++;
+      }
+    });
+    run();
+
+    res.json({ ok: true, imported, skipped: skipped.length, details: skipped });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
