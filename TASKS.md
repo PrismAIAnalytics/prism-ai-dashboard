@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-100 | CRM prospect batch-import endpoint (Apollo→CRM) + apollo_id migration + non-destructive lead_sources seed | task/crm-import-prospects | Cowork | 2026-06-02 |
+| _(none)_ | | | | |
 
 ---
 
@@ -47,6 +47,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-100 | CRM prospect batch-import endpoint (Apollo→CRM) + apollo_id migration + non-destructive lead_sources seed | 2026-06-02 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #91 as `4b088c3dcb87b29a7cd08e0dda79b94b557e8f3c` (squash) on 2026-06-02. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-099 | Chart contrast on cool-navy theme — lighten blue-family chart fills | 2026-06-01 | Merged via PR #89 (squash) as `874138b`; Railway auto-deployed, verified live at portal.prismaianalytics.com (PALETTE `#6E8FD8`/`#5577C0`/`#8E9FDB`, `--lifecycle-pending #6E8FD8`). Lightened blue-family chart FILLS only (brand primitives in tokens.css :root untouched); kept index.html PALETTE + chart-theme.js in sync; added segment border to the borderless expenses doughnut. Verified pre-merge with an isolated Chart.js harness on the real surface. In Progress lock cleared via this standalone `chore/close-t099` PR (auto-close Action did not open a PR — recurring gap). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-098 | Dashboard theme — cool-navy surface scale with proper depth + chart legibility | 2026-06-01 | Merged via PR #88 (squash) as `e0fa535`; Railway auto-deployed, verified live at portal.prismaianalytics.com (`--frame #1B2F5E`). Two-expert design-review recipe: cool deep-navy ground, wide value steps for depth, brand accents reserved for ink; headline revenue bar relit to #6E8FD8. In Progress lock carried stale (the T-094 auto-close Action created `chore/auto-close-t098` but no PR opened/merged — recurring close-out gap, see T-059/T-090/T-093); cleared here as the first commit of T-099 per WORKFLOW.md §4. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-097 | Lighten dashboard dark theme — raise surface scale off near-black | 2026-06-01 | Merged via PR #87 (squash) to main. Shipped the conservative navy lift (--frame #11163A). Superseded almost immediately by T-098 after Michele reviewed it live ("I don't see a difference" / "something is still off") and a two-expert design review prescribed a different recipe. Net value retained: moved tokens off #060B1F near-black and proved the centralized tokens.css cascade. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
