@@ -32,6 +32,14 @@
       "created_date": "2026-05-24",
       "review_date": "2026-05-24",
       "summary": "Second Railway service deploying the same dashboard codebase at `demo.prismaianalytics.com`, gated by `APP_ENV=demo`. Existing `seed-demo.js` (8 fictional clients / 5 projects / 5 invoices / `demo / demo2026` login) populates the DB; Stripe + QB + Notion stubbed via demo-mode fallbacks in `services/` so financial tiles look populated without real keys; in-process `node-cron` reseeds nightly at 03:00 UTC. Three small code touches (`GET /api/config` + demo banner, cron block, service-layer demo-mode branches in stripeService.js / quickbooksService.js + new `services/demoData.js`), plus a `DEMO_SETUP.md` runbook mirroring `STAGING_SETUP.md`. Implementation must wait on the T-027b WIP lock clearing and a fresh ticket dispatch (proposed `T-demo-env`)."
+    },
+    {
+      "slug": "inventory-monitor-discover-map-blog",
+      "name": "Prism AI Inventory Monitor (prism-scan Monitor + per-client template) + Discover & Map blog bundle",
+      "plan_file": "~/.claude/plans/wiggly-inventing-wreath.md",
+      "created_date": "2026-06-03",
+      "review_date": "2026-06-03",
+      "summary": "Extend the existing zero-dependency prism-scan scanner into the full Inventory Monitor: per-item Elevated/Standard classification computed before the secret-scrub boundary; an approved-baseline compare that emits drift events (NEW / REMOVED / DRIFT / TIER_DRIFT) with a non-zero exit on unauthorized drift; and a per-client `init` template scaffolding gitignored clients/<slug>/ workspaces. Plus the 3-part Discover & Map blog bundle (blog source + two LinkedIn companions) featuring the shipped tool. Draft only — no publish date set."
     }
   ]
 }
