@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-103 | Daily Agenda — move Morning Brief above Lifecycle; collapse + compact the 3 charts | task/agenda-brief-first-collapse-charts | Claude Code | 2026-06-03 |
 
 ---
 
