@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-102 | Promote Inventory Monitor plan into pending-plans manifest (Discover & Map) | task/pending-plan-inventory-monitor | Claude Code | 2026-06-03 |
+| _(none)_ | | | | |
 
 ---
 
@@ -47,6 +47,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-102 | Promote Inventory Monitor plan into pending-plans manifest (Discover & Map) | 2026-06-03 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #95 as `025eab4f9eefa19282f7eb8c4a1aff4f674305c2` (squash) on 2026-06-03. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-101 | Nav consolidation — Reports section (Clients + Services as read-only reports), retire Pipeline page | 2026-06-03 | Merged via PR #93 as `b95df1c` (squash) on 2026-06-02; Railway auto-deployed. Stale In Progress row carried from 2026-06-02 — the post-merge close-out Action did not clear it (recurring gap, see T-099 / T-093 / T-090 / T-088) — cleared here as the first commit of T-102 per WORKFLOW.md §4. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-100 | CRM prospect batch-import endpoint (Apollo→CRM) + apollo_id migration + non-destructive lead_sources seed | 2026-06-02 | Merged via PR #91 as `4b088c3` (squash) on 2026-06-02; Railway auto-deployed, smoke-tested live on prod (`/health` 200; `POST /api/crm/import-prospects` → 401 = deployed + auth-protected, no data created). Endpoint imports Apollo batches as `New Lead`/`Cold Outreach`, idempotent on apollo_id + email, no portal users for cold prospects (D2). Standalone close-out PR #92 was opened then **superseded/closed** — this close-out is folded into T-101's first commit per WORKFLOW §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-099 | Chart contrast on cool-navy theme — lighten blue-family chart fills | 2026-06-01 | Merged via PR #89 (squash) as `874138b`; Railway auto-deployed, verified live at portal.prismaianalytics.com (PALETTE `#6E8FD8`/`#5577C0`/`#8E9FDB`, `--lifecycle-pending #6E8FD8`). Lightened blue-family chart FILLS only (brand primitives in tokens.css :root untouched); kept index.html PALETTE + chart-theme.js in sync; added segment border to the borderless expenses doughnut. Verified pre-merge with an isolated Chart.js harness on the real surface. In Progress lock cleared via this standalone `chore/close-t099` PR (auto-close Action did not open a PR — recurring gap). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
