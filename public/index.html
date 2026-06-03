@@ -1137,6 +1137,14 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         </div>
       </div>
 
+      <!-- Morning Brief surface (T-036e) — parsed from reports/cos-morning-brief-YYYY-MM-DD.md.
+           Moved above Lifecycle per Michele 2026-06-03 (T-103) — it's the lead-in for the day, read first.
+           Top 10 above the fold; Needs Michele / Carry-forward / Maturity / What Landed / Data Hygiene below as collapsibles.
+           Brief intentionally NOT collapsible. -->
+      <div id="agenda-brief" class="brief-card">
+        <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
+      </div>
+
       <!-- T-078: Lifecycle Spectrum. Replaces the 3-column accordion (Idea Vault / Active Plans / Pending Plans).
            Single client-side view fed by GET /api/mission-control/lifecycle. Mirrors the Compliance page
            archetype: KPI tile row → 3-chart row → sortable detail table. The 5 lifecycle states
@@ -1211,22 +1219,33 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </div>
 
-        <!-- 3-chart row -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:16px;margin-bottom:18px">
-          <div class="card" style="margin-bottom:0">
-            <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Lifecycle Distribution</h3>
-            <div style="position:relative;height:200px"><canvas id="chart-lifecycle-distribution"></canvas></div>
+        <!-- Visualizations — collapsible, collapsed by default + compact charts (T-103, 2026-06-03).
+             Charts sit inside a display:none <details> until expanded, so Chart.js must be resized on
+             open (resizeLifecycleChartsIfOpen via ontoggle) or it renders at 0 height. Collapse state
+             persists via data-persist-key like the Detail/Recommended/Past-due panels. -->
+        <details class="card agenda-collapsible" id="lifecycle-charts-card" data-persist-key="agenda.lifecycle-charts" style="margin-bottom:18px" ontoggle="resizeLifecycleChartsIfOpen(this)">
+          <summary class="agenda-collapsible-summary">
+            <span class="agenda-collapsible-chevron">&#9654;</span>
+            <h3 class="agenda-collapsible-title">Visualizations</h3>
+          </summary>
+          <div class="agenda-collapsible-body" style="padding-top:10px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:16px">
+              <div class="card" style="margin-bottom:0">
+                <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Lifecycle Distribution</h3>
+                <div style="position:relative;height:130px"><canvas id="chart-lifecycle-distribution"></canvas></div>
+              </div>
+              <div class="card" style="margin-bottom:0">
+                <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Workstream Mix <span style="text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400">(in-flight)</span></h3>
+                <div style="position:relative;height:130px"><canvas id="chart-workstream-mix"></canvas></div>
+              </div>
+              <div class="card" style="margin-bottom:0">
+                <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Pipeline by State <span style="text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400">(5 workstreams &times; 5 states)</span></h3>
+                <div style="position:relative;height:130px"><canvas id="chart-pipeline-by-state"></canvas></div>
+                <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-style:italic">Admin / Finance / Training excluded &mdash; administrative overhead, not workstream output.</div>
+              </div>
+            </div>
           </div>
-          <div class="card" style="margin-bottom:0">
-            <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Workstream Mix <span style="text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400">(in-flight)</span></h3>
-            <div style="position:relative;height:200px"><canvas id="chart-workstream-mix"></canvas></div>
-          </div>
-          <div class="card" style="margin-bottom:0">
-            <h3 style="margin-bottom:8px;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted);font-weight:600">Pipeline by State <span style="text-transform:none;letter-spacing:0;color:var(--text-dim);font-weight:400">(5 workstreams &times; 5 states)</span></h3>
-            <div style="position:relative;height:200px"><canvas id="chart-pipeline-by-state"></canvas></div>
-            <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-style:italic">Admin / Finance / Training excluded &mdash; administrative overhead, not workstream output.</div>
-          </div>
-        </div>
+        </details>
 
         <!-- Sortable detail table — collapsible (T-079). open by default since it's the primary
              drill-in surface; collapse state persists via data-persist-key. -->
@@ -1240,13 +1259,6 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           </div>
         </details>
 
-      </div>
-
-      <!-- Morning Brief surface (T-036e) — parsed from reports/cos-morning-brief-YYYY-MM-DD.md.
-           Top 10 above the fold; Needs Michele / Carry-forward / Maturity / What Landed / Data Hygiene below as collapsibles.
-           Brief intentionally NOT collapsible — it's the lead-in for the day. -->
-      <div id="agenda-brief" class="brief-card">
-        <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
       </div>
 
       <!-- T-073 (2026-05-25): Recommended / Past-due panels arranged side-by-side in a 2-column grid.
@@ -5430,6 +5442,9 @@ async function loadLifecyclePage(options = {}) {
     renderLifecycleDistributionChart(r.tiles || {});
     renderWorkstreamMixChart(r.items || [], r.matrix || {});
     renderPipelineByStateChart(r.matrix || {});
+    // T-103: if the Visualizations panel is open (persisted-open state), size the freshly
+    // (re)built charts to the now-visible container.
+    resizeLifecycleChartsIfOpen(document.getElementById('lifecycle-charts-card'));
     renderLifecycleTable();
   } catch (e) {
     if (tableEl) tableEl.innerHTML = '<em style="color:var(--muted)">Lifecycle view failed to load.</em>';
@@ -5457,6 +5472,16 @@ function renderLifecycleTiles(tiles) {
   if (eActive) eActive.textContent = tiles.active === 1 ? 'plan in flight' : 'plans in flight';
   const eShipped = document.getElementById('lifecycle-tile-shipped-sub');
   if (eShipped) eShipped.textContent = `${tiles.shipped_30d ?? 0} in last 30 days`;
+}
+
+// T-103: the three lifecycle charts live in a collapsed-by-default <details> (Visualizations).
+// A Chart.js canvas created while its container is display:none renders at 0px, so resize the
+// charts whenever the panel is open — on expand (ontoggle) and after each data refresh.
+function resizeLifecycleChartsIfOpen(detailsEl) {
+  if (!detailsEl || !detailsEl.open) return;
+  requestAnimationFrame(() => {
+    [chartLifecycleDistribution, chartWorkstreamMix, chartPipelineByState].forEach(c => { if (c) c.resize(); });
+  });
 }
 
 function renderLifecycleDistributionChart(tiles) {
