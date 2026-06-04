@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-104 | Fix stuck Active/Shipped lifecycle states — backfill Shipped + correct Active anomalies | fix/lifecycle-shipped-backfill | Claude Code | 2026-06-04 |
+| _(none)_ | | | | |
 
 ---
 
@@ -47,6 +47,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-104 | Fix stuck Active/Shipped lifecycle states — backfill Shipped + correct Active anomalies | 2026-06-04 | Merged via PR #99 as `b4ed3d1` (squash) on 2026-06-04; Railway auto-deployed. Backfilled `config/archived-roadmaps.json` with 6 git-derived arcs (T-076..T-103) → Shipped 4→10, velocity 0.9→2.3/wk; corrected `config/active-roadmaps.json` (Mission Control note 5/7 with T-038/T-046 named; Founder Journey retired — false 1/1). Verified via local `lifecycleAggregator.compute()` against live Notion. Root cause (engineering T-### never reach Notion; aggregators read Notion only) scoped as a follow-up Backlog ticket. In Progress lock carried stale from merge (post-merge close-out Action did not fire — recurring gap, see T-059/T-088/T-090/T-093/T-099/T-101); cleared via this standalone `chore/close-t104` PR. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-103 | Daily Agenda — move Morning Brief above Lifecycle; collapse + compact the 3 charts | 2026-06-03 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #97 as `af939b43486851de6b28549fd854b172bfd1d3dd` (squash) on 2026-06-03. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-102 | Promote Inventory Monitor plan into pending-plans manifest (Discover & Map) | 2026-06-03 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #95 as `025eab4f9eefa19282f7eb8c4a1aff4f674305c2` (squash) on 2026-06-03. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-101 | Nav consolidation — Reports section (Clients + Services as read-only reports), retire Pipeline page | 2026-06-03 | Merged via PR #93 as `b95df1c` (squash) on 2026-06-02; Railway auto-deployed. Stale In Progress row carried from 2026-06-02 — the post-merge close-out Action did not clear it (recurring gap, see T-099 / T-093 / T-090 / T-088) — cleared here as the first commit of T-102 per WORKFLOW.md §4. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
