@@ -1,6 +1,108 @@
 {
-  "_comment": "Archived (shipped) roadmaps. Companion to active-roadmaps.json. A plan lands here when all its tickets are Done AND a closing comment was attached at ship time. New entries are appended at the top (reverse-chronological by shipped_at). Schema: slug, name, ticket_ids OR ticket_id_range, decision_date, note, shipped_at, closing_comment, ticket_snapshot, cycle_time_days, workstream. Backfilled 2026-05-25 from git history of merges to main.",
+  "_comment": "Archived (shipped) roadmaps. Companion to active-roadmaps.json. A plan lands here when all its tickets are Done AND a closing comment was attached at ship time. New entries are appended at the top (reverse-chronological by shipped_at). Schema: slug, name, ticket_ids OR ticket_id_range, decision_date, note, shipped_at, closing_comment, ticket_snapshot, cycle_time_days, workstream. Backfilled 2026-05-25 from git history of merges to main; extended 2026-06-04 with six arcs shipped 2026-05-26..2026-06-03 (T-076..T-103).",
   "archived_roadmaps": [
+    {
+      "slug": "nav-crm-daily-agenda-polish",
+      "name": "Nav consolidation + Apollo import + Daily Agenda polish",
+      "ticket_ids": ["T-100", "T-101", "T-103"],
+      "decision_date": "2026-06-02",
+      "note": "Three dashboard polish arcs: Apollo batch prospect-import endpoint (T-100), nav consolidation into a Reports section + Pipeline retirement (T-101), and Daily Agenda layout rework — Morning Brief above the Lifecycle table with collapsible/compact charts (T-103).",
+      "shipped_at": "2026-06-03T00:00:00Z",
+      "closing_comment": "Backfilled 2026-06-04 from git history of merges to main. T-100 (POST /api/crm/import-prospects for Apollo batch import) merged PR #91. T-101 (consolidate nav — Reports section + retire Pipeline) merged PR #93. T-103 (Daily Agenda — Morning Brief above Lifecycle; collapse + compact charts) merged PR #97. Railway auto-deployed on each merge.",
+      "ticket_snapshot": [
+        { "id": "T-100", "status": "done", "title": "POST /api/crm/import-prospects for Apollo batch import", "last_updated": "2026-06-02" },
+        { "id": "T-101", "status": "done", "title": "Consolidate nav — Reports section + retire Pipeline", "last_updated": "2026-06-02" },
+        { "id": "T-103", "status": "done", "title": "Daily Agenda — Morning Brief above Lifecycle; collapse + compact charts", "last_updated": "2026-06-03" }
+      ],
+      "cycle_time_days": 2,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "cool-navy-theme-pass",
+      "name": "Cool-navy dashboard theme pass",
+      "ticket_ids": ["T-097", "T-098", "T-099"],
+      "decision_date": "2026-06-01",
+      "note": "Dashboard dark-theme rework to a true Prism navy with proper depth and chart legibility. T-097 initial lighten, T-098 depth + chart legibility, T-099 lighten blue-family chart fills for contrast.",
+      "shipped_at": "2026-06-01T00:00:00Z",
+      "closing_comment": "Backfilled 2026-06-04 from git history. T-097 (lighten dark theme to true Prism navy) PR #87, T-098 (cool-navy theme — depth + chart legibility) PR #88, T-099 (lighten blue-family chart fills) PR #89. All merged same day.",
+      "ticket_snapshot": [
+        { "id": "T-097", "status": "done", "title": "Lighten dashboard dark theme to true Prism navy", "last_updated": "2026-06-01" },
+        { "id": "T-098", "status": "done", "title": "Cool-navy dashboard theme — depth + chart legibility", "last_updated": "2026-06-01" },
+        { "id": "T-099", "status": "done", "title": "Lighten blue-family chart fills for cool-navy theme", "last_updated": "2026-06-01" }
+      ],
+      "cycle_time_days": 1,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "ticket-discipline-hardening",
+      "name": "Ticket discipline + audit-defensible bodies + deploy contract",
+      "ticket_ids": ["T-087", "T-089", "T-090", "T-059", "T-096"],
+      "decision_date": "2026-05-26",
+      "note": "Hardening of the ticket + brief discipline: Plan file convention documented in dashboard CLAUDE.md (T-087), Morning Brief stale-state banner (T-089), audit-defensible ticket Origin/Context body block (T-090), sync-tasks.js dashboard write-path gated on USE_NOTION_SOURCE (T-059), deploy contract documented (T-096).",
+      "shipped_at": "2026-05-31T00:00:00Z",
+      "closing_comment": "Backfilled 2026-06-04 from git history. T-087 PR #71, T-089 PR #73, T-090 PR #74, T-059 PR #76, T-096 PR #85.",
+      "ticket_snapshot": [
+        { "id": "T-087", "status": "done", "title": "Document Plan file convention in dashboard CLAUDE.md", "last_updated": "2026-05-26" },
+        { "id": "T-089", "status": "done", "title": "Morning Brief stale-state banner", "last_updated": "2026-05-28" },
+        { "id": "T-090", "status": "done", "title": "Audit-defensible ticket body content (Origin/Context block)", "last_updated": "2026-05-28" },
+        { "id": "T-059", "status": "done", "title": "Gate sync-tasks.js dashboard write path on USE_NOTION_SOURCE", "last_updated": "2026-05-29" },
+        { "id": "T-096", "status": "done", "title": "Document deploy contract — no follow-up commit needed", "last_updated": "2026-05-31" }
+      ],
+      "cycle_time_days": 6,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "closeout-automation",
+      "name": "Post-merge close-out GitHub Action (auto WIP-lock clear)",
+      "ticket_ids": ["T-094", "T-095"],
+      "decision_date": "2026-05-30",
+      "note": "GitHub Action that auto-clears the stale WIP=1 lock after a PR merges (T-094), plus a follow-up keeping the close-out Action green under the org PR-policy + branch-name polish (T-095).",
+      "shipped_at": "2026-05-30T00:00:00Z",
+      "closing_comment": "Backfilled 2026-06-04 from git history. T-094 (post-merge close-out Action — auto-clear stale WIP=1 lock) PR #81, T-095 (close-out stays green under org PR-policy + branch-name polish) PR #83. Same day.",
+      "ticket_snapshot": [
+        { "id": "T-094", "status": "done", "title": "Post-merge close-out Action — auto-clear stale WIP=1 lock", "last_updated": "2026-05-30" },
+        { "id": "T-095", "status": "done", "title": "Close-out Action stays green under org PR-policy + branch-name polish", "last_updated": "2026-05-30" }
+      ],
+      "cycle_time_days": 1,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "knowledgebase-portal-resources",
+      "name": "Knowledgebase + Portal Resources + workflow-diagram drift system",
+      "ticket_ids": ["T-076", "T-077", "T-081", "T-088", "T-093"],
+      "decision_date": "2026-05-25",
+      "note": "PRISM AI Knowledgebase page with central drop folder + per-row visibility curation (T-076), Portal Resources section embedding public KB items in the client portal (T-077), workflow diagrams in the KB with deterministic drift detection (T-081), plus two source-derived workflow diagrams: Reply & Resume composer (T-088) and brand-pass pipeline (T-093).",
+      "shipped_at": "2026-05-30T00:00:00Z",
+      "closing_comment": "Backfilled 2026-06-04 from git history. T-076 (Knowledgebase page + central drop folder) PR #60, T-077 (Portal Resources + archived-roadmaps backfill + active dedup) PRs #61/#62, T-081 (workflow diagrams in KB with drift detection) PR #66, T-088 (Reply & Resume composer workflow diagram) PR #72, T-093 (brand-pass pipeline workflow diagram) PR #79.",
+      "ticket_snapshot": [
+        { "id": "T-076", "status": "done", "title": "PRISM AI Knowledgebase page + central drop folder + per-row visibility", "last_updated": "2026-05-25" },
+        { "id": "T-077", "status": "done", "title": "Portal Resources section — public KB items embedded in client portal", "last_updated": "2026-05-25" },
+        { "id": "T-081", "status": "done", "title": "Workflow diagrams in KB with drift detection", "last_updated": "2026-05-25" },
+        { "id": "T-088", "status": "done", "title": "Reply & Resume composer workflow diagram", "last_updated": "2026-05-27" },
+        { "id": "T-093", "status": "done", "title": "Brand-pass pipeline workflow diagram", "last_updated": "2026-05-30" }
+      ],
+      "cycle_time_days": 6,
+      "workstream": "engineering"
+    },
+    {
+      "slug": "lifecycle-spectrum-actions",
+      "name": "Mission Control Lifecycle Spectrum (5-state view) + lifecycle actions",
+      "ticket_ids": ["T-078", "T-080", "T-082", "T-083", "T-084", "T-086"],
+      "decision_date": "2026-05-25",
+      "note": "The 5-state Lifecycle Spectrum view itself (T-078), a perf fix deduping the duplicate Notion fetch (T-080), and the on-page lifecycle actions: Inbox→Ticket promote (T-082), Pending→Active promote + Dismiss (T-084), Handoff→Plan spawn (T-083), and the Refresh button bypassing the 60s cache (T-086). This is the very surface the Active/Shipped states render on.",
+      "shipped_at": "2026-05-26T00:00:00Z",
+      "closing_comment": "Backfilled 2026-06-04 from git history. T-078 (Lifecycle Spectrum 5-state view) PR #63, T-080 (dedupe duplicate Notion fetch, 3.3s→~1.6s) PR #65, T-082 (Inbox→Ticket promote) PR #67, T-083 (Handoff→Plan spawn) PR #69, T-084 (Pending→Active promote + Dismiss) PR #68, T-086 (Refresh button bypassing 60s cache) PR #70.",
+      "ticket_snapshot": [
+        { "id": "T-078", "status": "done", "title": "Mission Control Lifecycle Spectrum (5-state view)", "last_updated": "2026-05-25" },
+        { "id": "T-080", "status": "done", "title": "Dedupe duplicate Notion fetch in lifecycleAggregator", "last_updated": "2026-05-25" },
+        { "id": "T-082", "status": "done", "title": "Inbox→Ticket promote action on Lifecycle page", "last_updated": "2026-05-26" },
+        { "id": "T-083", "status": "done", "title": "Handoff→Plan spawn action on Lifecycle page", "last_updated": "2026-05-26" },
+        { "id": "T-084", "status": "done", "title": "Pending→Active promote + Dismiss actions on Lifecycle page", "last_updated": "2026-05-26" },
+        { "id": "T-086", "status": "done", "title": "Refresh button on Lifecycle header to bypass 60s cache", "last_updated": "2026-05-26" }
+      ],
+      "cycle_time_days": 2,
+      "workstream": "engineering"
+    },
     {
       "slug": "tickets-page-v2",
       "name": "Tickets page v2 — Phases A–F",
