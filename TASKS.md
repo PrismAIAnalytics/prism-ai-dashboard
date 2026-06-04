@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-105 | AI Configuration Baseline page — governance/drift visual from prism-scan (static-JSON read, no schema change) | task/governance-baseline-page | Claude Code | 2026-06-04 |
 
 ---
 
