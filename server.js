@@ -7395,4 +7395,45 @@ app.listen(PORT, () => {
       `  [notion-sync] scheduled every 5 min${since ? ` (since ${since})` : ''} (manual trigger: POST /api/sync/notion)`
     );
   }
+
+  // ─── Daily ticket-snapshot scheduler (T-038) ───────────────────────────────
+  // In-process, self-healing daily run of scripts/snapshot-tickets.js, which
+  // writes reports/ticket-snapshot-YYYY-MM-DD.json (read by the KPI-trends
+  // endpoint; consumed by the T-050 burndown when it ships). Mirrors the
+  // notion-sync pattern above. Reads only the tickets API and writes only
+  // throwaway gitignored JSON — never touches prism.db or any source-of-truth.
+  //   - Checks hourly; runs once per UTC day after 03:00 UTC when today's file
+  //     is absent (the file-exists guard makes it idempotent — no duplicate
+  //     spawns within a day; the script itself also overwrites same-day files).
+  //   - Spawns the tested script against the loopback port so it works on any PORT.
+  //   - Kill switch: SNAPSHOT_CRON_DISABLED=1.
+  // Snapshots live on the container's ephemeral FS — fine until T-050 needs
+  // durable history (durable storage is a T-050-era follow-up).
+  if (process.env.SNAPSHOT_CRON_DISABLED === '1') {
+    console.log('  [snapshot-cron] disabled via SNAPSHOT_CRON_DISABLED');
+  } else {
+    const SNAPSHOT_HOUR_UTC = 3;
+    const SNAPSHOT_CHECK_MS = 60 * 60 * 1000; // hourly
+    const snapshotScript = path.join(__dirname, 'scripts', 'snapshot-tickets.js');
+    const runSnapshotIfDue = () => {
+      try {
+        const now = new Date();
+        if (now.getUTCHours() < SNAPSHOT_HOUR_UTC) return;
+        const date = now.toISOString().slice(0, 10);
+        const outPath = path.join(__dirname, 'reports', `ticket-snapshot-${date}.json`);
+        if (fs.existsSync(outPath)) return; // already captured today
+        const { spawn } = require('child_process');
+        const child = spawn(process.execPath, [snapshotScript, `--url=http://127.0.0.1:${PORT}`], { env: process.env });
+        child.stdout.on('data', (d) => process.stdout.write(`[snapshot-cron] ${d}`));
+        child.stderr.on('data', (d) => process.stderr.write(`[snapshot-cron] ${d}`));
+        child.on('error', (e) => console.error('[snapshot-cron] spawn failed:', e.message));
+        child.on('close', (code) => console.log(`[snapshot-cron] ${date} run exited ${code}`));
+      } catch (e) {
+        console.error('[snapshot-cron] check failed:', e.message);
+      }
+    };
+    setTimeout(runSnapshotIfDue, 60 * 1000).unref();         // first check ~1 min after boot
+    setInterval(runSnapshotIfDue, SNAPSHOT_CHECK_MS).unref(); // then hourly
+    console.log('  [snapshot-cron] scheduled hourly (writes reports/ticket-snapshot-*.json after 03:00 UTC; disable with SNAPSHOT_CRON_DISABLED=1)');
+  }
 });
