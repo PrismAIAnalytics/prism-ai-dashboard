@@ -816,6 +816,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <a href="javascript:void(0)" data-page="knowledgebase" onclick="showPage('knowledgebase', this)">Knowledgebase</a>
       <a href="javascript:void(0)" data-page="training" onclick="showPage('training', this)">Training</a>
       <a href="javascript:void(0)" data-page="compliance" onclick="showPage('compliance', this)">Security Baselines</a>
+      <a href="javascript:void(0)" data-page="governance" onclick="showPage('governance', this)">AI Config Baseline</a>
       <a href="javascript:void(0)" data-page="health" onclick="showPage('health', this)">Business Health</a>
       <a href="/prism-ai-readiness-assessment.html" target="_blank" rel="noopener">AI Readiness Assessment &#8599;</a>
     </details>
@@ -1083,6 +1084,39 @@ tr:hover td { background: rgba(255,255,255,0.02); }
       <!-- Detail Panel (slide-in) -->
       <div class="detail-overlay" id="compliance-overlay" onclick="complianceCloseDetail()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:89"></div>
       <div id="compliance-detail" style="display:none;position:fixed;top:0;right:0;bottom:0;width:560px;background:var(--card);border-left:1px solid var(--border);z-index:90;overflow-y:auto;padding:28px;transition:transform 0.3s ease">
+      </div>
+    </div>
+
+    <!-- AI CONFIGURATION BASELINE (T-105) -->
+    <div id="page-governance" class="page">
+      <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>AI Configuration Baseline</h2>
+          <p>Governable-item inventory, compliance against the ratified standard, and &sect;6.3 KRIs &mdash; from prism-scan</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="governance-verdict"></span>
+          <input id="governance-search" type="text" placeholder="Filter items..." oninput="renderGovernanceTable()" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;width:200px;font-family:inherit">
+        </div>
+      </div>
+      <div id="governance-meta" class="muted" style="font-size:12px;margin-bottom:14px"></div>
+      <div id="governance-kpis" class="kpi-grid" style="grid-template-columns:repeat(6,1fr)"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card" style="padding:16px">
+          <h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:1px;text-align:center">Compliance</h4>
+          <div style="position:relative;height:220px"><canvas id="gov-chart-compliance"></canvas></div>
+        </div>
+        <div class="card" style="padding:16px">
+          <h4 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:1px;text-align:center">Tier Distribution</h4>
+          <div style="position:relative;height:220px"><canvas id="gov-chart-tier"></canvas></div>
+        </div>
+      </div>
+      <div class="card" style="padding:16px;margin-bottom:16px">
+        <h4 style="margin:0 0 12px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:1px">KRIs &amp; KPIs &mdash; Govern &amp; Report (&sect;6.3)</h4>
+        <div id="governance-kri" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="governance-table" style="overflow-x:auto;max-width:100%"></div>
       </div>
     </div>
 
@@ -3673,6 +3707,101 @@ loaders.compliance = async () => {
   renderComplianceKPIs();
   renderComplianceTable();
 };
+
+// ── AI Configuration Baseline (T-105) — static-JSON read from prism-scan ──
+let governanceData = null;
+const govEsc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const GOV_STATUS = {
+  Compliant:  { label: 'Compliant',  color: '#4FB48A' },
+  Unreviewed: { label: 'Unreviewed', color: '#C8A45A' },
+  Drifted:    { label: 'Drifted',    color: '#D96A6A' },
+  Violation:  { label: 'Violation',  color: '#B0334A' },
+  Removed:    { label: 'Removed',    color: '#8A93B5' },
+};
+const govBadge = (label, color) => `<span style="display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${color}22;color:${color}">${govEsc(label)}</span>`;
+const govTierColor = (t) => (t === 'Elevated' ? '#D96A6A' : '#4FB48A');
+
+loaders.governance = async () => {
+  try {
+    const res = await fetch('/governance/governance.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('not found');
+    governanceData = await res.json();
+  } catch (e) {
+    $('#governance-meta').textContent = 'governance.json not found — run prism-scan monitor --standard to generate it.';
+    return;
+  }
+  renderGovernance();
+};
+
+function renderGovernance() {
+  const g = governanceData; if (!g) return;
+  const s = g.summary;
+  const vColor = s.verdict === 'COMPLIANT' ? '#4FB48A' : s.verdict === 'ATTENTION' ? '#D96A6A' : '#C8A45A';
+  $('#governance-verdict').innerHTML = `<span style="padding:5px 14px;border-radius:10px;font-size:12px;font-weight:700;background:${vColor}22;color:${vColor}">${govEsc(s.verdict)}</span>`;
+  $('#governance-meta').innerHTML = `Owner: ${govEsc(g.owner)} &middot; generated ${govEsc(g.generated_at)} &middot; scanner ${govEsc(g.scanner_version)} &middot; ${govEsc(g.framework_ref)}`;
+  $('#governance-kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total Items</div><div class="value">${s.total_live}</div><div class="sub">governable</div></div>
+    <div class="kpi"><div class="label">Compliant</div><div class="value text-green">${s.Compliant}</div><div class="sub">evidence-backed</div></div>
+    <div class="kpi"><div class="label">Unreviewed</div><div class="value" style="color:#C8A45A">${s.Unreviewed}</div><div class="sub">no standard yet</div></div>
+    <div class="kpi"><div class="label">Drifted</div><div class="value text-red">${s.Drifted}</div><div class="sub">changed</div></div>
+    <div class="kpi"><div class="label">Violation</div><div class="value text-red">${s.Violation}</div><div class="sub">policy breach</div></div>
+    <div class="kpi"><div class="label">Coverage</div><div class="value" style="color:${s.coverage_pct >= 100 ? '#4FB48A' : '#C8A45A'}">${s.coverage_pct}%</div><div class="sub">approved / live</div></div>`;
+  renderGovernanceCharts();
+  renderGovernanceKri();
+  renderGovernanceTable();
+}
+
+let govChartCompliance = null, govChartTier = null;
+function renderGovernanceCharts() {
+  const g = governanceData; const s = g.summary;
+  const opts = { responsive: true, maintainAspectRatio: false, cutout: '55%',
+    plugins: { legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 10 }, padding: 10, usePointStyle: true, pointStyle: 'circle' } } } };
+  if (govChartCompliance) govChartCompliance.destroy();
+  const c1 = document.getElementById('gov-chart-compliance');
+  if (c1) govChartCompliance = new Chart(c1.getContext('2d'), { type: 'doughnut',
+    data: { labels: ['Compliant', 'Unreviewed', 'Drifted', 'Violation', 'Removed'],
+      datasets: [{ data: [s.Compliant, s.Unreviewed, s.Drifted, s.Violation, s.Removed],
+        backgroundColor: ['#4FB48A', '#C8A45A', '#D96A6A', '#B0334A', '#8A93B5'], borderColor: '#0F0C30', borderWidth: 2 }] }, options: opts });
+  if (govChartTier) govChartTier.destroy();
+  const c2 = document.getElementById('gov-chart-tier');
+  if (c2) govChartTier = new Chart(c2.getContext('2d'), { type: 'doughnut',
+    data: { labels: ['Elevated', 'Standard'],
+      datasets: [{ data: [g.tier.elevated, g.tier.standard], backgroundColor: ['#D96A6A', '#4FB48A'], borderColor: '#0F0C30', borderWidth: 2 }] }, options: opts });
+}
+
+function renderGovernanceKri() {
+  const g = governanceData;
+  const tierColor = (t) => (t === 0 ? '#4FB48A' : t === 1 ? '#C8A45A' : '#D96A6A');
+  const card = (name, kind, valHtml, ref) => `<div class="card" style="padding:12px;background:var(--bg)"><div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.5px">${govEsc(name)} &middot; ${kind}</div><div style="font-size:19px;font-weight:700;margin:4px 0">${valHtml}</div><div style="font-size:10px;color:#7A85C4">${govEsc(ref)}</div></div>`;
+  const cards = [];
+  for (const k of (g.kpis || [])) cards.push(card(k.name, 'KPI', `<span style="color:${k.met ? '#4FB48A' : '#C8A45A'}">${k.value_pct}%</span><span class="muted" style="font-size:11px;font-weight:400"> / ${k.target_pct}%</span>`, k.framework_ref));
+  for (const k of (g.kris || [])) cards.push(card(k.name, 'KRI', `<span style="color:${tierColor(k.tier)}">${k.value_pct}%</span> <span style="font-size:11px;color:${tierColor(k.tier)}">${k.tier === 0 ? 'Tier 0' : 'Tier ' + k.tier}</span>`, k.framework_ref));
+  $('#governance-kri').innerHTML = cards.join('');
+}
+
+function renderGovernanceTable() {
+  const g = governanceData; if (!g) return;
+  const q = ($('#governance-search') ? $('#governance-search').value : '').toLowerCase();
+  const rows = g.items.filter((i) => !q || `${i.surface} ${i.name} ${i.tier} ${i.status}`.toLowerCase().includes(q));
+  const body = rows.map((i) => {
+    const st = GOV_STATUS[i.status] || { label: i.status, color: '#8A93B5' };
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="font-family:monospace;padding:8px 12px;font-size:12px">${govEsc(i.surface)}</td>
+      <td style="font-family:monospace;padding:8px 12px;font-size:12px;color:var(--text)">${govEsc(i.name)}</td>
+      <td style="padding:8px 12px">${govBadge(i.tier, govTierColor(i.tier))}</td>
+      <td style="padding:8px 12px">${govBadge(st.label, st.color)}</td>
+      <td class="muted" style="padding:8px 12px;font-size:12px">${govEsc(i.reason || '')}</td></tr>`;
+  }).join('');
+  $('#governance-table').innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--muted)">Surface</th>
+      <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--muted)">Name</th>
+      <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--muted)">Tier</th>
+      <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--muted)">Status</th>
+      <th style="text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;color:var(--muted)">Reason</th></tr></thead>
+    <tbody>${body}</tbody></table>
+    <div class="muted" style="padding:8px 12px;font-size:11px">${rows.length} of ${g.items.length} items</div>`;
+}
 
 function renderComplianceKPIs() {
   const d = complianceData;
