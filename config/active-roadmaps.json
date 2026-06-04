@@ -6,7 +6,7 @@
       "name": "Mission Control",
       "ticket_id_range": ["T-036", "T-055"],
       "decision_date": "2026-05-21",
-      "note": "Daily Agenda + Mission Control surfaces — Phase 1 (T-036..T-039) shipped, Phases 2–5 in flight."
+      "note": "Daily Agenda + Mission Control surfaces. Of the T-036..T-055 range only 7 tickets were ever filed in Notion: 5 done (T-036, T-037, T-039, T-043, T-044), 2 backlog. The two stragglers holding this below 100% are T-038 (daily ticket-snapshot cron) and T-046 (Google Calendar OAuth + token store) — promote or re-scope those to ship this arc."
     },
     {
       "slug": "solopreneur-os-etsy-sku",
@@ -23,7 +23,10 @@
       "name": "Founder Journey — personal TikTok + IG",
       "ticket_ids": ["SOC-005", "F-001", "F-002", "F-003"],
       "decision_date": "2026-05-23",
-      "note": "5-week pilot Jun 8 → Jul 10. 14 post drafts ready, first filming session 5/24. Foundation tickets F-001/F-002/F-003 (voice rework + voice-vault + source archive) unblock the weekly cycle. Master plan: PRISM-Vault/Marketing/founder-journey/master-plan.md. As I-001/C-00X/P-00X/G-00X tickets get filed, add their IDs to this list."
+      "note": "5-week pilot Jun 8 → Jul 10. 14 post drafts ready, first filming session 5/24. Foundation tickets F-001/F-002/F-003 (voice rework + voice-vault + source archive) unblock the weekly cycle. Master plan: PRISM-Vault/Marketing/founder-journey/master-plan.md. As I-001/C-00X/P-00X/G-00X tickets get filed, add their IDs to this list.",
+      "retired": true,
+      "retired_date": "2026-06-04",
+      "retired_reason": "Retired from the ship-gated lifecycle 2026-06-04. It read ready_to_ship=true falsely: of its 4 listed tickets only SOC-005 exists in Notion (F-001/F-002/F-003 were never filed), so progress computed 1/1 = 100% on an unstarted ongoing pilot. It is a marketing pilot tracked in PRISM-Vault/Marketing/founder-journey/master-plan.md, not an engineering ship-arc. Flip retired:false (and file F-001/F-002/F-003) to resurface it."
     }
   ]
 }

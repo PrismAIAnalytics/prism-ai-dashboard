@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-104 | Fix stuck Active/Shipped lifecycle states — backfill Shipped + correct Active anomalies | fix/lifecycle-shipped-backfill | Claude Code | 2026-06-04 |
 
 ---
 
