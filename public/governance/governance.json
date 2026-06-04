@@ -1,0 +1,3221 @@
+{
+  "generated_at": "2026-06-04T12:00:00Z",
+  "owner": "Michele Fisher, Prism AI Analytics",
+  "scanner_version": "0.2.0",
+  "framework_ref": "Prism CM-AI Framework White Paper v0.12 §6.3 + KRI Starter Set v1.0",
+  "summary": {
+    "Compliant": 39,
+    "Unreviewed": 346,
+    "Drifted": 0,
+    "Violation": 0,
+    "Removed": 0,
+    "total_live": 385,
+    "coverage_pct": 10.1,
+    "attention": 0,
+    "verdict": "INCOMPLETE COVERAGE"
+  },
+  "posture": {
+    "coverage_pct": 10.1,
+    "elevated_coverage_pct": 0,
+    "max_tier": 3,
+    "kri_categories_instrumented": 1,
+    "kri_categories_total": 4
+  },
+  "kpis": [
+    {
+      "id": "approval_coverage",
+      "name": "Approval coverage",
+      "value_pct": 10.1,
+      "target_pct": 100,
+      "met": false,
+      "definition": "Share of live governable items with an evidence-backed, unexpired approval — the Layer-3 coverage KPI.",
+      "framework_ref": "§5.2 Layer 3"
+    },
+    {
+      "id": "elevated_coverage",
+      "name": "Elevated coverage",
+      "value_pct": 0,
+      "target_pct": 100,
+      "met": false,
+      "definition": "Share of Elevated (§6.4 high-stakes) items that are approved. Risk concentrates here, so the target is 100%.",
+      "framework_ref": "§6.4"
+    }
+  ],
+  "kris": [
+    {
+      "id": "fleet_configuration_drift",
+      "name": "Fleet configuration drift",
+      "category": "configuration_integrity",
+      "count": 0,
+      "value_pct": 0,
+      "tier": 0,
+      "definition": "A live item's content_hash differs from its approved hash with no CHANGE_LOG entry — a §6.3 Configuration Integrity event, at fleet scale.",
+      "thresholds": {
+        "tier_1": "Any unauthorized drift detected → investigate within 24h.",
+        "tier_2": "Drift on any Elevated item, or >2% of the fleet → freeze installs; human review.",
+        "tier_3": "An approved Elevated item removed, or drift on a credential/model config → kill-switch / rollback to last-approved."
+      },
+      "framework_ref": "§6.3 baseline_drift_detected"
+    },
+    {
+      "id": "policy_violation_rate",
+      "name": "Policy violation rate",
+      "category": "configuration_integrity",
+      "count": 0,
+      "value_pct": 0,
+      "tier": 0,
+      "definition": "Live items breaching a ratified policy rule (denylist, or an unpermitted Elevated item).",
+      "thresholds": {
+        "tier_1": "n/a — a policy breach is an action, not a warning.",
+        "tier_2": "Any single Standard-item violation → block + human review.",
+        "tier_3": "Any Elevated-item violation → kill-switch / rollback."
+      },
+      "framework_ref": "§5.2 Layer 2"
+    },
+    {
+      "id": "elevated_exposure",
+      "name": "Elevated exposure",
+      "category": "configuration_integrity",
+      "count": 132,
+      "value_pct": 100,
+      "tier": 3,
+      "definition": "Share of Elevated items with no evidence-backed approval — ungoverned high-stakes configuration.",
+      "thresholds": {
+        "tier_1": "Any Elevated item unreviewed → schedule a review.",
+        "tier_2": ">50% of Elevated items unreviewed → prioritize Elevated approvals this cycle.",
+        "tier_3": "100% of Elevated items unreviewed → no high-stakes item is governed."
+      },
+      "framework_ref": "§6.4"
+    }
+  ],
+  "coverage": [
+    {
+      "category": "configuration_integrity",
+      "status": "instrumented",
+      "source": "prism-scan — filesystem scan + content hashes",
+      "kris": [
+        "fleet_configuration_drift",
+        "policy_violation_rate",
+        "elevated_exposure"
+      ]
+    },
+    {
+      "category": "output_integrity",
+      "status": "no_feed",
+      "source": "needs output sampling + a classifier pass (manual per the starter set)",
+      "kris": [
+        "hallucination_rate",
+        "refusal_rate_inversion",
+        "output_distribution_shift",
+        "toxicity_hits"
+      ]
+    },
+    {
+      "category": "behavioral_integrity",
+      "status": "no_feed",
+      "source": "needs runtime tool-call / session-transcript telemetry",
+      "kris": [
+        "tool_call_error_rate",
+        "out_of_scope_tool_invocation",
+        "out_of_scope_data_access",
+        "loop_depth"
+      ]
+    },
+    {
+      "category": "operational_integrity",
+      "status": "broken_feed",
+      "source": "cost hook present but recording zeros (metrics/costs.jsonl: model \"unknown\", 0 tokens) — fix the hook before deriving cost KRIs",
+      "kris": [
+        "cost_per_action_drift",
+        "latency_drift",
+        "volume_anomaly"
+      ]
+    }
+  ],
+  "tier": {
+    "elevated": 132,
+    "standard": 253
+  },
+  "items": [
+    {
+      "surface": "skills",
+      "name": "agent-harness-construction",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "agent-introspection-debugging",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "agent-sort",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "agentic-engineering",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "ai-first-engineering",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "ai-regression-testing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "android-clean-architecture",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "api-connector-builder",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "api-design",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "article-writing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "automation-audit-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "autonomous-loops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "backend-patterns",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "blueprint",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "brand-voice",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "carrier-relationship-management",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "claude-api",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "claude-devfleet",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "clickhouse-io",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "code-tour",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "coding-standards",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "compose-multiplatform-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "configure-ecc",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "connections-optimizer",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "content-engine",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "content-hash-cache-pattern",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "continuous-agent-loop",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "continuous-learning",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "continuous-learning-v2",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "cost-aware-llm-pipeline",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "council",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "cpp-coding-standards",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "cpp-testing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "crosspost",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "csharp-testing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "customer-billing-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "customs-trade-compliance",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "dart-flutter-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "dashboard-builder",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "data-scraper-agent",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "database-migrations",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "deep-research",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "defi-amm-security",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "deployment-patterns",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "django-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "django-security",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "django-tdd",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "django-verification",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "dmux-workflows",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "docker-patterns",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "dotnet-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "e2e-testing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "ecc-tools-cost-audit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "email-ops",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "energy-procurement",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "enterprise-agent-ops",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "eval-harness",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "evm-token-decimals",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "exa-search",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "fal-ai-media",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "finance-billing-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "foundation-models-on-device",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "frontend-design",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "frontend-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "frontend-slides",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "github-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "golang-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "golang-testing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "google-workspace-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "healthcare-phi-compliance",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "hipaa-compliance",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "hookify-rules",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "inventory-demand-planning",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "investor-materials",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "investor-outreach",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "iterative-retrieval",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "java-coding-standards",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "jira-integration",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "jpa-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "knowledge-ops",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "kotlin-coroutines-flows",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "kotlin-exposed-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "kotlin-ktor-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "kotlin-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "kotlin-testing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "laravel-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "laravel-plugin-discovery",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "laravel-security",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "laravel-tdd",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "laravel-verification",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "lead-intelligence",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "liquid-glass-design",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "llm-trading-agent-security",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "logistics-exception-management",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "manim-video",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "market-research",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "mcp-server-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "messages-ops",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "nanoclaw-repl",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "nestjs-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "nodejs-keccak256",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "notebooklm",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "nutrient-document-processing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "perl-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "perl-security",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "perl-testing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "plankton-code-quality",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "postgres-patterns",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "product-capability",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "production-scheduling",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "project-flow-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "prompt-optimizer",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "python-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "python-testing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "quality-nonconformance",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "ralphinho-rfc-pipeline",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "regex-vs-llm-structured-text",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "remotion-video-creation",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "research-ops",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "returns-reverse-logistics",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "rust-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "rust-testing",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "search-first",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "security-bounty-hunter",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "security-review",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "security-scan",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "seo",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "skill-stocktake",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "social-graph-ranker",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "springboot-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "springboot-security",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "springboot-tdd",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "springboot-verification",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "strategic-compact",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "swift-actor-persistence",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "swift-concurrency-6-2",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "swift-protocol-di-testing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "swiftui-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "tdd-workflow",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "team-builder",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "terminal-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "token-budget-advisor",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "ui-demo",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "unified-notifications-ops",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "verification-loop",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "video-editing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "videodb",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "visa-doc-translate",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "workspace-surface-audit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "x-api",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "agent-introspection-debugging",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "agent-sort",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "api-design",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "article-writing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "backend-patterns",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "brand-voice",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "bun-runtime",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "claude-api",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "coding-standards",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "content-engine",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "crosspost",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "deep-research",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "dmux-workflows",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "documentation-lookup",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "e2e-testing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "eval-harness",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "everything-claude-code-conventions",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "exa-search",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "fal-ai-media",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "frontend-design",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "frontend-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "frontend-slides",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "investor-materials",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "investor-outreach",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "market-research",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "mcp-server-patterns",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "nextjs-turbopack",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "product-capability",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "security-review",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "strategic-compact",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "tdd-workflow",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "verification-loop",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "video-editing",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "skills",
+      "name": "x-api",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "architect",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0001"
+    },
+    {
+      "surface": "agents",
+      "name": "build-error-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0002"
+    },
+    {
+      "surface": "agents",
+      "name": "CHANGE_LOG",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0003"
+    },
+    {
+      "surface": "agents",
+      "name": "chief-of-staff",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "code-architect",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0005"
+    },
+    {
+      "surface": "agents",
+      "name": "code-explorer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0006"
+    },
+    {
+      "surface": "agents",
+      "name": "code-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0007"
+    },
+    {
+      "surface": "agents",
+      "name": "code-simplifier",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0008"
+    },
+    {
+      "surface": "agents",
+      "name": "comment-analyzer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0009"
+    },
+    {
+      "surface": "agents",
+      "name": "conversation-analyzer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0010"
+    },
+    {
+      "surface": "agents",
+      "name": "cpp-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0011"
+    },
+    {
+      "surface": "agents",
+      "name": "cpp-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0012"
+    },
+    {
+      "surface": "agents",
+      "name": "csharp-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0013"
+    },
+    {
+      "surface": "agents",
+      "name": "dart-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0014"
+    },
+    {
+      "surface": "agents",
+      "name": "database-reviewer",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "doc-updater",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0016"
+    },
+    {
+      "surface": "agents",
+      "name": "docs-lookup",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "e2e-runner",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "flutter-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0019"
+    },
+    {
+      "surface": "agents",
+      "name": "gan-evaluator",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "gan-generator",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0021"
+    },
+    {
+      "surface": "agents",
+      "name": "gan-planner",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0022"
+    },
+    {
+      "surface": "agents",
+      "name": "go-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0023"
+    },
+    {
+      "surface": "agents",
+      "name": "go-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0024"
+    },
+    {
+      "surface": "agents",
+      "name": "harness-optimizer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0025"
+    },
+    {
+      "surface": "agents",
+      "name": "healthcare-reviewer",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "java-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0027"
+    },
+    {
+      "surface": "agents",
+      "name": "java-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0028"
+    },
+    {
+      "surface": "agents",
+      "name": "kotlin-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0029"
+    },
+    {
+      "surface": "agents",
+      "name": "kotlin-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0030"
+    },
+    {
+      "surface": "agents",
+      "name": "loop-operator",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0031"
+    },
+    {
+      "surface": "agents",
+      "name": "opensource-forker",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "opensource-packager",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "opensource-sanitizer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0034"
+    },
+    {
+      "surface": "agents",
+      "name": "performance-optimizer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0035"
+    },
+    {
+      "surface": "agents",
+      "name": "planner",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0036"
+    },
+    {
+      "surface": "agents",
+      "name": "pr-test-analyzer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0037"
+    },
+    {
+      "surface": "agents",
+      "name": "python-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0038"
+    },
+    {
+      "surface": "agents",
+      "name": "pytorch-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0039"
+    },
+    {
+      "surface": "agents",
+      "name": "refactor-cleaner",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0040"
+    },
+    {
+      "surface": "agents",
+      "name": "rust-build-resolver",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0041"
+    },
+    {
+      "surface": "agents",
+      "name": "rust-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0042"
+    },
+    {
+      "surface": "agents",
+      "name": "security-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0043"
+    },
+    {
+      "surface": "agents",
+      "name": "seo-specialist",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0044"
+    },
+    {
+      "surface": "agents",
+      "name": "silent-failure-hunter",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0045"
+    },
+    {
+      "surface": "agents",
+      "name": "tdd-guide",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "agents",
+      "name": "type-design-analyzer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0047"
+    },
+    {
+      "surface": "agents",
+      "name": "typescript-reviewer",
+      "tier": "Standard",
+      "status": "Compliant",
+      "reason": "evidence-backed approval; matches",
+      "ci_id": "CI-AGT-0048"
+    },
+    {
+      "surface": "commands",
+      "name": "agent-sort",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "agents",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "aside",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "build-fix",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "checkpoint",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "claw",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "code-review",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "context-budget",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "cpp-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "cpp-review",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "cpp-test",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "devfleet",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "docs",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "e2e",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "eval",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "evolve",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "feature-dev",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "flutter-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "flutter-review",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "flutter-test",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "gan-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "gan-design",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "go-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "go-review",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "go-test",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "gradle-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "harness-audit",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "hookify-configure",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "hookify-help",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "hookify-list",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "hookify",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "instinct-export",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "instinct-import",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "instinct-status",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "jira",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "kotlin-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "kotlin-review",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "kotlin-test",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "learn-eval",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "learn",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "loop-start",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "loop-status",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "model-route",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "multi-backend",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "multi-execute",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "multi-frontend",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "multi-plan",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "multi-workflow",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "notebooklm",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "orchestrate",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "plan",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "pm2",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "projects",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "promote",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prompt-optimize",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prp-commit",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prp-implement",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prp-plan",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prp-pr",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prp-prd",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "prune",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "python-review",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "quality-gate",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "refactor-clean",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "resume-session",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "review-pr",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "rules-distill",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "rust-build",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "rust-review",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "rust-test",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "santa-loop",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "save-session",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "sessions",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "setup-pm",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "skill-create",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "skill-health",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "tdd",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "test-coverage",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "update-codemaps",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "update-docs",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "commands",
+      "name": "verify",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Bash",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Bash",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Write",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Edit|Write",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Bash|Write|Edit|MultiEdit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:Write|Edit|MultiEdit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreToolUse:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PreCompact:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "SessionStart:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Bash",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Edit|Write|MultiEdit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Edit|Write|MultiEdit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Edit|Write|MultiEdit",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Edit",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:Bash|Write|Edit|MultiEdit",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUse:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "PostToolUseFailure:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "Stop:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "Stop:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "Stop:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "Stop:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "Stop:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "Stop:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "hooks",
+      "name": "SessionEnd:*",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "jira",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "github",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "firecrawl",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "supabase",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "memory",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "omega-memory",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "sequential-thinking",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "vercel",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "railway",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "cloudflare-docs",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "cloudflare-workers-builds",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "cloudflare-workers-bindings",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "cloudflare-observability",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "clickhouse",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "exa-web-search",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "context7",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "magic",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "filesystem",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "playwright",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "fal-ai",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "browserbase",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "browser-use",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "devfleet",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "token-optimizer",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "laraplugins",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "confluence",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "mcp_servers",
+      "name": "evalview",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "action-ticket-notion-sync",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "business-health-eval",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "dev-insights-sync",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "gdrive-to-obsidian-sync",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "obsidian-vault-sync",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-daily-orchestrator",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-daily-summary-log",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-log-sync",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-studio-chief-strategist",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-studio-niche-analyst",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-studio-performance-analyst",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "scheduled_tasks",
+      "name": "prism-studio-trend-scout",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "plugins",
+      "name": "ecc",
+      "tier": "Standard",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    },
+    {
+      "surface": "marketplaces",
+      "name": "ecc",
+      "tier": "Elevated",
+      "status": "Unreviewed",
+      "reason": "not in standard",
+      "ci_id": null
+    }
+  ]
+}
