@@ -4,9 +4,9 @@
     {
       "slug": "mission-control",
       "name": "Mission Control",
-      "ticket_id_range": ["T-036", "T-055"],
+      "ticket_ids": ["T-036", "T-037", "T-038", "T-039", "T-043", "T-044"],
       "decision_date": "2026-05-21",
-      "note": "Daily Agenda + Mission Control surfaces. Of the T-036..T-055 range only 7 tickets were ever filed in Notion: 5 done (T-036, T-037, T-039, T-043, T-044), 2 backlog. The two stragglers holding this below 100% are T-038 (daily ticket-snapshot cron) and T-046 (Google Calendar OAuth + token store) — promote or re-scope those to ship this arc."
+      "note": "Daily Agenda + Mission Control surfaces. Of the original T-036–T-055 roadmap only 7 tickets reached Notion; the rest were pre-build stubs absorbed by renumbered work that shipped (T-073/T-078/T-082–T-086/T-102/T-103). Closed out 2026-06-04 (decisions-log): T-038 (daily ticket-snapshot cron) finished via an in-process scheduler in server.js; T-046 (Google Calendar OAuth) cancelled — a read-only calendar mirror was low ramp-value pre-clientele (H-RAMP-1) and dragged the unbuilt T-047/T-048 Calendar page behind it. Scope is now the 6 Notion-filed tickets that define the shipped surface; T-046 is intentionally excluded so the arc reflects the real, completed scope."
     },
     {
       "slug": "solopreneur-os-etsy-sku",
