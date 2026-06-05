@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-107 | Remove submit→Proposal auto-advance (assessment decoupled from pipeline stage) | fix/remove-assessment-autoadvance | Claude Code | 2026-06-05 |
 
 ---
 
