@@ -26,6 +26,14 @@ const knowledgebaseVisibility = require('./services/knowledgebaseVisibility'); /
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
 const emailSender = require('./lib/email-sender');
+const { buildAssessmentInvite, escapeHtml } = require('./lib/assessment-invite');
+// Book-a-call link surfaced in client-facing emails. Set SCHEDULING_URL on
+// Railway when the canonical Calendly / portal booking link exists; until then
+// emails fall back to "reply to me" (no broken/placeholder link). (T-108)
+const SCHEDULING_URL = (process.env.SCHEDULING_URL || '').trim();
+// In-memory idempotency lock for assessment sends — defeats double-click before
+// the email_log dedup row exists. Per-process is sufficient (single Railway dyno).
+const assessmentSendLocks = new Set();
 const os = require('os');
 const CLAUDE_USAGE_PATH = process.env.CLAUDE_USAGE_PATH || path.join(os.homedir(), '.claude', 'usage-data');
 
@@ -552,31 +560,48 @@ app.post('/api/leads', (req, res) => {
   const portalUrl = process.env.PORTAL_BASE_URL || `http://localhost:${PORT}`;
   const magicUrl = `${portalUrl}/api/auth/magic/${magicToken}`;
   const assessmentUrl = `${portalUrl}/prism-ai-readiness-assessment.html?client=${clientId}`;
-  const subject = `Welcome to Prism AI Analytics — your next step`;
-  const text = [
+  const replyTo = process.env.EMAIL_REPLY_TO || 'michele@prismaianalytics.com';
+  // Welcome email (T-108): promise a PERSON, not a form. The AI Readiness
+  // Assessment is introduced by Michele in conversation (human-led), not cold-
+  // dropped here. No temporary password — the one-click magic link covers first
+  // login. Dual-legible: warm `text` + semantic `html`, every action a labeled
+  // endpoint (sign-in, reply, optional book-a-call).
+  const subject = `Thanks for reaching out — Prism AI Analytics`;
+  const textLines = [
     `Hi ${first},`,
     ``,
-    `Thanks for reaching out. I'd love to learn more about what you're trying to solve.`,
+    `Thanks for reaching out — I'd genuinely like to understand what you're trying to solve.`,
     ``,
-    `As a first step, I'd recommend taking our 6-dimension AI Readiness Assessment — it takes about 12–15 minutes and gives us a shared starting point for our conversation.`,
+    `I'll follow up personally within two business days. The first conversation is free; both sides should know it's a good fit before anyone invests.`,
+  ];
+  if (SCHEDULING_URL) textLines.push(``, `If it's easier, you're welcome to grab a time directly: ${SCHEDULING_URL}`);
+  textLines.push(
     ``,
-    `Take the assessment: ${assessmentUrl}`,
+    `I've also set up portal access for you — sign in with one click, no password needed: ${magicUrl}`,
     ``,
-    `You also have access to the Prism client portal, where you can see your assessment results, tailored service recommendations, and catalog pricing.`,
-    ``,
-    `Sign in with one click (no password needed): ${magicUrl}`,
-    ``,
-    `Or use these credentials:`,
-    `  Email: ${email}`,
-    `  Temporary password: ${tempPassword}`,
-    ``,
-    `I'll follow up personally within 2 business days. If you have questions, just reply to this email.`,
+    `Reply to this email any time; it comes straight to me.`,
     ``,
     `Michele Fisher`,
     `Prism AI Analytics`,
-    `michele@prismaianalytics.com`,
-  ].join('\n');
-  emailSender.send({ to: email, subject, text, tags: { type: 'lead_welcome', client_id: clientId }, db }).catch(e => {
+    replyTo,
+  );
+  const text = textLines.join('\n');
+  const schedHtml = SCHEDULING_URL
+    ? `<p style="margin:0 0 16px">If it's easier, you're welcome to <a href="${escapeHtml(SCHEDULING_URL)}">grab a time directly</a>.</p>`
+    : '';
+  const html = [
+    '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1B2F5E;max-width:560px">',
+    // `first` is HTML-escaped via escapeHtml(); this is email HTML, never written to an HTTP response.
+    `<p style="margin:0 0 16px">Hi ${escapeHtml(first)},</p>`, // nosemgrep: javascript.express.security.injection.raw-html-format.raw-html-format
+    `<p style="margin:0 0 16px">Thanks for reaching out — I'd genuinely like to understand what you're trying to solve.</p>`,
+    `<p style="margin:0 0 16px">I'll follow up personally within two business days. The first conversation is free; both sides should know it's a good fit before anyone invests.</p>`,
+    schedHtml,
+    `<p style="margin:0 0 16px">I've also set up portal access for you — <a href="${escapeHtml(magicUrl)}">sign in with one click</a> (no password needed).</p>`,
+    `<p style="margin:0 0 16px">Reply to this email any time; it comes straight to me, at <a href="mailto:${escapeHtml(replyTo)}">${escapeHtml(replyTo)}</a>.</p>`,
+    '<p style="margin:24px 0 0">Michele Fisher<br>Prism AI Analytics</p>',
+    '</div>',
+  ].join('');
+  emailSender.send({ to: email, subject, text, html, tags: { type: 'lead_welcome', client_id: clientId }, db }).catch(e => {
     console.warn('[leads] email send failed (lead still created):', e.message);
   });
 
@@ -667,6 +692,19 @@ app.post('/api/assessments', (req, res) => {
   // therefore NOT advance the stage. The previous submit→'Proposal Sent' auto-jump
   // (guarded on crm_status === 'Assessment In Progress') was removed here; stage
   // changes are deliberate human actions via PATCH /api/crm/customers/:id/status.
+
+  // Human hand-back (T-108): log completion on the client so the last touch is a
+  // person, not a system — Michele follows up personally (the CRM now shows the
+  // assessment date via hasAssessment/lastAssessedDate, T-106). Local + best-effort;
+  // never fail the public submit on a logging hiccup. (A richer needs-attention
+  // surface can build on this activity row later.)
+  try {
+    db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
+                VALUES ('client', ?, 'assessment_completed', ?, ?)`)
+      .run(client_id, `AI Readiness Assessment completed (band: ${band})`, new Date().toISOString());
+  } catch (e) {
+    console.warn('[assessments] completion activity log skipped:', e.message);
+  }
 
   // Public response — score + band only, NO prices.
   // Admin view exposes recommendations via GET /api/assessments.
@@ -3702,6 +3740,90 @@ app.patch('/api/crm/customers/:id', [
     res.json({ ok: true, customer: buildCRMRow(updRow) });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST /api/crm/customers/:id/send-assessment — email the AI Readiness
+// Assessment invite to a client (T-108). Admin-only: the /api middleware already
+// 403s non-admins; the in-handler checks below are defense-in-depth. Human-led by
+// construction — requires client_requested=true (Michele confirms the warm-up
+// email/call happened) and a personalLine. Idempotent against double-click and
+// against a recent send (email_log dedup); `force` overrides the recent-send guard.
+app.post('/api/crm/customers/:id/send-assessment', [
+  param('id').trim().notEmpty(),
+  body('personalLine').trim().notEmpty().withMessage('personalLine is required').isLength({ max: 600 }),
+  body('client_requested').custom(v => v === true).withMessage('client_requested must be true (human-led gate)'),
+  body('force').optional().isBoolean(),
+], handleValidation, async (req, res) => {
+  const { id } = req.params;
+  const { personalLine, force } = req.body;
+
+  // Defense-in-depth: never operate this route in an unauthenticated prod.
+  if (process.env.NODE_ENV === 'production' && !process.env.API_KEY) {
+    return res.status(503).json({ ok: false, error: 'Refusing to send: API_KEY not configured in production' });
+  }
+  if (req.user && req.user.role && req.user.role !== 'admin') {
+    return res.status(403).json({ ok: false, error: 'Forbidden — admin role required' });
+  }
+
+  try {
+    const client = db.prepare('SELECT id, company_name, crm_contact_name, crm_contact_email FROM clients WHERE id = ?').get(id);
+    if (!client) return res.status(404).json({ ok: false, error: 'Customer not found' });
+    const toEmail = (client.crm_contact_email || '').trim();
+    if (!toEmail) return res.status(400).json({ ok: false, error: 'No contact email on file for this client' });
+
+    // Recent-send dedup (only status='sent' counts; not stubbed/failed).
+    const DEDUP_DAYS = 14;
+    if (!force) {
+      const recent = db.prepare(
+        `SELECT 1 FROM email_log
+         WHERE status = 'sent'
+           AND tags_json LIKE '%assessment_invite%'
+           AND tags_json LIKE ?
+           AND sent_at > datetime('now', ?)
+         LIMIT 1`
+      ).get(`%"client_id":"${id}"%`, `-${DEDUP_DAYS} days`);
+      if (recent) {
+        return res.status(409).json({ ok: false, alreadySent: true, error: `An assessment invite was sent to this client within the last ${DEDUP_DAYS} days. Resend with force if intended.` });
+      }
+    }
+
+    // Double-click lock (in-memory; covers the window before the email_log row lands).
+    if (assessmentSendLocks.has(id)) {
+      return res.status(409).json({ ok: false, error: 'A send is already in progress for this client.' });
+    }
+    assessmentSendLocks.add(id);
+    try {
+      const portalUrl = process.env.PORTAL_BASE_URL || `http://localhost:${PORT}`;
+      const assessmentUrl = `${portalUrl}/prism-ai-readiness-assessment.html?client=${id}`;
+      const firstName = (client.crm_contact_name || '').trim().split(/\s+/)[0] || '';
+      const invite = buildAssessmentInvite({
+        firstName,
+        assessmentUrl,
+        schedulingUrl: SCHEDULING_URL,
+        personalLine,
+        replyTo: process.env.EMAIL_REPLY_TO || 'michele@prismaianalytics.com',
+      });
+      const sendRes = await emailSender.send({
+        to: toEmail,
+        subject: invite.subject,
+        text: invite.text,
+        html: invite.html,
+        tags: { type: 'assessment_invite', client_id: id },
+        db,
+      });
+      if (!sendRes.ok) {
+        return res.status(502).json({ ok: false, error: 'Email provider error: ' + (sendRes.error || 'unknown') });
+      }
+      db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
+                  VALUES ('client', ?, 'assessment_invite_sent', ?, ?)`)
+        .run(id, `AI Readiness Assessment invite sent to ${toEmail}${sendRes.stubbed ? ' (stubbed — RESEND_API_KEY unset)' : ''}`, new Date().toISOString());
+      return res.json({ ok: true, sent: !sendRes.stubbed, stubbed: !!sendRes.stubbed, to: toEmail });
+    } finally {
+      assessmentSendLocks.delete(id);
+    }
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
