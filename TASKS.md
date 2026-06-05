@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-110 | Portal access gated on payment (Active Client+) with manual override; strip portal from lead welcome | task/portal-access-on-payment | Claude Code | 2026-06-05 |
 
 ---
 
