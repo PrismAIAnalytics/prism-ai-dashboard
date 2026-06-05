@@ -2429,6 +2429,7 @@ function renderCRMFilters() {
     { label: 'All', value: 'all' },
     { label: 'Active Pipeline', value: 'active' },
     { label: 'Urgent', value: 'urgent' },
+    { label: 'Intake Outstanding', value: 'intake' },
     { label: 'Closed / On Hold', value: 'closed' },
   ];
   $('#crm-stage-filters').innerHTML = groups.map(g =>
@@ -2442,6 +2443,17 @@ function crmFilterBy(filter) {
   renderCRMTable();
 }
 
+// ── Intake (AI Readiness Assessment) status cell ──
+function crmIntakeCell(c) {
+  if (c.hasAssessment) {
+    const when = c.lastAssessedDate ? String(c.lastAssessedDate).slice(0, 10) : 'on file';
+    return `<span style="font-size:11px;color:var(--muted)" title="Assessment on file">${when}</span>`;
+  }
+  const closed = c.status.startsWith('Closed') || c.status === 'On Hold';
+  if (closed) return '<span style="color:var(--muted)">—</span>';
+  return '<span class="sla-tag" style="background:var(--royal);color:var(--white);opacity:0.85" title="No AI Readiness Assessment on file">Outstanding</span>';
+}
+
 // ── CRM table ──
 function renderCRMTable() {
   let filtered = crmData;
@@ -2450,6 +2462,10 @@ function renderCRMTable() {
     filtered = crmData.filter(c => !c.status.startsWith('Closed') && c.status !== 'On Hold');
   } else if (crmFilter === 'urgent') {
     filtered = crmData.filter(c => c.urgent);
+  } else if (crmFilter === 'intake') {
+    // Active (non-closed) clients with no AI Readiness Assessment on file — the
+    // intake worklist Michele works one at a time (T-106).
+    filtered = crmData.filter(c => !c.hasAssessment && !c.status.startsWith('Closed') && c.status !== 'On Hold');
   } else if (crmFilter === 'closed') {
     filtered = crmData.filter(c => c.status.startsWith('Closed') || c.status === 'On Hold');
   } else if (crmFilter !== 'all') {
@@ -2466,13 +2482,14 @@ function renderCRMTable() {
 
   $('#crm-table').innerHTML = `<table>
     <thead><tr>
-      <th>Company</th><th>Contact</th><th>Status</th><th>Service</th>
+      <th>Company</th><th>Contact</th><th>Status</th><th>Intake</th><th>Service</th>
       <th>Budget</th><th>Next Action</th><th>SLA</th><th></th>
     </tr></thead>
     <tbody>${filtered.map(c => `<tr class="crm-row" onclick="crmOpenDetail('${c.id}')">
       <td>${c.company}</td>
       <td>${c.contactName || '<span style="color:var(--muted)">—</span>'}${c.contactEmail ? '<br><span style="font-size:11px;color:var(--muted)">' + c.contactEmail + '</span>' : ''}</td>
       <td>${badge(c.status.replace(/[\s\/\-]+/g, '_').toLowerCase())}<br><span style="font-size:10px;color:var(--muted)">${c.status}</span></td>
+      <td>${crmIntakeCell(c)}</td>
       <td>${c.service || '—'}</td>
       <td class="money">${c.budget ? fmt(c.budget) : '—'}</td>
       <td style="font-size:12px;max-width:180px">${c.trigger}</td>

@@ -3515,6 +3515,11 @@ function buildCRMRow(row) {
     notes:           row.notes || '',
     lastStatusChange: row.crm_last_status_change || row.created_at,
     createdAt:       row.created_at,
+    // Assessment-as-intake tracking (T-106). Derived from a latest-wins join in
+    // GET /api/crm + /triggers; defaults safely (false/null) for callers whose
+    // SELECT omits the join (create/patch responses).
+    hasAssessment:   !!row.last_assessed_date,
+    lastAssessedDate: row.last_assessed_date || null,
     trigger:         stage.trigger,
     sla:             stage.sla,
     nextStage:       stage.next,
@@ -3526,9 +3531,13 @@ function buildCRMRow(row) {
 app.get('/api/crm', (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT c.*, i.name as industry
+      SELECT c.*, i.name as industry, a.last_assessed_date
       FROM clients c
       LEFT JOIN industries i ON c.industry_id = i.id
+      LEFT JOIN (
+        SELECT client_id, MAX(assessment_date) AS last_assessed_date
+        FROM ai_readiness_assessments GROUP BY client_id
+      ) a ON a.client_id = c.id
       WHERE c.is_active = 1
       ORDER BY c.created_at DESC
     `).all();
@@ -3542,9 +3551,13 @@ app.get('/api/crm', (req, res) => {
 app.get('/api/crm/triggers', (req, res) => {
   try {
     const rows = db.prepare(`
-      SELECT c.*, i.name as industry
+      SELECT c.*, i.name as industry, a.last_assessed_date
       FROM clients c
       LEFT JOIN industries i ON c.industry_id = i.id
+      LEFT JOIN (
+        SELECT client_id, MAX(assessment_date) AS last_assessed_date
+        FROM ai_readiness_assessments GROUP BY client_id
+      ) a ON a.client_id = c.id
       WHERE c.is_active = 1
       ORDER BY c.crm_last_status_change ASC
     `).all();
