@@ -1725,6 +1725,10 @@ function migrateCRMColumns() {
     { name: 'crm_last_status_change', sql: "ALTER TABLE clients ADD COLUMN crm_last_status_change TEXT DEFAULT (datetime('now'))" },
     { name: 'adoption_stage',         sql: 'ALTER TABLE clients ADD COLUMN adoption_stage TEXT' },
     { name: 'apollo_id',              sql: 'ALTER TABLE clients ADD COLUMN apollo_id TEXT' },
+    // T-109: timestamp a draft assessment invite was queued (on Discovery
+    // Scheduled). NULL = no pending draft. Cleared when the invite is sent or
+    // the draft is dismissed. Additive, nullable — safe migration.
+    { name: 'assessment_draft_at',    sql: 'ALTER TABLE clients ADD COLUMN assessment_draft_at TEXT' },
   ];
   crmCols.forEach(c => { if (!cols.includes(c.name)) db.exec(c.sql); });
   // Dedupe lookups for outbound prospect import (POST /api/crm/import-prospects).
@@ -3553,6 +3557,7 @@ function buildCRMRow(row) {
     // SELECT omits the join (create/patch responses).
     hasAssessment:   !!row.last_assessed_date,
     lastAssessedDate: row.last_assessed_date || null,
+    assessmentDraftPending: !!row.assessment_draft_at, // T-109 — draft queued at Discovery Scheduled, awaiting review & send
     trigger:         stage.trigger,
     sla:             stage.sla,
     nextStage:       stage.next,
@@ -3694,6 +3699,26 @@ app.patch('/api/crm/customers/:id/status', [
                 VALUES ('client', ?, 'crm_status_change', ?, ?)`)
       .run(id, `Status changed: ${client.crm_status || 'New Lead'} → ${status}`, now);
 
+    // T-109: on the TRUE transition into 'Discovery Scheduled', queue a draft
+    // assessment invite — prepared, NOT sent. Michele reviews + one-click sends
+    // from the CRM (no email auto-fires). Skip if the client already has an
+    // assessment or a draft is already pending. Best-effort — draft bookkeeping
+    // must never fail or roll back the status change itself.
+    try {
+      const enteringDiscovery = client.crm_status !== 'Discovery Scheduled' && status === 'Discovery Scheduled';
+      if (enteringDiscovery && !client.assessment_draft_at) {
+        const hasAssessment = db.prepare('SELECT 1 FROM ai_readiness_assessments WHERE client_id = ? LIMIT 1').get(id);
+        if (!hasAssessment) {
+          db.prepare('UPDATE clients SET assessment_draft_at = ? WHERE id = ?').run(now, id);
+          db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
+                      VALUES ('client', ?, 'assessment_draft_queued', ?, ?)`)
+            .run(id, 'Assessment invite draft queued — review & send', now);
+        }
+      }
+    } catch (e) {
+      console.warn('[crm] assessment draft queue skipped:', e.message);
+    }
+
     const updRow = db.prepare(`
       SELECT c.*, i.name as industry FROM clients c
       LEFT JOIN industries i ON c.industry_id = i.id WHERE c.id = ?
@@ -3818,10 +3843,34 @@ app.post('/api/crm/customers/:id/send-assessment', [
       db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
                   VALUES ('client', ?, 'assessment_invite_sent', ?, ?)`)
         .run(id, `AI Readiness Assessment invite sent to ${toEmail}${sendRes.stubbed ? ' (stubbed — RESEND_API_KEY unset)' : ''}`, new Date().toISOString());
+      // Sending fulfills any queued draft (T-109).
+      db.prepare('UPDATE clients SET assessment_draft_at = NULL WHERE id = ?').run(id);
       return res.json({ ok: true, sent: !sendRes.stubbed, stubbed: !!sendRes.stubbed, to: toEmail });
     } finally {
       assessmentSendLocks.delete(id);
     }
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST /api/crm/customers/:id/dismiss-assessment-draft — clear a queued draft
+// without sending (T-109). Admin-only (middleware gates non-admins; in-handler
+// check is defense-in-depth).
+app.post('/api/crm/customers/:id/dismiss-assessment-draft', [
+  param('id').trim().notEmpty(),
+], handleValidation, (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user && req.user.role && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, error: 'Forbidden — admin role required' });
+    }
+    const r = db.prepare('UPDATE clients SET assessment_draft_at = NULL WHERE id = ?').run(id);
+    if (r.changes === 0) return res.status(404).json({ ok: false, error: 'Customer not found' });
+    db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
+                VALUES ('client', ?, 'assessment_draft_dismissed', ?, ?)`)
+      .run(id, 'Assessment invite draft dismissed', new Date().toISOString());
+    return res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
