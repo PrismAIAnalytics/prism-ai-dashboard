@@ -2686,6 +2686,26 @@ async function crmOpenDetail(id) {
       <div style="font-size:11px;color:var(--muted);margin-top:6px">Send after your intro email or call — the client should be expecting it.</div>
     </div>
 
+    <!-- Portal access (T-110) -->
+    <div class="detail-section">
+      <h4>Client Portal</h4>
+      <div style="font-size:13px;color:var(--text);margin-bottom:8px">
+        ${cust.portalAccess
+          ? '<span style="color:#2E8B57;font-weight:600">Open</span>'
+          : '<span style="color:var(--muted)">Closed</span>'}
+        <span style="font-size:11px;color:var(--muted)"> &middot; ${
+          cust.portalOverride === 'open' ? 'forced open'
+          : cust.portalOverride === 'closed' ? 'forced closed'
+          : 'auto (opens at Active Client / first payment)'}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm" onclick="crmSetPortalAccess('${id}','open')">Force open</button>
+        <button class="btn-sm" onclick="crmSetPortalAccess('${id}','auto')">Auto</button>
+        <button class="btn-sm" onclick="crmSetPortalAccess('${id}','closed')">Force closed</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Portal opens automatically once any payment lands (Active Client+). Force open to grant it early; forcing open emails a sign-in link.</div>
+    </div>
+
     <!-- Edit / Delete -->
     <div class="detail-section" style="display:flex;gap:8px">
       <button class="btn-sm" onclick="crmShowEditModal('${id}')">&#9998; Edit Details</button>
@@ -2799,6 +2819,25 @@ async function crmSendAssessmentInvite(id, force) {
     if (confirm(`${res.error}\n\nResend now?`)) return crmSendAssessmentInvite(id, true);
   } else {
     toast(res.error || 'Failed to send assessment', true);
+  }
+}
+
+// ── Set portal access override (T-110) ──
+async function crmSetPortalAccess(id, mode) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust) return;
+  if (mode === 'open' && !cust.portalAccess && !cust.contactEmail) {
+    toast('No contact email on file — add one before opening the portal', true); return;
+  }
+  const label = mode === 'open' ? 'Force the portal open' : mode === 'closed' ? 'Force the portal closed' : 'Set portal access to auto';
+  if (!confirm(`${label} for ${cust.company}?${mode === 'open' ? ' This emails them a sign-in link.' : ''}`)) return;
+  const res = await apiWrite(`crm/customers/${id}/portal-access`, 'POST', { mode });
+  if (res.ok) {
+    toast(`Portal ${res.portalAccess ? 'open' : 'closed'} for ${cust.company}`);
+    crmCloseDetail();
+    loaders.crm();
+  } else {
+    toast(res.error || 'Failed to update portal access', true);
   }
 }
 

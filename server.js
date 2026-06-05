@@ -561,11 +561,11 @@ app.post('/api/leads', (req, res) => {
   const magicUrl = `${portalUrl}/api/auth/magic/${magicToken}`;
   const assessmentUrl = `${portalUrl}/prism-ai-readiness-assessment.html?client=${clientId}`;
   const replyTo = process.env.EMAIL_REPLY_TO || 'michele@prismaianalytics.com';
-  // Welcome email (T-108): promise a PERSON, not a form. The AI Readiness
+  // Welcome email (T-108/T-110): promise a PERSON, not a form. The AI Readiness
   // Assessment is introduced by Michele in conversation (human-led), not cold-
-  // dropped here. No temporary password — the one-click magic link covers first
-  // login. Dual-legible: warm `text` + semantic `html`, every action a labeled
-  // endpoint (sign-in, reply, optional book-a-call).
+  // dropped here. No portal link and no password — portal access opens only after
+  // payment (Active Client+), at which point openPortalForClient() emails a fresh
+  // sign-in link (T-110). Dual-legible: warm `text` + semantic `html`.
   const subject = `Thanks for reaching out — Prism AI Analytics`;
   const textLines = [
     `Hi ${first},`,
@@ -576,8 +576,6 @@ app.post('/api/leads', (req, res) => {
   ];
   if (SCHEDULING_URL) textLines.push(``, `If it's easier, you're welcome to grab a time directly: ${SCHEDULING_URL}`);
   textLines.push(
-    ``,
-    `I've also set up portal access for you — sign in with one click, no password needed: ${magicUrl}`,
     ``,
     `Reply to this email any time; it comes straight to me.`,
     ``,
@@ -596,7 +594,6 @@ app.post('/api/leads', (req, res) => {
     `<p style="margin:0 0 16px">Thanks for reaching out — I'd genuinely like to understand what you're trying to solve.</p>`,
     `<p style="margin:0 0 16px">I'll follow up personally within two business days. The first conversation is free; both sides should know it's a good fit before anyone invests.</p>`,
     schedHtml,
-    `<p style="margin:0 0 16px">I've also set up portal access for you — <a href="${escapeHtml(magicUrl)}">sign in with one click</a> (no password needed).</p>`,
     `<p style="margin:0 0 16px">Reply to this email any time; it comes straight to me, at <a href="mailto:${escapeHtml(replyTo)}">${escapeHtml(replyTo)}</a>.</p>`,
     '<p style="margin:24px 0 0">Michele Fisher<br>Prism AI Analytics</p>',
     '</div>',
@@ -618,8 +615,20 @@ app.get('/api/auth/magic/:token', (req, res) => {
   const row = db.prepare(`SELECT t.token, t.user_id, t.expires_at, t.consumed_at, u.username, u.role
                           FROM magic_link_tokens t JOIN users u ON u.id = t.user_id WHERE t.token = ?`).get(t);
   if (!row) return res.status(404).send('Token not found');
-  if (row.consumed_at) return res.status(410).send('This link has already been used. Sign in with your temporary password or request a new link.');
-  if (new Date(row.expires_at) < new Date()) return res.status(410).send('This link has expired. Request a new one.');
+  if (row.consumed_at) return res.status(410).send("This sign-in link has already been used. Reply to michele@prismaianalytics.com and I'll send a fresh one.");
+  if (new Date(row.expires_at) < new Date()) return res.status(410).send("This sign-in link has expired. Reply to michele@prismaianalytics.com and I'll send a fresh one.");
+
+  // T-110: gate portal access on payment. A client's link only works once their
+  // portal is open (Active Client+ or manual override). Checked BEFORE consuming
+  // the token so a not-yet-active client doesn't burn it. Admin users are unaffected.
+  if (row.role === 'client') {
+    const cli = db.prepare(`SELECT cl.crm_status, cl.portal_access_override
+                            FROM contacts ct JOIN clients cl ON cl.id = ct.client_id
+                            WHERE ct.email = ? LIMIT 1`).get(row.username);
+    if (!portalAccessGranted(cli)) {
+      return res.status(403).send("Your Prism portal opens once your engagement is active — I'll email you a sign-in link then. Questions? Reply to michele@prismaianalytics.com.");
+    }
+  }
 
   db.prepare("UPDATE magic_link_tokens SET consumed_at = datetime('now') WHERE token = ?").run(t);
   const { token, expires_at } = createSession(row.user_id);
@@ -748,9 +757,13 @@ app.get('/api/portal/me', (req, res) => {
   ).get(req.user.username);
   if (!contact) return res.status(404).json({ ok: false, error: 'Contact not found' });
   const client = db.prepare(
-    'SELECT id, company_name, adoption_stage, crm_status FROM clients WHERE id = ?'
+    'SELECT id, company_name, adoption_stage, crm_status, portal_access_override FROM clients WHERE id = ?'
   ).get(contact.client_id);
   if (!client) return res.status(404).json({ ok: false, error: 'Client not found' });
+  // T-110: portal opens on payment (Active Client+) or manual override.
+  if (!portalAccessGranted(client)) {
+    return res.status(403).json({ ok: false, error: 'portal-not-active', message: 'Your portal opens once your engagement is active.' });
+  }
   const row = db.prepare(
     'SELECT data_infra, tech_stack, process_maturity, team_readiness, governance, strategic_alignment, overall_score, readiness_band, summary, recommendations FROM ai_readiness_assessments WHERE client_id = ? ORDER BY assessment_date DESC LIMIT 1'
   ).get(client.id);
@@ -1729,6 +1742,9 @@ function migrateCRMColumns() {
     // Scheduled). NULL = no pending draft. Cleared when the invite is sent or
     // the draft is dismissed. Additive, nullable — safe migration.
     { name: 'assessment_draft_at',    sql: 'ALTER TABLE clients ADD COLUMN assessment_draft_at TEXT' },
+    // T-110: manual portal-access override. NULL = auto (open at Active Client+),
+    // 'open' = force open, 'closed' = force closed. Additive, nullable.
+    { name: 'portal_access_override', sql: 'ALTER TABLE clients ADD COLUMN portal_access_override TEXT' },
   ];
   crmCols.forEach(c => { if (!cols.includes(c.name)) db.exec(c.sql); });
   // Dedupe lookups for outbound prospect import (POST /api/crm/import-prospects).
@@ -3534,6 +3550,69 @@ const CRM_STAGES = {
   'On Hold':                   { trigger: 'Set 30-day check-in reminder',      sla: '30 days',   next: null,                       urgent: false },
 };
 
+// T-110: stages at/after "Active Client" mean the deposit/any payment has landed
+// (per the Sales Runbook), so the portal is open. Pre-payment and terminal-non-sale
+// stages do not open it.
+const PORTAL_OPEN_STAGES = new Set([
+  'Active Client', 'Project In Progress', 'Delivered',
+  'Post-Project Follow-Up', 'Retainer / Upsell', 'Closed - Won',
+]);
+
+// Portal access resolves: manual override wins ('open'/'closed'); else auto = the
+// client has reached a paid stage. `row` needs crm_status + portal_access_override.
+function portalAccessGranted(row) {
+  if (!row) return false;
+  if (row.portal_access_override === 'open') return true;
+  if (row.portal_access_override === 'closed') return false;
+  return PORTAL_OPEN_STAGES.has(row.crm_status);
+}
+
+// Issue a fresh single-use magic link for a client's portal user and email a
+// "your portal is ready" note. Best-effort; returns false (logs) on any miss so
+// callers never fail their primary action. Reused on access-open + override-open.
+function openPortalForClient(clientId) {
+  try {
+    const c = db.prepare('SELECT crm_contact_name, crm_contact_email FROM clients WHERE id = ?').get(clientId);
+    const email = c && (c.crm_contact_email || '').trim();
+    if (!email) return false;
+    const user = db.prepare("SELECT id FROM users WHERE username = ? AND role = 'client'").get(email);
+    if (!user) return false;
+    const magicToken = crypto.randomBytes(32).toString('hex');
+    const magicExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    db.prepare('INSERT INTO magic_link_tokens (token, user_id, purpose, expires_at) VALUES (?, ?, ?, ?)')
+      .run(magicToken, user.id, 'login', magicExpires);
+    const portalUrl = process.env.PORTAL_BASE_URL || `http://localhost:${PORT}`;
+    const magicUrl = `${portalUrl}/api/auth/magic/${magicToken}`;
+    const replyTo = process.env.EMAIL_REPLY_TO || 'michele@prismaianalytics.com';
+    const first = (c.crm_contact_name || '').trim().split(/\s+/)[0] || 'there';
+    const text = [
+      `Hi ${first},`, '',
+      `Your Prism client portal is ready — you'll find your assessment results, recommendations, and engagement materials there.`, '',
+      `Sign in with one click (no password needed): ${magicUrl}`, '',
+      `Reply any time; it comes straight to me.`, '',
+      'Michele Fisher', 'Prism AI Analytics', replyTo,
+    ].join('\n');
+    const html = [
+      '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1B2F5E;max-width:560px">',
+      `<p style="margin:0 0 16px">Hi ${escapeHtml(first)},</p>`,
+      `<p style="margin:0 0 16px">Your Prism client portal is ready — you'll find your assessment results, recommendations, and engagement materials there.</p>`,
+      `<p style="margin:0 0 16px"><a href="${escapeHtml(magicUrl)}">Sign in with one click</a> (no password needed).</p>`,
+      `<p style="margin:0 0 16px">Reply any time; it comes straight to me, at <a href="mailto:${escapeHtml(replyTo)}">${escapeHtml(replyTo)}</a>.</p>`,
+      '<p style="margin:24px 0 0">Michele Fisher<br>Prism AI Analytics</p>',
+      '</div>',
+    ].join('');
+    emailSender.send({ to: email, subject: 'Your Prism client portal is ready', text, html, tags: { type: 'portal_ready', client_id: clientId }, db })
+      .catch(e => console.warn('[portal] ready email failed (access still granted):', e.message));
+    db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
+                VALUES ('client', ?, 'portal_opened', ?, ?)`)
+      .run(clientId, `Client portal opened; sign-in link sent to ${email}`, new Date().toISOString());
+    return true;
+  } catch (e) {
+    console.warn('[portal] openPortalForClient skipped:', e.message);
+    return false;
+  }
+}
+
 function buildCRMRow(row) {
   const stage = CRM_STAGES[row.crm_status] || CRM_STAGES['New Lead'];
   return {
@@ -3558,6 +3637,8 @@ function buildCRMRow(row) {
     hasAssessment:   !!row.last_assessed_date,
     lastAssessedDate: row.last_assessed_date || null,
     assessmentDraftPending: !!row.assessment_draft_at, // T-109 — draft queued at Discovery Scheduled, awaiting review & send
+    portalAccess:    portalAccessGranted(row),         // T-110 — is the client portal open?
+    portalOverride:  row.portal_access_override || null, // 'open' | 'closed' | null(auto)
     trigger:         stage.trigger,
     sla:             stage.sla,
     nextStage:       stage.next,
@@ -3719,6 +3800,17 @@ app.patch('/api/crm/customers/:id/status', [
       console.warn('[crm] assessment draft queue skipped:', e.message);
     }
 
+    // T-110: if this stage change opens the portal (deposit/any payment landed →
+    // Active Client+), issue the sign-in link + "portal ready" email. Only on the
+    // false→true edge; override is unchanged by a status PATCH. Best-effort.
+    try {
+      const wasGranted = portalAccessGranted(client);
+      const nowGranted = portalAccessGranted({ crm_status: status, portal_access_override: client.portal_access_override });
+      if (!wasGranted && nowGranted) openPortalForClient(id);
+    } catch (e) {
+      console.warn('[crm] portal open-on-status skipped:', e.message);
+    }
+
     const updRow = db.prepare(`
       SELECT c.*, i.name as industry FROM clients c
       LEFT JOIN industries i ON c.industry_id = i.id WHERE c.id = ?
@@ -3871,6 +3963,38 @@ app.post('/api/crm/customers/:id/dismiss-assessment-draft', [
                 VALUES ('client', ?, 'assessment_draft_dismissed', ?, ?)`)
       .run(id, 'Assessment invite draft dismissed', new Date().toISOString());
     return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST /api/crm/customers/:id/portal-access — manual portal override (T-110).
+// body { mode: 'open' | 'closed' | 'auto' }. Admin-only. Forcing it open (or auto
+// when the stage already qualifies) issues the sign-in link if the portal wasn't
+// already open.
+app.post('/api/crm/customers/:id/portal-access', [
+  param('id').trim().notEmpty(),
+  body('mode').trim().isIn(['open', 'closed', 'auto']).withMessage("mode must be open, closed, or auto"),
+], handleValidation, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mode } = req.body;
+    if (req.user && req.user.role && req.user.role !== 'admin') {
+      return res.status(403).json({ ok: false, error: 'Forbidden — admin role required' });
+    }
+    const client = db.prepare('SELECT crm_status, portal_access_override FROM clients WHERE id = ?').get(id);
+    if (!client) return res.status(404).json({ ok: false, error: 'Customer not found' });
+
+    const wasGranted = portalAccessGranted(client);
+    const newOverride = mode === 'auto' ? null : mode;
+    db.prepare('UPDATE clients SET portal_access_override = ? WHERE id = ?').run(newOverride, id);
+    const nowGranted = portalAccessGranted({ crm_status: client.crm_status, portal_access_override: newOverride });
+
+    if (!wasGranted && nowGranted) openPortalForClient(id);
+    db.prepare(`INSERT INTO activity_log (entity_type, entity_id, action, summary, logged_at)
+                VALUES ('client', ?, 'portal_access_override', ?, ?)`)
+      .run(id, `Portal access set to ${mode}${(!wasGranted && nowGranted) ? ' (sign-in link sent)' : ''}`, new Date().toISOString());
+    return res.json({ ok: true, portalAccess: nowGranted, portalOverride: newOverride });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
