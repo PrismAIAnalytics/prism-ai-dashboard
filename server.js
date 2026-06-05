@@ -661,17 +661,12 @@ app.post('/api/assessments', (req, res) => {
     return res.status(500).json({ ok: false, error: 'DB insert failed: ' + e.message });
   }
 
-  // Auto-advance CRM stage on the clients row itself (CRM lives on clients table
-  // via the crm_status column — see CRM_STAGES map). Silent on any error so the
-  // assessment insert never fails because of CRM bookkeeping.
-  try {
-    const row = db.prepare('SELECT crm_status FROM clients WHERE id = ?').get(client_id);
-    if (row && row.crm_status === 'Assessment In Progress') {
-      db.prepare("UPDATE clients SET crm_status = 'Proposal Sent', crm_last_status_change = datetime('now') WHERE id = ?").run(client_id);
-    }
-  } catch (e) {
-    console.warn('[assessments] CRM stage auto-advance skipped:', e.message);
-  }
+  // NOTE (T-107): the assessment is now decoupled from the CRM pipeline — it is
+  // intake delivered *before* discovery completes (human-led, gating Discovery
+  // Complete), not a stage that ends in a proposal. Submitting an assessment must
+  // therefore NOT advance the stage. The previous submit→'Proposal Sent' auto-jump
+  // (guarded on crm_status === 'Assessment In Progress') was removed here; stage
+  // changes are deliberate human actions via PATCH /api/crm/customers/:id/status.
 
   // Public response — score + band only, NO prices.
   // Admin view exposes recommendations via GET /api/assessments.
