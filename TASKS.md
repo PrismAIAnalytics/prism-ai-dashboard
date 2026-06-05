@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-109 | Draft-and-approve assessment invite at Discovery Scheduled (queued draft, review & one-click send) | task/assessment-draft-queue | Claude Code | 2026-06-05 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-109 | Draft-and-approve assessment invite at Discovery Scheduled (queued draft, review & one-click send) | 2026-06-05 | Shipped via PR #110 as `4d2b5c4aa0b126108b3a317c0614e0c263db62db` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (`assessmentDraftPending` present on `/api/crm` — additive column `assessment_draft_at` migrated cleanly on prod). Final PR of the assessment-as-intake initiative (PR-1 reconciler → PR-5 draft-and-approve). Lock cleared via this standalone `chore/close-t109` PR (no next task to bundle into; auto-close Action branch deleted from origin). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-108 | Assessment-push capability + welcome reframe (shared sender, admin send endpoint, intake worklist) | 2026-06-05 | Shipped via PR #109 as `04539b16c972f5e028a79812d7f7d03bb3015ad6` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (send-assessment route returns 400 on the validation gate — deployed, no email sent). PR initially blocked by the Semgrep `raw-html-format` gate (false positive on `escapeHtml`-sanitized email HTML) + a perceived merge conflict (none — red gate disabled the merge button); resolved with a full-rule-id same-line `// nosemgrep`. In Progress lock carried stale (auto-close `chore/auto-close-t108` not merged); cleared here as the first commit of T-109 per WORKFLOW.md §4, stale branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-107 | Remove submit→Proposal auto-advance (assessment decoupled from pipeline stage) | 2026-06-05 | Shipped via PR #108 as `9591e94bd6ba3857eee4a29d07ddbfd2902ab07b` (squash) on 2026-06-05; Railway auto-deployed. In Progress lock carried stale (auto-close Action pushed `chore/auto-close-t107` but it was not merged — recurring close-out gap); cleared here as the first commit of T-108 per WORKFLOW.md §4, and the stale auto-close branch was deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-106 | CRM assessment completion tracking (hasAssessment + intake-outstanding filter) | 2026-06-05 | Shipped via PR #105 as `29780ca5b6a20d417a114669c416d12ea2af9652` (squash) on 2026-06-05; Railway auto-deployed. In Progress lock carried stale from merge (recurring close-out gap, see T-059 / T-088 / T-090 / T-093 / T-099 / T-101) and was cleared via PR #106. **Ledger correction:** PR #106 cleared the lock but omitted this Done row, briefly dropping T-106 from both tables; filed here via PR #107. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
