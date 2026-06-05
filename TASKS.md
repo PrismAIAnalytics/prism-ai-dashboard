@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-111 | KB workflow diagram: AI Factory lifecycle (evaluate → adopt → deliver) | feat/diagram-ai-factory-lifecycle | Claude Code | 2026-06-05 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-111 | KB workflow diagram: AI Factory lifecycle (evaluate → adopt → deliver) | 2026-06-05 | Shipped via PR #114 as `0e10d41ffac0f31811ebfabb4998e3517801dd86` (squash) on 2026-06-05; Railway auto-deployed. 4-view diagram (`public/knowledgebase/workflows/ai_factory_lifecycle.html`) derived from `Services/AI_Factory_Operating_Spec.md`, drift=false on manifest rebuild, 3 Mermaid blocks verified rendering. Lock cleared via this standalone `chore/close-t111` PR; auto-close branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-110 | Portal access gated on payment (Active Client+) with manual override; strip portal from lead welcome | 2026-06-05 | Shipped via PR #112 as `c5df05376a3ffefe504a9b2d21a4fec5595067df` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (`portalAccess` present on `/api/crm`; additive column `portal_access_override` migrated cleanly). Auth/portal hot-path change: portal opens on Active Client+ or manual override; enforced on `/api/portal/me` + magic consumption; lead welcome no longer issues a portal link; retired the stale temp-password/request-a-link 410 messaging. Lock cleared via this standalone `chore/close-t110` PR; auto-close branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-109 | Draft-and-approve assessment invite at Discovery Scheduled (queued draft, review & one-click send) | 2026-06-05 | Shipped via PR #110 as `4d2b5c4aa0b126108b3a317c0614e0c263db62db` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (`assessmentDraftPending` present on `/api/crm` — additive column `assessment_draft_at` migrated cleanly on prod). Final PR of the assessment-as-intake initiative (PR-1 reconciler → PR-5 draft-and-approve). Lock cleared via this standalone `chore/close-t109` PR (no next task to bundle into; auto-close Action branch deleted from origin). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-108 | Assessment-push capability + welcome reframe (shared sender, admin send endpoint, intake worklist) | 2026-06-05 | Shipped via PR #109 as `04539b16c972f5e028a79812d7f7d03bb3015ad6` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (send-assessment route returns 400 on the validation gate — deployed, no email sent). PR initially blocked by the Semgrep `raw-html-format` gate (false positive on `escapeHtml`-sanitized email HTML) + a perceived merge conflict (none — red gate disabled the merge button); resolved with a full-rule-id same-line `// nosemgrep`. In Progress lock carried stale (auto-close `chore/auto-close-t108` not merged); cleared here as the first commit of T-109 per WORKFLOW.md §4, stale branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
