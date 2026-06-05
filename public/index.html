@@ -2664,6 +2664,18 @@ async function crmOpenDetail(id) {
       <div style="font-size:13px;color:var(--text);white-space:pre-wrap">${cust.notes || '<span style="color:var(--muted)">No notes yet</span>'}</div>
     </div>
 
+    <!-- AI Readiness Assessment (intake) -->
+    <div class="detail-section">
+      <h4>AI Readiness Assessment</h4>
+      <div style="font-size:13px;color:var(--text);margin-bottom:10px">
+        ${cust.hasAssessment
+          ? 'On file' + (cust.lastAssessedDate ? ' &middot; <span style="color:var(--muted)">' + String(cust.lastAssessedDate).slice(0,10) + '</span>' : '')
+          : '<span style="color:var(--muted)">Not on file yet</span>'}
+      </div>
+      <button class="btn-sm" onclick="crmSendAssessmentInvite('${id}')">&#9993; ${cust.hasAssessment ? 'Resend' : 'Send'} Assessment</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Send after your intro email or call — the client should be expecting it.</div>
+    </div>
+
     <!-- Edit / Delete -->
     <div class="detail-section" style="display:flex;gap:8px">
       <button class="btn-sm" onclick="crmShowEditModal('${id}')">&#9998; Edit Details</button>
@@ -2749,6 +2761,34 @@ async function crmDeactivate(id) {
     loaders.crm();
   } else {
     toast(res.error || 'Failed to deactivate', true);
+  }
+}
+
+// ── Send AI Readiness Assessment invite (T-108) ──
+// Human-led by construction: confirm the warm-up happened, require a personal
+// line, and send. The endpoint dedups recent sends; on a 409 we offer to resend.
+async function crmSendAssessmentInvite(id, force) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust) return;
+  if (!cust.contactEmail) { toast('No contact email on file for this client', true); return; }
+
+  if (!force) {
+    if (!confirm(`Send the AI Readiness Assessment to ${cust.company}?\n\nSend only after your intro email or call — the client should be expecting it.`)) return;
+  }
+  const personalLine = (prompt('Add a personal line from you (sits at the top of the email):', '') || '').trim();
+  if (!personalLine) { toast('A personal line is required — nothing sent', true); return; }
+
+  const res = await apiWrite(`crm/customers/${id}/send-assessment`, 'POST', {
+    personalLine, client_requested: true, force: !!force,
+  });
+  if (res.ok) {
+    toast(res.stubbed ? `Assessment queued for ${cust.company} (email stubbed — RESEND_API_KEY unset)` : `Assessment sent to ${cust.company}`);
+    crmCloseDetail();
+    loaders.crm();
+  } else if (res.alreadySent) {
+    if (confirm(`${res.error}\n\nResend now?`)) return crmSendAssessmentInvite(id, true);
+  } else {
+    toast(res.error || 'Failed to send assessment', true);
   }
 }
 
