@@ -2430,6 +2430,7 @@ function renderCRMFilters() {
     { label: 'Active Pipeline', value: 'active' },
     { label: 'Urgent', value: 'urgent' },
     { label: 'Intake Outstanding', value: 'intake' },
+    { label: 'Drafts to Review', value: 'draft' },
     { label: 'Closed / On Hold', value: 'closed' },
   ];
   $('#crm-stage-filters').innerHTML = groups.map(g =>
@@ -2451,6 +2452,7 @@ function crmIntakeCell(c) {
   }
   const closed = c.status.startsWith('Closed') || c.status === 'On Hold';
   if (closed) return '<span style="color:var(--muted)">—</span>';
+  if (c.assessmentDraftPending) return '<span class="sla-tag" style="background:var(--sky,#8E9FDB);color:var(--ink,#10204a)" title="Draft invite queued — review &amp; send">Draft queued</span>';
   return '<span class="sla-tag" style="background:var(--royal);color:var(--white);opacity:0.85" title="No AI Readiness Assessment on file">Outstanding</span>';
 }
 
@@ -2466,6 +2468,9 @@ function renderCRMTable() {
     // Active (non-closed) clients with no AI Readiness Assessment on file — the
     // intake worklist Michele works one at a time (T-106).
     filtered = crmData.filter(c => !c.hasAssessment && !c.status.startsWith('Closed') && c.status !== 'On Hold');
+  } else if (crmFilter === 'draft') {
+    // Clients with a queued draft invite awaiting review & send (T-109).
+    filtered = crmData.filter(c => c.assessmentDraftPending);
   } else if (crmFilter === 'closed') {
     filtered = crmData.filter(c => c.status.startsWith('Closed') || c.status === 'On Hold');
   } else if (crmFilter !== 'all') {
@@ -2670,9 +2675,14 @@ async function crmOpenDetail(id) {
       <div style="font-size:13px;color:var(--text);margin-bottom:10px">
         ${cust.hasAssessment
           ? 'On file' + (cust.lastAssessedDate ? ' &middot; <span style="color:var(--muted)">' + String(cust.lastAssessedDate).slice(0,10) + '</span>' : '')
-          : '<span style="color:var(--muted)">Not on file yet</span>'}
+          : (cust.assessmentDraftPending
+              ? 'Draft queued at Discovery Scheduled — review &amp; send'
+              : '<span style="color:var(--muted)">Not on file yet</span>')}
       </div>
-      <button class="btn-sm" onclick="crmSendAssessmentInvite('${id}')">&#9993; ${cust.hasAssessment ? 'Resend' : 'Send'} Assessment</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm" onclick="crmSendAssessmentInvite('${id}')">&#9993; ${cust.hasAssessment ? 'Resend' : 'Send'} Assessment</button>
+        ${cust.assessmentDraftPending ? `<button class="btn-sm" onclick="crmDismissAssessmentDraft('${id}')">Dismiss draft</button>` : ''}
+      </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">Send after your intro email or call — the client should be expecting it.</div>
     </div>
 
@@ -2789,6 +2799,21 @@ async function crmSendAssessmentInvite(id, force) {
     if (confirm(`${res.error}\n\nResend now?`)) return crmSendAssessmentInvite(id, true);
   } else {
     toast(res.error || 'Failed to send assessment', true);
+  }
+}
+
+// ── Dismiss a queued assessment draft (T-109) ──
+async function crmDismissAssessmentDraft(id) {
+  const cust = crmData.find(c => c.id === id);
+  if (!cust) return;
+  if (!confirm(`Dismiss the queued assessment draft for ${cust.company}? You can still send it manually later.`)) return;
+  const res = await apiWrite(`crm/customers/${id}/dismiss-assessment-draft`, 'POST', {});
+  if (res.ok) {
+    toast(`Draft dismissed for ${cust.company}`);
+    crmCloseDetail();
+    loaders.crm();
+  } else {
+    toast(res.error || 'Failed to dismiss draft', true);
   }
 }
 
