@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-111 | KB workflow diagram: AI Factory lifecycle (evaluate → adopt → deliver) | feat/diagram-ai-factory-lifecycle | Claude Code | 2026-06-05 |
 
 ---
 
