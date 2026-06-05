@@ -591,6 +591,7 @@ app.post('/api/leads', (req, res) => {
     : '';
   const html = [
     '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1B2F5E;max-width:560px">',
+    // nosemgrep: javascript.express.security.injection.raw-html-format -- `first` is HTML-escaped via escapeHtml(); this is email HTML, never written to an HTTP response.
     `<p style="margin:0 0 16px">Hi ${escapeHtml(first)},</p>`,
     `<p style="margin:0 0 16px">Thanks for reaching out — I'd genuinely like to understand what you're trying to solve.</p>`,
     `<p style="margin:0 0 16px">I'll follow up personally within two business days. The first conversation is free; both sides should know it's a good fit before anyone invests.</p>`,
