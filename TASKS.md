@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-106 | CRM assessment completion tracking (hasAssessment + intake-outstanding filter) | task/crm-assessment-tracking | Claude Code | 2026-06-05 |
+| _(none)_ | | | | |
 
 ---
 
