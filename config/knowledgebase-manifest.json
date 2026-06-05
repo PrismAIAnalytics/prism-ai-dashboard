@@ -1,26 +1,27 @@
 {
-  "generated_at": "2026-05-30T21:46:50.744Z",
+  "generated_at": "2026-06-05T19:07:55.725Z",
   "website_root": "C:\\Users\\miche\\Prism AI\\PRISM AI Analytics\\prism_website_project",
   "counts": {
-    "total": 45,
+    "total": 50,
     "by_topic": {
       "Configuration Management": 11,
-      "AI Readiness": 7,
-      "Data & Analytics": 6,
+      "AI Readiness": 8,
+      "Data & Analytics": 7,
       "Advisory & Practice": 4,
       "General": 8,
+      "AI Agent Governance": 3,
       "Compliance & Regulation": 4,
       "Architecture & Platform": 2,
       "Internal Workflows": 3
     },
     "by_content_type": {
-      "blog": 19,
+      "blog": 23,
       "service-page": 1,
       "assessment": 1,
       "podcast-index": 1,
       "page": 1,
       "download": 1,
-      "infographic": 21
+      "infographic": 22
     }
   },
   "topics": [
@@ -190,6 +191,114 @@
       ]
     },
     {
+      "topic": "AI Readiness",
+      "count": 8,
+      "items": [
+        {
+          "id": "dashboard/prism-5-signs-ai-ready",
+          "slug": "prism-5-signs-ai-ready",
+          "title": "5 Signs You're Ready for AI",
+          "url": "/prism-5-signs-ai-ready.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "blog/five-signs-your-business-is-ready-for-ai",
+          "slug": "five-signs-your-business-is-ready-for-ai",
+          "title": "5 Signs Your Small Business Is Ready for AI",
+          "url": "/blog/five-signs-your-business-is-ready-for-ai/",
+          "content_type": "blog",
+          "topic": "AI Readiness",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Not sure if your business is ready to adopt AI? Here are five clear signals that your organization is primed to benefit from artificial intelligence."
+        },
+        {
+          "id": "site/ai-readiness",
+          "slug": "ai-readiness",
+          "title": "AI Readiness Assessment",
+          "url": "/ai-readiness/",
+          "content_type": "assessment",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-ai-readiness-infographic",
+          "slug": "prism-ai-readiness-infographic",
+          "title": "AI Readiness Assessment",
+          "url": "/prism-ai-readiness-infographic.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-ai-readiness-assessment",
+          "slug": "prism-ai-readiness-assessment",
+          "title": "AI Readiness Assessment — PRISM AI Analytics",
+          "url": "/prism-ai-readiness-assessment.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "dashboard/prism-data-catch-up-roadmap",
+          "slug": "prism-data-catch-up-roadmap",
+          "title": "Data Catch-Up Roadmap",
+          "url": "/prism-data-catch-up-roadmap.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "description": ""
+        },
+        {
+          "id": "kb/workflows/ai_factory_lifecycle.html",
+          "slug": "workflows/ai_factory_lifecycle.html",
+          "title": "Prism AI Factory — Lifecycle",
+          "url": "/knowledgebase/workflows/ai_factory_lifecycle.html",
+          "content_type": "infographic",
+          "topic": "AI Readiness",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "The AI Factory lifecycle — evaluate readiness, adopt, deliver. Four views: Overview, Swim-Lane, Procedural, Reference (readiness bands + stage automation). A request becomes a client folder and a warm human-first email; a human-led assessment scores six dimensions and recommends a right-sized service; on agreement, any payment opens the client portal; delivery follows. No email auto-fires to a client.",
+          "workflow_diagram": {
+            "name": "ai_factory_lifecycle",
+            "source": "Services/AI_Factory_Operating_Spec.md",
+            "source_hash_recorded": "391eee9d378ab678f445c42f82f97121eb1e638be1d4eaa57272d2f3f6a9ff99",
+            "source_hash_current": "391eee9d378ab678f445c42f82f97121eb1e638be1d4eaa57272d2f3f6a9ff99",
+            "drift": false,
+            "created": "2026-06-05",
+            "last_verified": "2026-06-05",
+            "mermaid_blocks": 3,
+            "status": "active",
+            "regenerated_by": "/diagram-from-source"
+          }
+        },
+        {
+          "id": "blog/what-is-an-ai-readiness-assessment",
+          "slug": "what-is-an-ai-readiness-assessment",
+          "title": "What Is an AI Readiness Assessment — And Why Your Business Needs One",
+          "url": "/blog/what-is-an-ai-readiness-assessment/",
+          "content_type": "blog",
+          "topic": "AI Readiness",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Learn what an AI readiness assessment covers, why it matters for small businesses, and how to determine if your organization is prepared to adopt AI successfully."
+        }
+      ]
+    },
+    {
       "topic": "General",
       "count": 8,
       "items": [
@@ -274,90 +383,24 @@
       ]
     },
     {
-      "topic": "AI Readiness",
+      "topic": "Data & Analytics",
       "count": 7,
       "items": [
         {
-          "id": "dashboard/prism-5-signs-ai-ready",
-          "slug": "prism-5-signs-ai-ready",
-          "title": "5 Signs You're Ready for AI",
-          "url": "/prism-5-signs-ai-ready.html",
-          "content_type": "infographic",
-          "topic": "AI Readiness",
-          "description": ""
-        },
-        {
-          "id": "blog/five-signs-your-business-is-ready-for-ai",
-          "slug": "five-signs-your-business-is-ready-for-ai",
-          "title": "5 Signs Your Small Business Is Ready for AI",
-          "url": "/blog/five-signs-your-business-is-ready-for-ai/",
+          "id": "blog/trust-is-the-product",
+          "slug": "trust-is-the-product",
+          "title": "The Dashboard Is Becoming a Commodity. Trust Is the Product.",
+          "url": "/blog/trust-is-the-product/",
           "content_type": "blog",
-          "topic": "AI Readiness",
-          "category": null,
+          "topic": "Data & Analytics",
+          "category": "Industry Insights",
           "series": null,
           "series_part": null,
-          "date": null,
-          "read_time": null,
-          "author": null,
-          "description": "Not sure if your business is ready to adopt AI? Here are five clear signals that your organization is primed to benefit from artificial intelligence."
+          "date": "2026-07-23",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "When an AI can draw any chart in seconds, the chart stops being the asset. The asset is whether the number behind it is one you can stake a decision on."
         },
-        {
-          "id": "site/ai-readiness",
-          "slug": "ai-readiness",
-          "title": "AI Readiness Assessment",
-          "url": "/ai-readiness/",
-          "content_type": "assessment",
-          "topic": "AI Readiness",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-ai-readiness-infographic",
-          "slug": "prism-ai-readiness-infographic",
-          "title": "AI Readiness Assessment",
-          "url": "/prism-ai-readiness-infographic.html",
-          "content_type": "infographic",
-          "topic": "AI Readiness",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-ai-readiness-assessment",
-          "slug": "prism-ai-readiness-assessment",
-          "title": "AI Readiness Assessment — PRISM AI Analytics",
-          "url": "/prism-ai-readiness-assessment.html",
-          "content_type": "infographic",
-          "topic": "AI Readiness",
-          "description": ""
-        },
-        {
-          "id": "dashboard/prism-data-catch-up-roadmap",
-          "slug": "prism-data-catch-up-roadmap",
-          "title": "Data Catch-Up Roadmap",
-          "url": "/prism-data-catch-up-roadmap.html",
-          "content_type": "infographic",
-          "topic": "AI Readiness",
-          "description": ""
-        },
-        {
-          "id": "blog/what-is-an-ai-readiness-assessment",
-          "slug": "what-is-an-ai-readiness-assessment",
-          "title": "What Is an AI Readiness Assessment — And Why Your Business Needs One",
-          "url": "/blog/what-is-an-ai-readiness-assessment/",
-          "content_type": "blog",
-          "topic": "AI Readiness",
-          "category": null,
-          "series": null,
-          "series_part": null,
-          "date": null,
-          "read_time": null,
-          "author": null,
-          "description": "Learn what an AI readiness assessment covers, why it matters for small businesses, and how to determine if your organization is prepared to adopt AI successfully."
-        }
-      ]
-    },
-    {
-      "topic": "Data & Analytics",
-      "count": 6,
-      "items": [
         {
           "id": "blog/from-chaos-to-cadence-claude-operating-system",
           "slug": "from-chaos-to-cadence-claude-operating-system",
@@ -535,6 +578,57 @@
       ]
     },
     {
+      "topic": "AI Agent Governance",
+      "count": 3,
+      "items": [
+        {
+          "id": "blog/the-visibility-economy-build-not-panic",
+          "slug": "the-visibility-economy-build-not-panic",
+          "title": "The Visibility Economy Is a Build, Not a Panic",
+          "url": "/blog/the-visibility-economy-build-not-panic/",
+          "content_type": "blog",
+          "topic": "AI Agent Governance",
+          "category": "Industry Insights",
+          "series": "The Visibility Economy",
+          "series_part": "3 of 3",
+          "date": "2026-08-13",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "The infrastructure for agent-led commerce is real and shipping. The demand is not here yet. That gap is not a reason to panic — it is the window to build, on purpose."
+        },
+        {
+          "id": "blog/is-your-business-visible-to-an-agent",
+          "slug": "is-your-business-visible-to-an-agent",
+          "title": "Is Your Business Visible to an AI Agent? A Four-Part Diagnostic",
+          "url": "/blog/is-your-business-visible-to-an-agent/",
+          "content_type": "blog",
+          "topic": "AI Agent Governance",
+          "category": "Industry Insights",
+          "series": "The Visibility Economy",
+          "series_part": "2 of 3",
+          "date": "2026-08-06",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "If agents now do the finding and the choosing, the first question is whether they can find you at all. Four dimensions decide it — and most businesses have never checked."
+        },
+        {
+          "id": "blog/the-visibility-economy",
+          "slug": "the-visibility-economy",
+          "title": "The Visibility Economy: When the Customer You're Selling To Is a Machine",
+          "url": "/blog/the-visibility-economy/",
+          "content_type": "blog",
+          "topic": "AI Agent Governance",
+          "category": "Industry Insights",
+          "series": "The Visibility Economy",
+          "series_part": "1 of 3",
+          "date": "2026-07-30",
+          "read_time": "10 min",
+          "author": "Michele Fisher",
+          "description": "For fifty years, business competed for human attention. The next audience is the AI agent that researches and buys on a person&#39;s behalf — and it rewards almost the opposite of what attention did."
+        }
+      ]
+    },
+    {
       "topic": "Internal Workflows",
       "count": 3,
       "items": [
@@ -556,8 +650,8 @@
             "name": "brand_pass_pipeline",
             "source": "Development/prism-notebooklm/.claude/skills/brand-pass/SKILL.md",
             "source_hash_recorded": "60cec9feefbbf734a20cd6f7136dcd5d2c68b4eeeb9d0c91c3ff4f36ec713a58",
-            "source_hash_current": "60cec9feefbbf734a20cd6f7136dcd5d2c68b4eeeb9d0c91c3ff4f36ec713a58",
-            "drift": false,
+            "source_hash_current": "2945c223d81d7e5748fca450585a93c68beb036ad0f595d2adb8467e6637a209",
+            "drift": true,
             "created": "2026-05-30",
             "last_verified": "2026-05-30",
             "mermaid_blocks": 3,
@@ -583,8 +677,8 @@
             "name": "prism_dashboard_workflow",
             "source": "prism-agents/",
             "source_hash_recorded": "23145c6cb31c628dc7ca07fa90a482f251e958595391c02e1a83d5962667be2b",
-            "source_hash_current": "23145c6cb31c628dc7ca07fa90a482f251e958595391c02e1a83d5962667be2b",
-            "drift": false,
+            "source_hash_current": "8a2c23a6de6a8c8d5512950482c4733d313841389b1c7acd0bc40fe3a41687c5",
+            "drift": true,
             "created": "2026-05-25",
             "last_verified": "2026-05-25",
             "mermaid_blocks": 3,
@@ -610,8 +704,8 @@
             "name": "reply_and_resume_workflow",
             "source": "Development/dashboard/server.js",
             "source_hash_recorded": "a9a1c5479b902de442bba036efdb710b875e8aa9a56cecc3f738c496b5f1dfe3",
-            "source_hash_current": "a9a1c5479b902de442bba036efdb710b875e8aa9a56cecc3f738c496b5f1dfe3",
-            "drift": false,
+            "source_hash_current": "5898f240e32941e46c8d368f51fe56c3f65547d23e2d18ae139dbd605dee07f4",
+            "drift": true,
             "created": "2026-05-27",
             "last_verified": "2026-05-27",
             "mermaid_blocks": 3,

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<!--
+workflow-diagram:
+  name: ai_factory_lifecycle
+  source: Services/AI_Factory_Operating_Spec.md
+  source_hash: 391eee9d378ab678f445c42f82f97121eb1e638be1d4eaa57272d2f3f6a9ff99
+  created: 2026-06-05
+  last_verified: 2026-06-05
+  mermaid_blocks: 3
+  status: active
+  regenerated_by: /diagram-from-source
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="The AI Factory lifecycle — evaluate readiness, adopt, deliver. Four views: Overview, Swim-Lane, Procedural, Reference (readiness bands + stage automation). A request becomes a client folder and a warm human-first email; a human-led assessment scores six dimensions and recommends a right-sized service; on agreement, any payment opens the client portal; delivery follows. No email auto-fires to a client.">
+<title>Prism AI Factory — Lifecycle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root {
+    --prism-navy: #17135C;
+    --prism-royal: #3A5998;
+    --prism-blue: #4A6DB5;
+    --prism-sky: #BDC9DD;
+    --prism-gold: #C8A45A;
+    --prism-charcoal: #1A1A2E;
+    --prism-deep-royal: #2E4EAD;
+    --prism-steel: #5C7BB8;
+    --off-white: #F4F7FB;
+    --light-gray: #D0D7DE;
+    --bg: #F4F7FB;
+    --panel: #FFFFFF;
+    --border: #D0D7DE;
+    --text: #1A1A2E;
+    --muted: #475569;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  header { background: linear-gradient(135deg, var(--prism-navy) 0%, #2a2580 100%); color: white; padding: 24px 32px; border-bottom: 4px solid var(--prism-gold); }
+  header h1 { margin: 0 0 4px 0; font-size: 24px; font-weight: 600; }
+  header .sub { font-size: 14px; opacity: 0.85; }
+  .tabs { display: flex; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 32px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 3px rgba(23,19,92,0.06); }
+  .tab { padding: 14px 22px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--muted); border-bottom: 3px solid transparent; transition: all 0.15s; font-family: inherit; }
+  .tab:hover { color: var(--prism-navy); background: var(--off-white); }
+  .tab.active { color: var(--prism-navy); border-bottom-color: var(--prism-royal); background: var(--off-white); }
+  .tab .num { display: inline-block; background: var(--prism-royal); color: white; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-right: 6px; font-weight: 600; }
+  .tab.active .num { background: var(--prism-navy); }
+  main { padding: 24px 32px 60px 32px; max-width: 1600px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { margin-bottom: 16px; }
+  .view-header h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--prism-navy); }
+  .view-header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(23,19,92,0.04); overflow-x: auto; }
+  .mermaid { text-align: center; min-height: 200px; overflow-x: auto; }
+  .mermaid svg { max-width: 100% !important; height: auto !important; display: block; margin: 0 auto; }
+  .mermaid .nodeLabel, .mermaid .edgeLabel { font-size: 12px !important; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 14px 18px; background: var(--off-white); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(23,19,92,0.15); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .kpi-card { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--prism-royal); border-radius: 8px; padding: 16px; }
+  .kpi-card h4 { margin: 0 0 6px 0; font-size: 13px; color: var(--prism-navy); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card p { margin: 0; font-size: 14px; color: var(--text); }
+  .kpi-card.gold { border-left-color: var(--prism-gold); }
+  .kpi-card.blue { border-left-color: var(--prism-blue); }
+  .kpi-card.deep { border-left-color: var(--prism-deep-royal); }
+  .kpi-card.navy { border-left-color: var(--prism-navy); }
+  table.spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  table.spec-table th { text-align: left; background: var(--off-white); padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--prism-navy); font-weight: 600; }
+  table.spec-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.spec-table tr:nth-child(even) { background: var(--off-white); }
+  table.spec-table tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; }
+  .pill.royal { background: var(--prism-royal); }
+  .pill.gold { background: var(--prism-gold); }
+  .pill.navy { background: var(--prism-navy); }
+  .pill.blue { background: var(--prism-blue); }
+  .pill.deep { background: var(--prism-deep-royal); }
+  .pill.steel { background: var(--prism-steel); }
+  .footer-note { margin-top: 12px; padding: 12px 16px; background: var(--off-white); border-left: 3px solid var(--prism-gold); border-radius: 6px; font-size: 13px; color: var(--text); }
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li { counter-increment: step; padding: 12px 12px 12px 48px; position: relative; border-bottom: 1px solid var(--border); }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before { content: counter(step); position: absolute; left: 12px; top: 12px; width: 26px; height: 26px; background: var(--prism-royal); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+  .step-list li strong { color: var(--prism-navy); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Prism AI Factory — Lifecycle Diagram</h1>
+  <div class="sub">Evaluate readiness → Adopt → Deliver • Human-led at every client touchpoint</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-view="v1"><span class="num">1</span>High-level Overview</button>
+  <button class="tab" data-view="v2"><span class="num">2</span>Detailed Swim-Lane</button>
+  <button class="tab" data-view="v3"><span class="num">3</span>Step-by-Step Procedural</button>
+  <button class="tab" data-view="v4"><span class="num">4</span>Reference</button>
+</nav>
+
+<main>
+
+<!-- VIEW 1: OVERVIEW -->
+<section class="view active" id="v1">
+  <div class="view-header">
+    <h2>1 · High-Level Overview</h2>
+    <p>The spine, end to end: a request becomes a client, an assessment scopes the work, payment opens the portal, delivery follows.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Entry</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Evaluate</div>
+    <div class="legend-item"><span class="swatch" style="background:#4A6DB5;"></span>Decision</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Adopt / pay</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>Portal opens</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Deliver / close</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+    Req(["New request"]):::entry
+    Folder["Folder auto-created<br/>+ warm welcome email"]:::eval
+    Invite["Assessment invited<br/>human-led, after a call"]:::eval
+    Assess["AI Readiness Assessment<br/>6 dimensions scored"]:::eval
+    Band{"Readiness band"}:::decision
+    Reco["Recommendation<br/>band &rarr; service &rarr; price"]:::eval
+    Agree{"Client agrees?"}:::decision
+    Pay["Deposit / any payment"]:::adopt
+    Portal["Portal opens<br/>Active Client+ or override"]:::portal
+    Deliver["Deliver<br/>project or retainer"]:::output
+    Close(["Delivered &rarr; Closed-Won"]):::output
+    NoSale(["Closed - No Sale<br/>stay in touch"]):::output
+
+    Req --> Folder --> Invite --> Assess --> Band --> Reco --> Agree
+    Agree -->|yes| Pay --> Portal --> Deliver --> Close
+    Agree -->|no| NoSale
+
+    classDef entry fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+    classDef eval fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+    classDef adopt fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+    classDef portal fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card">
+      <h4>Front door</h4>
+      <p>Public AI Readiness Assessment (no login) — the universal intake. Folder + warm email are automatic; the assessment ask is human-led.</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Portal trigger</h4>
+      <p>Any payment opens the client portal (deposit / partial / Net-30 first payment), signalled by the <strong>Active Client+</strong> stage — or a manual override.</p>
+    </div>
+    <div class="kpi-card deep">
+      <h4>Six dimensions</h4>
+      <p>Data Infrastructure · Technology Stack · Process Maturity · Team Readiness · Governance &amp; Compliance · Strategic Alignment.</p>
+    </div>
+    <div class="kpi-card navy">
+      <h4>Governing rule</h4>
+      <p>No email auto-fires to a client. Automation is invisible scaffolding; a person leads every touchpoint.</p>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW 2: SWIM-LANE -->
+<section class="view" id="v2">
+  <div class="view-header">
+    <h2>2 · Detailed Swim-Lane</h2>
+    <p>Who owns each step. Lanes = the customer, Prism (human-led), the dashboard/CRM, and the portal. Dotted arrows are system actions.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Customer</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Prism (Michele / agents)</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Dashboard / CRM</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>Portal</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  subgraph Cust["CUSTOMER"]
+    direction TB
+    K1(["Submits request"]):::cust
+    K2(["Completes assessment"]):::cust
+    K3(["Agrees + pays"]):::cust
+    K4(["Signs in to portal"]):::cust
+  end
+
+  subgraph Prism["PRISM (HUMAN-LED)"]
+    direction TB
+    P1["Warm intro<br/>email or call"]:::prism
+    P2["Send assessment<br/>(after the warm-up)"]:::prism
+    P3["Review results<br/>scope + price"]:::prism
+    P4["Proposal &rarr; SOW"]:::prism
+    P5["Deliver + hand-back"]:::prism
+  end
+
+  subgraph Dash["DASHBOARD / CRM"]
+    direction TB
+    D1["Lead captured<br/>folder reconciler"]:::dash
+    D2["Scoring + recommender"]:::dash
+    D3["Stage &rarr; Active Client<br/>Project auto-created"]:::dash
+  end
+
+  subgraph Port["PORTAL"]
+    direction TB
+    O1["Opens on payment<br/>or override"]:::portal
+    O2["Results + materials"]:::portal
+  end
+
+  K1 --> D1
+  D1 -.folder + welcome.-> P1
+  P1 --> P2
+  P2 -.invite.-> K2
+  K2 -.submit.-> D2
+  D2 -.band + recs.-> P3
+  P3 --> P4
+  P4 --> K3
+  K3 -.payment.-> D3
+  D3 -.access opens.-> O1
+  O1 -.sign-in link.-> K4
+  K4 --> O2
+  P5 --> O2
+
+  classDef cust fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef prism fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+  classDef dash fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+  classDef portal fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+</section>
+
+<!-- VIEW 3: PROCEDURAL -->
+<section class="view" id="v3">
+  <div class="view-header">
+    <h2>3 · Step-by-Step Procedural</h2>
+    <p>The same lifecycle as a sequence, with the trigger and the automation at each step.</p>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart TB
+    A["1 · New Lead<br/>folder auto-created overnight + warm welcome email"]:::eval
+    B["2 · Discovery Scheduled<br/>human intro; assessment draft queued for one-click send"]:::eval
+    C["3 · Assessment<br/>client completes the 6-dimension intake (public, no login)"]:::eval
+    D["4 · Score + recommend<br/>band assigned; top-3 services + price range"]:::eval
+    E["5 · Proposal &rarr; SOW<br/>scoped from the assessment; MSA once, SOW per engagement"]:::adopt
+    F["6 · Deposit / any payment<br/>&rarr; Active Client; portal opens; sign-in link sent"]:::portal
+    G["7 · Project In Progress<br/>Project record auto-created; deliverables accumulate"]:::adopt
+    H["8 · Delivered &rarr; Closed-Won<br/>final payment precedes handover; testimonial"]:::output
+
+    A --> B --> C --> D --> E --> F --> G --> H
+
+    classDef eval fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef adopt fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+    classDef portal fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="footer-note">
+    Express lane (deals under $2,500): discovery &rarr; one-page proposal + pay link &rarr; 100% upfront &rarr; work. No MSA/SOW; the assessment is often skipped. Retainers loop at Retainer/Upsell rather than completing at Delivered.
+  </div>
+</section>
+
+<!-- VIEW 4: REFERENCE -->
+<section class="view" id="v4">
+  <div class="view-header">
+    <h2>4 · Reference</h2>
+    <p>Readiness bands (what "ready" means) and how each pipeline stage drives automation.</p>
+  </div>
+
+  <div class="panel">
+    <h4 style="margin:0 0 8px 0;color:var(--prism-navy);">Readiness bands</h4>
+    <table class="spec-table">
+      <thead><tr><th>Band</th><th>Overall</th><th>Meaning</th><th>Typical first move</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill steel">Emerging</span></td><td>&lt; 2.3</td><td>Foundation not in place — fix data/process first</td><td>AI Starter Kit / Data Health Audit</td></tr>
+        <tr><td><span class="pill blue">Developing</span></td><td>2.3 – 3.2</td><td>Partial foundation — pilot + paid debrief</td><td>AI Readiness Assessment (paid) / one pilot</td></tr>
+        <tr><td><span class="pill royal">Ready</span></td><td>3.3 – 4.2</td><td><strong>AI-Ready</strong> — can run a real project now</td><td>AI Workflow Automation, sized to band</td></tr>
+        <tr><td><span class="pill navy">Advanced</span></td><td>&ge; 4.3</td><td>Scaling</td><td>Fractional AI Advisor retainer</td></tr>
+      </tbody>
+    </table>
+    <div class="footer-note">Two foundation gates override the average: <code>data_infra &lt; 2.5</code> → fix data first; <code>governance &lt; 2.5</code> → surface a compliance gap.</div>
+  </div>
+
+  <div class="panel">
+    <h4 style="margin:0 0 8px 0;color:var(--prism-navy);">Stage &rarr; automation</h4>
+    <table class="spec-table">
+      <thead><tr><th>Stage</th><th>What fires</th><th>Portal</th></tr></thead>
+      <tbody>
+        <tr><td>New Lead</td><td>Folder reconciler + warm welcome email (no portal link)</td><td>closed</td></tr>
+        <tr><td>Discovery Scheduled</td><td>Assessment invite draft queued (one-click send)</td><td>closed</td></tr>
+        <tr><td>Assessment</td><td>Submission scored; recommendation generated; completion logged</td><td>closed</td></tr>
+        <tr><td>Proposal Sent</td><td>Proposal &rarr; SOW under MSA</td><td>closed</td></tr>
+        <tr><td><strong>Active Client</strong></td><td>Deposit/any payment landed; portal opens; sign-in link emailed</td><td><span class="pill gold">open</span></td></tr>
+        <tr><td>Project In Progress</td><td>Project record auto-created; weekly updates</td><td>open</td></tr>
+        <tr><td>Delivered &rarr; Closed-Won</td><td>Final payment before handover; testimonial</td><td>open</td></tr>
+      </tbody>
+    </table>
+    <div class="footer-note">Portal access = manual override if set ('open'/'closed'), else auto-open at Active Client+. <strong>Source of truth:</strong> <code>lib/readiness-scoring.js</code>, <code>lib/service-recommender.js</code>, <code>server.js</code> (CRM_STAGES + portal logic), and <code>Services/AI_Factory_Operating_Spec.md</code>.</div>
+  </div>
+</section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      fontSize: '14px',
+      primaryColor: '#3A5998',
+      primaryTextColor: '#FFFFFF',
+      primaryBorderColor: '#2c4577',
+      lineColor: '#475569',
+      textColor: '#1A1A2E',
+      mainBkg: '#3A5998',
+      secondaryColor: '#4A6DB5',
+      tertiaryColor: '#F4F7FB',
+      clusterBkg: '#F4F7FB',
+      clusterBorder: '#BDC9DD',
+      titleColor: '#17135C',
+      edgeLabelBackground: '#FFFFFF',
+      noteBkgColor: '#F4F7FB',
+      noteBorderColor: '#BDC9DD',
+      noteTextColor: '#1A1A2E'
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', nodeSpacing: 25, rankSpacing: 45, padding: 8, useMaxWidth: true, diagramPadding: 8 },
+    securityLevel: 'loose'
+  });
+
+  function captureSources() {
+    document.querySelectorAll('.mermaid').forEach(d => { if (!d.dataset.src) d.dataset.src = d.textContent.trim(); });
+  }
+  async function renderView(viewId) {
+    const diagrams = document.querySelectorAll('#' + viewId + ' .mermaid');
+    for (const d of diagrams) {
+      if (d.dataset.rendered) continue;
+      try {
+        const src = d.dataset.src || d.textContent.trim();
+        const id = 'm_' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, src);
+        d.innerHTML = svg;
+        d.dataset.rendered = '1';
+      } catch (err) {
+        d.innerHTML = '<div style="color:#C8A45A;padding:20px;font-family:monospace;font-size:12px;text-align:left;">Mermaid render error:<br>' + (err && err.message ? err.message : err) + '</div>';
+      }
+    }
+  }
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-view');
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      renderView(target);
+    });
+  });
+  document.addEventListener('DOMContentLoaded', () => { captureSources(); renderView('v1'); });
+</script>
+
+</body>
+</html>
