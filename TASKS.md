@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-112 | Add adoption-methodology evaluation plan to pending-plans manifest | chore/pending-plan-adoption-eval | Claude Code | 2026-06-06 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-112 | Add adoption-methodology evaluation plan to pending-plans manifest | 2026-06-06 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #116 as `f03cc46348b6351bd3c84d6797eff418ac027237` (squash) on 2026-06-06. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-111 | KB workflow diagram: AI Factory lifecycle (evaluate → adopt → deliver) | 2026-06-05 | Shipped via PR #114 as `0e10d41ffac0f31811ebfabb4998e3517801dd86` (squash) on 2026-06-05; Railway auto-deployed. 4-view diagram (`public/knowledgebase/workflows/ai_factory_lifecycle.html`) derived from `Services/AI_Factory_Operating_Spec.md`, drift=false on manifest rebuild, 3 Mermaid blocks verified rendering. Lock cleared via this standalone `chore/close-t111` PR; auto-close branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-110 | Portal access gated on payment (Active Client+) with manual override; strip portal from lead welcome | 2026-06-05 | Shipped via PR #112 as `c5df05376a3ffefe504a9b2d21a4fec5595067df` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (`portalAccess` present on `/api/crm`; additive column `portal_access_override` migrated cleanly). Auth/portal hot-path change: portal opens on Active Client+ or manual override; enforced on `/api/portal/me` + magic consumption; lead welcome no longer issues a portal link; retired the stale temp-password/request-a-link 410 messaging. Lock cleared via this standalone `chore/close-t110` PR; auto-close branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-109 | Draft-and-approve assessment invite at Discovery Scheduled (queued draft, review & one-click send) | 2026-06-05 | Shipped via PR #110 as `4d2b5c4aa0b126108b3a317c0614e0c263db62db` (squash) on 2026-06-05; Railway auto-deployed, prod-smoked (`assessmentDraftPending` present on `/api/crm` — additive column `assessment_draft_at` migrated cleanly on prod). Final PR of the assessment-as-intake initiative (PR-1 reconciler → PR-5 draft-and-approve). Lock cleared via this standalone `chore/close-t109` PR (no next task to bundle into; auto-close Action branch deleted from origin). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
