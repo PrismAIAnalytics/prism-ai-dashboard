@@ -40,6 +40,14 @@
       "created_date": "2026-06-03",
       "review_date": "2026-06-03",
       "summary": "Extend the existing zero-dependency prism-scan scanner into the full Inventory Monitor: per-item Elevated/Standard classification computed before the secret-scrub boundary; an approved-baseline compare that emits drift events (NEW / REMOVED / DRIFT / TIER_DRIFT) with a non-zero exit on unauthorized drift; and a per-client `init` template scaffolding gitignored clients/<slug>/ workspaces. Plus the 3-part Discover & Map blog bundle (blog source + two LinkedIn companions) featuring the shipped tool. Draft only — no publish date set."
+    },
+    {
+      "slug": "adoption-methodology-eval-prism647",
+      "name": "Client-Adoption Methodology Evaluation + 6-Dimension Assessment Correction (PRISM-647)",
+      "plan_file": "~/.claude/plans/please-evaluate-and-let-agile-fountain.md",
+      "created_date": "2026-06-06",
+      "review_date": "2026-06-06",
+      "summary": "Evaluation of a separate chat session's client-adoption methodology layer (token-cost economics → deployment/cost routing instrument → adoption arc) appended to PRISM-647. Verdict: strategy sound and all Anthropic pricing/plan figures verified correct against official docs (one fix: Enterprise context window is 1M, not 500K). Key correction: the assessment-dimension content recorded on the PRISM-647 trail was wrong — the canonical model is a single SIX-dimension framework (Data Infrastructure · Technology Stack · Process Maturity · Team Readiness · Governance & Compliance · Strategic Alignment; source prism-ai-readiness-framework-v2.md), not 'SMB-5 + Governance bolted on.' Corrections already applied this session: PRISM-647 trail comment posted, framework folded into Services/PRISM_Sales_Process_Runbook.md (+ vault mirror), tracking ticket closed Done. Surfaced here for the record, not as unactioned review work. Open follow-on (optional): build the branded Assess-phase scoping worksheet (discovery questions → routing table → phased rollout)."
     }
   ]
 }

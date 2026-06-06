@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-112 | Add adoption-methodology evaluation plan to pending-plans manifest | chore/pending-plan-adoption-eval | Claude Code | 2026-06-06 |
 
 ---
 
