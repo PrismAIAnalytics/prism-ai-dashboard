@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-114 | Add a Research Sources nav link to the dashboard (the T-113 standalone page had no entry point) | task/research-sources-nav | Claude Code | 2026-06-07 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-114 | Add a Research Sources nav link to the dashboard (the T-113 standalone page had no entry point) | 2026-06-07 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #120 as `bca2a273cb460b9414d2ba9796692e84a27e1a4d` (squash) on 2026-06-07. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-113 | Research-sources provenance ledger — table + POST/GET endpoints + read view, plus keyword watchlist, time-trends endpoint, charted trend dashboard, and blog-citation backfill | 2026-06-07 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #118 as `3e0bef3f7a762c2f56f3e52207b0ca2149607b1f` (squash) on 2026-06-07. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-112 | Add adoption-methodology evaluation plan to pending-plans manifest | 2026-06-06 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #116 as `f03cc46348b6351bd3c84d6797eff418ac027237` (squash) on 2026-06-06. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-111 | KB workflow diagram: AI Factory lifecycle (evaluate → adopt → deliver) | 2026-06-05 | Shipped via PR #114 as `0e10d41ffac0f31811ebfabb4998e3517801dd86` (squash) on 2026-06-05; Railway auto-deployed. 4-view diagram (`public/knowledgebase/workflows/ai_factory_lifecycle.html`) derived from `Services/AI_Factory_Operating_Spec.md`, drift=false on manifest rebuild, 3 Mermaid blocks verified rendering. Lock cleared via this standalone `chore/close-t111` PR; auto-close branch deleted from origin. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
