@@ -1223,11 +1223,18 @@ function initDB() {
       claim_supported TEXT,
       cited_in        TEXT,
       quote           TEXT,
+      tags            TEXT,
       created_at      TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_research_sources_cited_in ON research_sources (cited_in);
     CREATE INDEX IF NOT EXISTS idx_research_sources_pulled_at ON research_sources (pulled_at DESC);
   `);
+  // Migration: add tags column if missing (table predates the tags column)
+  try {
+    db.exec(`ALTER TABLE research_sources ADD COLUMN tags TEXT`);
+  } catch (e) {
+    // Column already exists — ignore
+  }
   // Auth tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS tickets (
@@ -3551,6 +3558,51 @@ app.get('/api/certifications', (req, res) => {
 // app.use('/api', requireAuth) middleware. Append on every pull; read to answer
 // "where did this number come from?".
 
+// Keyword watchlist (config/research-keywords.json) — auto-flags entries at
+// trend-compute time. Each keyword compiles to matchers: short alphanumeric
+// patterns match on word boundaries (so "rag" doesn't match "storage"),
+// everything else matches as a case-insensitive substring. Matching is derived,
+// not stored, so editing the watchlist retro-applies to every existing row.
+const RESEARCH_KEYWORDS = (() => {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'research-keywords.json'), 'utf8'));
+    const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return (raw.keywords || []).map((k) => ({
+      label: k.label,
+      matchers: (k.patterns || []).map((p) => {
+        const pat = String(p).toLowerCase();
+        // Word-boundary match for short, purely alphanumeric tokens; substring otherwise.
+        return /^[a-z0-9]+$/.test(pat) && pat.length <= 6
+          ? new RegExp(`\\b${escapeRe(pat)}\\b`, 'i')
+          : { substr: pat };
+      }),
+    }));
+  } catch (e) {
+    console.warn('[research-sources] keyword watchlist not loaded:', e.message);
+    return [];
+  }
+})();
+
+// Returns the array of keyword labels that match a row's combined text fields.
+function matchResearchKeywords(row) {
+  const hay = `${row.claim_supported || ''} ${row.quote || ''} ${row.reason || ''} ${row.url || ''} ${row.tags || ''}`.toLowerCase();
+  const hits = [];
+  for (const kw of RESEARCH_KEYWORDS) {
+    const matched = kw.matchers.some((m) => (m instanceof RegExp ? m.test(hay) : hay.includes(m.substr)));
+    if (matched) hits.push(kw.label);
+  }
+  return hits;
+}
+
+// Normalize a tags input (array or comma string) → trimmed, lowercased,
+// de-duplicated, comma-joined string (or null when empty).
+function normalizeTags(input) {
+  if (!input) return null;
+  const list = Array.isArray(input) ? input : String(input).split(',');
+  const cleaned = [...new Set(list.map((t) => String(t).trim().toLowerCase()).filter(Boolean))];
+  return cleaned.length ? cleaned.join(', ') : null;
+}
+
 // GET /api/research-sources — list/filter the ledger.
 // Query params (all optional): cited_in (substring), q (free-text over
 // reason/claim_supported/quote/url), from / to (YYYY-MM-DD on pulled_at),
@@ -3561,6 +3613,8 @@ app.get('/api/research-sources', (req, res) => {
     const params = [];
     const citedIn = (req.query.cited_in || '').trim();
     if (citedIn) { clauses.push('cited_in LIKE ?'); params.push(`%${citedIn}%`); }
+    const tag = (req.query.tag || '').trim();
+    if (tag) { clauses.push('tags LIKE ?'); params.push(`%${tag.toLowerCase()}%`); }
     const q = (req.query.q || '').trim();
     if (q) {
       clauses.push('(reason LIKE ? OR claim_supported LIKE ? OR quote LIKE ? OR url LIKE ?)');
@@ -3586,7 +3640,8 @@ app.get('/api/research-sources', (req, res) => {
 });
 
 // POST /api/research-sources — append one entry.
-// Body: { url (required), pulled_at?, reason?, claim_supported?, cited_in?, quote? }
+// Body: { url (required), pulled_at?, reason?, claim_supported?, cited_in?, quote?, tags? }
+// tags accepts an array (["governance","nist"]) or a comma string ("governance, nist").
 app.post('/api/research-sources', express.json({ limit: '256kb' }), (req, res) => {
   try {
     const body = req.body || {};
@@ -3595,7 +3650,7 @@ app.post('/api/research-sources', express.json({ limit: '256kb' }), (req, res) =
     if (!/^https?:\/\//i.test(url)) {
       return res.status(400).json({ ok: false, error: 'url must be an http(s) link' });
     }
-    let pulledAt = (body.pulled_at || '').trim();
+    const pulledAt = (body.pulled_at || '').trim();
     if (pulledAt && !/^\d{4}-\d{2}-\d{2}$/.test(pulledAt)) {
       return res.status(400).json({ ok: false, error: 'pulled_at must be YYYY-MM-DD' });
     }
@@ -3603,22 +3658,113 @@ app.post('/api/research-sources', express.json({ limit: '256kb' }), (req, res) =
     const claimSupported = (body.claim_supported || '').trim() || null;
     const citedIn = (body.cited_in || '').trim() || null;
     const quote = (body.quote || '').trim() || null;
+    const tags = normalizeTags(body.tags);
 
+    // pulled_at defaults to the DB's date('now') when omitted.
     const info = pulledAt
       ? db.prepare(
-          `INSERT INTO research_sources (url, pulled_at, reason, claim_supported, cited_in, quote)
-           VALUES (?, ?, ?, ?, ?, ?)`
-        ).run(url, pulledAt, reason, claimSupported, citedIn, quote)
+          `INSERT INTO research_sources (url, pulled_at, reason, claim_supported, cited_in, quote, tags)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ).run(url, pulledAt, reason, claimSupported, citedIn, quote, tags)
       : db.prepare(
-          `INSERT INTO research_sources (url, reason, claim_supported, cited_in, quote)
-           VALUES (?, ?, ?, ?, ?)`
-        ).run(url, reason, claimSupported, citedIn, quote);
+          `INSERT INTO research_sources (url, reason, claim_supported, cited_in, quote, tags)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        ).run(url, reason, claimSupported, citedIn, quote, tags);
 
     const row = db.prepare('SELECT * FROM research_sources WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json({ ok: true, source: row });
   } catch (e) {
     console.error('[research-sources] create failed:', e.message);
     res.status(500).json({ ok: false, error: 'Failed to create research source' });
+  }
+});
+
+// GET /api/research-sources/trends — longitudinal view of research attention.
+// Buckets entries by month (pulled_at YYYY-MM), counts volume, and auto-flags
+// each entry against the keyword watchlist + its stored tags. Honors the same
+// cited_in / tag / q / from / to filters as the list endpoint.
+// Returns: { ok, granularity, buckets[], volume{}, keywords[], tags[], trending }
+app.get('/api/research-sources/trends', (req, res) => {
+  try {
+    const clauses = [];
+    const params = [];
+    const citedIn = (req.query.cited_in || '').trim();
+    if (citedIn) { clauses.push('cited_in LIKE ?'); params.push(`%${citedIn}%`); }
+    const tag = (req.query.tag || '').trim();
+    if (tag) { clauses.push('tags LIKE ?'); params.push(`%${tag.toLowerCase()}%`); }
+    const q = (req.query.q || '').trim();
+    if (q) {
+      clauses.push('(reason LIKE ? OR claim_supported LIKE ? OR quote LIKE ? OR url LIKE ?)');
+      const like = `%${q}%`;
+      params.push(like, like, like, like);
+    }
+    const from = (req.query.from || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(from)) { clauses.push('pulled_at >= ?'); params.push(from); }
+    const to = (req.query.to || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(to)) { clauses.push('pulled_at <= ?'); params.push(to); }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const rows = db.prepare(`SELECT * FROM research_sources ${where}`).all(...params);
+
+    // Collect the full set of month buckets present, sorted ascending.
+    const bucketSet = new Set();
+    for (const r of rows) {
+      const b = (r.pulled_at || '').slice(0, 7);
+      if (/^\d{4}-\d{2}$/.test(b)) bucketSet.add(b);
+    }
+    const buckets = [...bucketSet].sort();
+    const idx = Object.fromEntries(buckets.map((b, i) => [b, i]));
+
+    const volume = {};
+    for (const b of buckets) volume[b] = 0;
+    // term -> counts[] aligned to buckets
+    const kwCounts = new Map();
+    const tagCounts = new Map();
+    const blank = () => buckets.map(() => 0);
+
+    for (const r of rows) {
+      const b = (r.pulled_at || '').slice(0, 7);
+      if (!(b in idx)) continue;
+      volume[b]++;
+      for (const label of matchResearchKeywords(r)) {
+        if (!kwCounts.has(label)) kwCounts.set(label, blank());
+        kwCounts.get(label)[idx[b]]++;
+      }
+      if (r.tags) {
+        for (const t of r.tags.split(',').map((x) => x.trim()).filter(Boolean)) {
+          if (!tagCounts.has(t)) tagCounts.set(t, blank());
+          tagCounts.get(t)[idx[b]]++;
+        }
+      }
+    }
+
+    const toSeries = (map) =>
+      [...map.entries()]
+        .map(([term, counts]) => ({ term, counts, total: counts.reduce((a, c) => a + c, 0) }))
+        .sort((a, b) => b.total - a.total);
+    const keywords = toSeries(kwCounts);
+    const tags = toSeries(tagCounts);
+
+    // Rising/fading: delta of the most-recent bucket vs the prior one (keywords).
+    const n = buckets.length;
+    const deltas = keywords
+      .map((k) => ({ term: k.term, delta: n >= 2 ? k.counts[n - 1] - k.counts[n - 2] : 0, total: k.total }))
+      .filter((d) => d.delta !== 0);
+    const rising = deltas.filter((d) => d.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 6);
+    const fading = deltas.filter((d) => d.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 6);
+
+    res.json({
+      ok: true,
+      granularity: 'month',
+      total: rows.length,
+      buckets,
+      volume,
+      keywords,
+      tags,
+      trending: { rising, fading },
+    });
+  } catch (e) {
+    console.error('[research-sources] trends failed:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to compute research trends' });
   }
 });
 
