@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-113 | Research-sources provenance ledger — table + POST/GET endpoints + read view, plus keyword watchlist, time-trends endpoint, charted trend dashboard, and blog-citation backfill | task/research-sources-ledger | Claude Code | 2026-06-07 |
 
 ---
 
