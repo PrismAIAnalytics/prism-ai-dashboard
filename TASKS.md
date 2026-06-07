@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-114 | Add a Research Sources nav link to the dashboard (the T-113 standalone page had no entry point) | task/research-sources-nav | Claude Code | 2026-06-07 |
 
 ---
 
