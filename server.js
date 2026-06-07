@@ -1211,6 +1211,23 @@ function initDB() {
   } catch (e) {
     // Column already exists — ignore
   }
+  // Research-sources provenance ledger (T-113) — every web link pulled during
+  // research, with date, reason, the claim it supports, where it's cited, and
+  // the verbatim quote, so any number in a brief/blog/decision is replayable.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS research_sources (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      url             TEXT NOT NULL,
+      pulled_at       TEXT NOT NULL DEFAULT (date('now')),
+      reason          TEXT,
+      claim_supported TEXT,
+      cited_in        TEXT,
+      quote           TEXT,
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_research_sources_cited_in ON research_sources (cited_in);
+    CREATE INDEX IF NOT EXISTS idx_research_sources_pulled_at ON research_sources (pulled_at DESC);
+  `);
   // Auth tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS tickets (
@@ -3527,6 +3544,82 @@ app.get('/api/assessments', (req, res) => {
 app.get('/api/certifications', (req, res) => {
   const rows = db.prepare('SELECT * FROM certifications ORDER BY status, name').all();
   res.json(rows);
+});
+
+// ─── Research-sources provenance ledger (T-113) ─────────────────────────────
+// Append-only log of web links pulled during research. Auth-gated by the
+// app.use('/api', requireAuth) middleware. Append on every pull; read to answer
+// "where did this number come from?".
+
+// GET /api/research-sources — list/filter the ledger.
+// Query params (all optional): cited_in (substring), q (free-text over
+// reason/claim_supported/quote/url), from / to (YYYY-MM-DD on pulled_at),
+// limit (default 200, max 1000).
+app.get('/api/research-sources', (req, res) => {
+  try {
+    const clauses = [];
+    const params = [];
+    const citedIn = (req.query.cited_in || '').trim();
+    if (citedIn) { clauses.push('cited_in LIKE ?'); params.push(`%${citedIn}%`); }
+    const q = (req.query.q || '').trim();
+    if (q) {
+      clauses.push('(reason LIKE ? OR claim_supported LIKE ? OR quote LIKE ? OR url LIKE ?)');
+      const like = `%${q}%`;
+      params.push(like, like, like, like);
+    }
+    const from = (req.query.from || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(from)) { clauses.push('pulled_at >= ?'); params.push(from); }
+    const to = (req.query.to || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(to)) { clauses.push('pulled_at <= ?'); params.push(to); }
+    let limit = parseInt(req.query.limit, 10);
+    if (!Number.isFinite(limit) || limit <= 0) limit = 200;
+    if (limit > 1000) limit = 1000;
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const rows = db.prepare(
+      `SELECT * FROM research_sources ${where} ORDER BY pulled_at DESC, id DESC LIMIT ?`
+    ).all(...params, limit);
+    res.json({ ok: true, count: rows.length, sources: rows });
+  } catch (e) {
+    console.error('[research-sources] list failed:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to list research sources' });
+  }
+});
+
+// POST /api/research-sources — append one entry.
+// Body: { url (required), pulled_at?, reason?, claim_supported?, cited_in?, quote? }
+app.post('/api/research-sources', express.json({ limit: '256kb' }), (req, res) => {
+  try {
+    const body = req.body || {};
+    const url = (body.url || '').trim();
+    if (!url) return res.status(400).json({ ok: false, error: 'url is required' });
+    if (!/^https?:\/\//i.test(url)) {
+      return res.status(400).json({ ok: false, error: 'url must be an http(s) link' });
+    }
+    let pulledAt = (body.pulled_at || '').trim();
+    if (pulledAt && !/^\d{4}-\d{2}-\d{2}$/.test(pulledAt)) {
+      return res.status(400).json({ ok: false, error: 'pulled_at must be YYYY-MM-DD' });
+    }
+    const reason = (body.reason || '').trim() || null;
+    const claimSupported = (body.claim_supported || '').trim() || null;
+    const citedIn = (body.cited_in || '').trim() || null;
+    const quote = (body.quote || '').trim() || null;
+
+    const info = pulledAt
+      ? db.prepare(
+          `INSERT INTO research_sources (url, pulled_at, reason, claim_supported, cited_in, quote)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        ).run(url, pulledAt, reason, claimSupported, citedIn, quote)
+      : db.prepare(
+          `INSERT INTO research_sources (url, reason, claim_supported, cited_in, quote)
+           VALUES (?, ?, ?, ?, ?)`
+        ).run(url, reason, claimSupported, citedIn, quote);
+
+    const row = db.prepare('SELECT * FROM research_sources WHERE id = ?').get(info.lastInsertRowid);
+    res.status(201).json({ ok: true, source: row });
+  } catch (e) {
+    console.error('[research-sources] create failed:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to create research source' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
