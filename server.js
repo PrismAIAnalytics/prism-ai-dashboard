@@ -5348,6 +5348,88 @@ app.get('/api/tickets/past-due-backlog', requireAuth, async (req, res) => {
   }
 });
 
+// GET — stale in-flight tickets (T-115, 2026-06-09)
+// Status-drift detector: surfaces tickets that have sat in an *active* status
+// (in_progress / review / blocked) longer than a day threshold, so shipped work
+// left In Progress — or a ticket silently stuck — gets flagged instead of
+// accumulating. Reads today's reports/stale-tickets-YYYY-MM-DD.json if present
+// (written nightly by snapshot-tickets.js); otherwise computes on-demand so the
+// panel works before the first cron run.
+// Two ages are returned per ticket:
+//   days_in_status     — days since Last Updated (Notion last_edited_time)
+//   days_since_created — days since Created
+// The second guards against a bulk Last-Updated sync resetting the first (cf.
+// the 2026-06-02 mass-edit that masked the whole queue's freshness).
+const STALE_ACTIVE_STATUSES = new Set(['in_progress', 'review', 'blocked']);
+const STALE_STATUS_LABEL = { in_progress: 'In Progress', review: 'Review', blocked: 'Blocked' };
+
+function _staleComputeRows(tickets, thresholdDays, now) {
+  const PRIO = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const ageDays = (iso) => (iso ? Math.max(0, Math.floor((now - Date.parse(iso)) / 86400000)) : null);
+  return tickets
+    .filter(t => STALE_ACTIVE_STATUSES.has(t.status) && t.category !== 'dev_insight')
+    .map(t => ({
+      ticket_key:         t.ticket_key,
+      title:              t.title,
+      status:             t.status,
+      status_label:       STALE_STATUS_LABEL[t.status] || t.status,
+      priority:           t.priority || 'medium',
+      updated_at:         t.updated_at || null,
+      created_at:         t.created_at || null,
+      days_in_status:     ageDays(t.updated_at),
+      days_since_created: ageDays(t.created_at),
+      notion_page_id:     t.notion_page_id || null,
+      ticket_id:          t.id,
+    }))
+    .filter(t => (t.days_in_status ?? 0) >= thresholdDays)
+    .sort((a, b) => {
+      const da = a.days_in_status ?? 0;
+      const dbv = b.days_in_status ?? 0;
+      if (da !== dbv) return dbv - da; // most stale first
+      const pa = PRIO[a.priority] ?? 9;
+      const pb = PRIO[b.priority] ?? 9;
+      return pa - pb;
+    });
+}
+
+app.get('/api/tickets/stale', requireAuth, async (req, res) => {
+  const threshold = Math.max(1, Math.min(120, parseInt(req.query.days, 10) || 7));
+  const today = new Date().toISOString().slice(0, 10);
+  // Prefer a precomputed report only when the caller uses the default threshold;
+  // a custom ?days= must recompute against live data.
+  if (threshold === 7) {
+    const reportPath = path.join(__dirname, 'reports', `stale-tickets-${today}.json`);
+    try {
+      if (fs.existsSync(reportPath)) {
+        const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+        res.set('X-Source', 'report');
+        return res.json({ ok: true, date: report.date, threshold_days: report.threshold_days, count: report.count, tickets: report.tickets, source: 'report' });
+      }
+    } catch (e) {
+      console.warn('[stale-tickets] report read failed, computing on-demand:', e.message);
+    }
+  }
+  try {
+    let tickets = [];
+    if (process.env.USE_NOTION_SOURCE === 'true') {
+      const { tickets: t } = await notionAdapter.listTickets({});
+      tickets = t;
+    } else {
+      tickets = db.prepare(`
+        SELECT id, ticket_key, title, priority, status, category, created_at, updated_at, notion_page_id
+        FROM tickets
+        WHERE status IN ('in_progress', 'review', 'blocked')
+          AND (category IS NULL OR category != 'dev_insight')
+      `).all();
+    }
+    const rows = _staleComputeRows(tickets, threshold, Date.now());
+    res.set('X-Source', process.env.USE_NOTION_SOURCE === 'true' ? 'notion' : 'sqlite');
+    res.json({ ok: true, date: today, threshold_days: threshold, count: rows.length, tickets: rows, source: 'on-demand' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // GET — recommended-to-do (Phase C, 2026-05-24)
 // Daily Agenda surface that proposes the top-N backlog candidates Michele
 // should approve into To Do. Past-due tickets are excluded — those are

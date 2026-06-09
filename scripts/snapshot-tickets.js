@@ -226,6 +226,17 @@ async function main() {
     summaryLine.push(`past-due-backlog FAIL`);
   }
 
+  // T-115 (2026-06-09) — write stale in-flight ticket report for the status-drift
+  // detector. Separate file, same atomic-write pattern. Failure here doesn't fail
+  // the summary snapshot job.
+  try {
+    const staleCount = await writeStaleTickets(date);
+    summaryLine.push(`stale-tickets ${staleCount}`);
+  } catch (e) {
+    console.error(`[stale-tickets] WARN: ${e.message}`);
+    summaryLine.push(`stale-tickets FAIL`);
+  }
+
   console.log(summaryLine.join(' · '));
 }
 
@@ -286,6 +297,82 @@ async function writePastDueBacklog(date) {
   fs.renameSync(tmp, outPath);
   const size = fs.statSync(outPath).size;
   console.log(`  Wrote ${size}B past-due-backlog (${rows.length} tickets) to ${path.relative(path.join(__dirname, '..'), outPath)}`);
+  return rows.length;
+}
+
+// ─── T-115: stale in-flight ticket report ────────────────────────────────────
+// Flags tickets sitting in an active status (in_progress / review / blocked)
+// longer than STALE_THRESHOLD_DAYS days since Last Updated. Surfaces silent
+// status-drift — shipped work left In Progress, or a genuinely stuck ticket.
+const STALE_THRESHOLD_DAYS = 7;
+const STALE_ACTIVE = new Set(['in_progress', 'review', 'blocked']);
+const STALE_LABEL = { in_progress: 'In Progress', review: 'Review', blocked: 'Blocked' };
+
+async function writeStaleTickets(date) {
+  const outPath = path.join(REPORTS_DIR, `stale-tickets-${date}.json`);
+  process.stdout.write('Fetching /api/tickets for stale in-flight set... ');
+  const t0 = Date.now();
+  const r = await fetch(`${DASHBOARD_URL}/api/tickets`, {
+    headers: { 'Authorization': `Bearer ${process.env.API_KEY || ''}` },
+  });
+  const elapsed = Date.now() - t0;
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`fetch failed (${r.status}) ${elapsed}ms: ${body.slice(0, 200)}`);
+  }
+  const j = await r.json();
+  if (!j || j.ok !== true || !Array.isArray(j.tickets)) {
+    throw new Error('bad tickets response: ' + JSON.stringify(j).slice(0, 200));
+  }
+  console.log(`OK (${elapsed}ms, ${j.tickets.length} tickets)`);
+
+  const now = Date.now();
+  const PRIO_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const ageDays = (iso) => (iso ? Math.max(0, Math.floor((now - Date.parse(iso)) / 86400000)) : null);
+  const rows = j.tickets
+    .filter(t => STALE_ACTIVE.has(t.status) && t.category !== 'dev_insight')
+    .map(t => ({
+      ticket_key:         t.ticket_key,
+      title:              t.title,
+      status:             t.status,
+      status_label:       STALE_LABEL[t.status] || t.status,
+      priority:           t.priority || 'medium',
+      updated_at:         t.updated_at || null,
+      created_at:         t.created_at || null,
+      days_in_status:     ageDays(t.updated_at),
+      days_since_created: ageDays(t.created_at),
+      notion_page_id:     t.notion_page_id || null,
+      ticket_id:          t.id,
+    }))
+    .filter(t => (t.days_in_status ?? 0) >= STALE_THRESHOLD_DAYS)
+    .sort((a, b) => {
+      const da = a.days_in_status ?? 0;
+      const dbv = b.days_in_status ?? 0;
+      if (da !== dbv) return dbv - da; // most stale first
+      const pa = PRIO_ORDER[a.priority] ?? 9;
+      const pb = PRIO_ORDER[b.priority] ?? 9;
+      return pa - pb;
+    });
+
+  const report = {
+    schema_version: 1,
+    date,
+    captured_at: new Date().toISOString(),
+    threshold_days: STALE_THRESHOLD_DAYS,
+    count: rows.length,
+    tickets: rows,
+  };
+
+  if (DRY_RUN) {
+    console.log(`  stale in-flight: ${rows.length} ticket${rows.length === 1 ? '' : 's'} (dry-run, no file written)`);
+    return rows.length;
+  }
+
+  const tmp = `${outPath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(report, null, 2) + '\n', 'utf8');
+  fs.renameSync(tmp, outPath);
+  const size = fs.statSync(outPath).size;
+  console.log(`  Wrote ${size}B stale-tickets (${rows.length} tickets) to ${path.relative(path.join(__dirname, '..'), outPath)}`);
   return rows.length;
 }
 

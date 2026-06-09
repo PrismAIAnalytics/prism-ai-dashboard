@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-115 | `/api/tickets/stale` endpoint + nightly snapshot — flag tickets sitting in an active status (In Progress / Review / Blocked) past a day threshold (silent status-drift detector) | feat/t115-stale-tickets-endpoint | Claude Code | 2026-06-09 |
 
 ---
 
