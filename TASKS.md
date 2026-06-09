@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-116 | Extend `/api/tickets/stale` to flag To Do stalled-start (longer 14d fuse) — follow-up to T-115 | feat/t116-todo-stale | Claude Code | 2026-06-09 |
 
 ---
 

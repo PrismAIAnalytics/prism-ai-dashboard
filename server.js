@@ -5360,12 +5360,18 @@ app.get('/api/tickets/past-due-backlog', requireAuth, async (req, res) => {
 //   days_since_created — days since Created
 // The second guards against a bulk Last-Updated sync resetting the first (cf.
 // the 2026-06-02 mass-edit that masked the whole queue's freshness).
-const STALE_ACTIVE_STATUSES = new Set(['in_progress', 'review', 'blocked']);
-const STALE_STATUS_LABEL = { in_progress: 'In Progress', review: 'Review', blocked: 'Blocked' };
+// Active statuses get the default fuse; To Do is a *queue* state, so an
+// approved-but-unstarted ticket gets a longer fuse (it's allowed to wait, but
+// not indefinitely — a To Do that never starts is a progression failure too).
+const STALE_ACTIVE_STATUSES = new Set(['in_progress', 'review', 'blocked', 'todo']);
+const STALE_STATUS_LABEL = { in_progress: 'In Progress', review: 'Review', blocked: 'Blocked', todo: 'To Do (unstarted)' };
+const STALE_DEFAULT_DAYS = 7;       // in_progress / review / blocked
+const STALE_TODO_DEFAULT_DAYS = 14; // approved-but-unstarted To Do
 
-function _staleComputeRows(tickets, thresholdDays, now) {
+function _staleComputeRows(tickets, activeDays, todoDays, now) {
   const PRIO = { urgent: 0, high: 1, medium: 2, low: 3 };
   const ageDays = (iso) => (iso ? Math.max(0, Math.floor((now - Date.parse(iso)) / 86400000)) : null);
+  const threshFor = (status) => (status === 'todo' ? todoDays : activeDays);
   return tickets
     .filter(t => STALE_ACTIVE_STATUSES.has(t.status) && t.category !== 'dev_insight')
     .map(t => ({
@@ -5381,7 +5387,7 @@ function _staleComputeRows(tickets, thresholdDays, now) {
       notion_page_id:     t.notion_page_id || null,
       ticket_id:          t.id,
     }))
-    .filter(t => (t.days_in_status ?? 0) >= thresholdDays)
+    .filter(t => (t.days_in_status ?? 0) >= threshFor(t.status))
     .sort((a, b) => {
       const da = a.days_in_status ?? 0;
       const dbv = b.days_in_status ?? 0;
@@ -5393,17 +5399,18 @@ function _staleComputeRows(tickets, thresholdDays, now) {
 }
 
 app.get('/api/tickets/stale', requireAuth, async (req, res) => {
-  const threshold = Math.max(1, Math.min(120, parseInt(req.query.days, 10) || 7));
+  const threshold = Math.max(1, Math.min(120, parseInt(req.query.days, 10) || STALE_DEFAULT_DAYS));
+  const todoThreshold = Math.max(1, Math.min(180, parseInt(req.query.todo_days, 10) || STALE_TODO_DEFAULT_DAYS));
   const today = new Date().toISOString().slice(0, 10);
-  // Prefer a precomputed report only when the caller uses the default threshold;
-  // a custom ?days= must recompute against live data.
-  if (threshold === 7) {
+  // Prefer a precomputed report only when BOTH thresholds are defaults;
+  // any custom ?days=/?todo_days= must recompute against live data.
+  if (threshold === STALE_DEFAULT_DAYS && todoThreshold === STALE_TODO_DEFAULT_DAYS) {
     const reportPath = path.join(__dirname, 'reports', `stale-tickets-${today}.json`);
     try {
       if (fs.existsSync(reportPath)) {
         const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
         res.set('X-Source', 'report');
-        return res.json({ ok: true, date: report.date, threshold_days: report.threshold_days, count: report.count, tickets: report.tickets, source: 'report' });
+        return res.json({ ok: true, date: report.date, threshold_days: report.threshold_days, todo_threshold_days: report.todo_threshold_days, count: report.count, tickets: report.tickets, source: 'report' });
       }
     } catch (e) {
       console.warn('[stale-tickets] report read failed, computing on-demand:', e.message);
@@ -5418,13 +5425,13 @@ app.get('/api/tickets/stale', requireAuth, async (req, res) => {
       tickets = db.prepare(`
         SELECT id, ticket_key, title, priority, status, category, created_at, updated_at, notion_page_id
         FROM tickets
-        WHERE status IN ('in_progress', 'review', 'blocked')
+        WHERE status IN ('in_progress', 'review', 'blocked', 'todo')
           AND (category IS NULL OR category != 'dev_insight')
       `).all();
     }
-    const rows = _staleComputeRows(tickets, threshold, Date.now());
+    const rows = _staleComputeRows(tickets, threshold, todoThreshold, Date.now());
     res.set('X-Source', process.env.USE_NOTION_SOURCE === 'true' ? 'notion' : 'sqlite');
-    res.json({ ok: true, date: today, threshold_days: threshold, count: rows.length, tickets: rows, source: 'on-demand' });
+    res.json({ ok: true, date: today, threshold_days: threshold, todo_threshold_days: todoThreshold, count: rows.length, tickets: rows, source: 'on-demand' });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

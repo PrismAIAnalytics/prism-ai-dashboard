@@ -300,13 +300,15 @@ async function writePastDueBacklog(date) {
   return rows.length;
 }
 
-// ─── T-115: stale in-flight ticket report ────────────────────────────────────
+// ─── T-115 / T-116: stale in-flight ticket report ────────────────────────────
 // Flags tickets sitting in an active status (in_progress / review / blocked)
-// longer than STALE_THRESHOLD_DAYS days since Last Updated. Surfaces silent
-// status-drift — shipped work left In Progress, or a genuinely stuck ticket.
+// past STALE_THRESHOLD_DAYS, and approved-but-unstarted To Do past the longer
+// STALE_TODO_THRESHOLD_DAYS — surfacing silent status-drift (shipped work left
+// In Progress) and stalled-start (To Do that never begins).
 const STALE_THRESHOLD_DAYS = 7;
-const STALE_ACTIVE = new Set(['in_progress', 'review', 'blocked']);
-const STALE_LABEL = { in_progress: 'In Progress', review: 'Review', blocked: 'Blocked' };
+const STALE_TODO_THRESHOLD_DAYS = 14;
+const STALE_ACTIVE = new Set(['in_progress', 'review', 'blocked', 'todo']);
+const STALE_LABEL = { in_progress: 'In Progress', review: 'Review', blocked: 'Blocked', todo: 'To Do (unstarted)' };
 
 async function writeStaleTickets(date) {
   const outPath = path.join(REPORTS_DIR, `stale-tickets-${date}.json`);
@@ -329,6 +331,7 @@ async function writeStaleTickets(date) {
   const now = Date.now();
   const PRIO_ORDER = { urgent: 0, high: 1, medium: 2, low: 3 };
   const ageDays = (iso) => (iso ? Math.max(0, Math.floor((now - Date.parse(iso)) / 86400000)) : null);
+  const threshFor = (status) => (status === 'todo' ? STALE_TODO_THRESHOLD_DAYS : STALE_THRESHOLD_DAYS);
   const rows = j.tickets
     .filter(t => STALE_ACTIVE.has(t.status) && t.category !== 'dev_insight')
     .map(t => ({
@@ -344,7 +347,7 @@ async function writeStaleTickets(date) {
       notion_page_id:     t.notion_page_id || null,
       ticket_id:          t.id,
     }))
-    .filter(t => (t.days_in_status ?? 0) >= STALE_THRESHOLD_DAYS)
+    .filter(t => (t.days_in_status ?? 0) >= threshFor(t.status))
     .sort((a, b) => {
       const da = a.days_in_status ?? 0;
       const dbv = b.days_in_status ?? 0;
@@ -355,10 +358,11 @@ async function writeStaleTickets(date) {
     });
 
   const report = {
-    schema_version: 1,
+    schema_version: 2,
     date,
     captured_at: new Date().toISOString(),
     threshold_days: STALE_THRESHOLD_DAYS,
+    todo_threshold_days: STALE_TODO_THRESHOLD_DAYS,
     count: rows.length,
     tickets: rows,
   };
