@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-117 | Tickets page — trend-over-time charts by category + priority/complexity; slim metric tiles 7→4 | feat/t117-tickets-trend-charts | Claude Code | 2026-06-10 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-117 | Tickets page — trend-over-time charts by category + priority/complexity; slim metric tiles 7→4; Category filter → dropdown | 2026-06-10 | **Shipped:** reworked the Tickets metric area into an at-a-glance monitoring surface. Merged via PR #126 as `1dc7c95d60b06e367e5d5f1c22628f2c10061490` (squash) on 2026-06-10; Railway auto-deployed (prod `/health` 200; new `?dimension=` endpoint 401 = route present + auth-gated). **Surfaces:** `server.js` (`_trendsExtractDimension` + `?dimension=category|priority` branch on `GET /api/tickets/trends/series`, additive — scalar sparkline path unchanged); `public/index.html` (tiles 7→4 = Overdue/To Do·Target/Done This Week/Open; two stacked-area Chart.js trend charts reading existing snapshot `byCategory`/`byPriority` — no backfill; Category pills→`<select>`). **Decisions:** complexity = priority proxy (no new field); gold offset out of the category palette lead per brand rule (semantic High-warning only). **Verified:** local demo server — endpoints 200 (cat 6d/10 keys, pri 7d/4 keys), 4 tiles + both charts render, dropdown 11 opts filters kanban 422→252, no console errors, mobile stacks. **Follow-ups:** optional Date-row→dropdown for consistency (deferred, Michele's call); trend charts show ~6–7 points until nightly snapshots accumulate. **Close-out doc:** `Handoffs/archive/2026-06/2026-06-10_TicketsTrendCharts_RESULTS.md`. In Progress lock cleared via standalone `chore/close-t117` (auto-close Action did not fire — recurring gap, see T-101/T-104/T-108). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-116 | Extend `/api/tickets/stale` to flag To Do stalled-start (longer 14d fuse) — follow-up to T-115 | 2026-06-09 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #124 as `ade4a23423a1f73a2ba4e0c7e17ba79d92ead254` (squash) on 2026-06-09. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-115 | `/api/tickets/stale` endpoint + nightly snapshot — flag tickets sitting in an active status (In Progress / Review / Blocked) past a day threshold (silent status-drift detector) | 2026-06-09 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #122 as `b85f5e1fd49350fe3d0dc2c864d772428df0492d` (squash) on 2026-06-09. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-114 | Add a Research Sources nav link to the dashboard (the T-113 standalone page had no entry point) | 2026-06-07 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #120 as `bca2a273cb460b9414d2ba9796692e84a27e1a4d` (squash) on 2026-06-07. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
