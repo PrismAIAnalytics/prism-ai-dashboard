@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "date": "2026-05-18",
+  "captured_at": "2026-05-22T16:49:19.831Z",
+  "source": "unknown",
+  "counts": {
+    "total": 136,
+    "open": 82,
+    "overdue": 25,
+    "completed_this_week": 0
+  },
+  "byStatus": [
+    {
+      "status": "backlog",
+      "count": 50
+    },
+    {
+      "status": "done",
+      "count": 54
+    },
+    {
+      "status": "in_progress",
+      "count": 27
+    },
+    {
+      "status": "todo",
+      "count": 5
+    }
+  ],
+  "byPriority": [
+    {
+      "priority": "high",
+      "count": 33
+    },
+    {
+      "priority": "low",
+      "count": 3
+    },
+    {
+      "priority": "medium",
+      "count": 96
+    },
+    {
+      "priority": "urgent",
+      "count": 4
+    }
+  ],
+  "byType": [
+    {
+      "ticket_type": "client",
+      "count": 3
+    },
+    {
+      "ticket_type": "internal",
+      "count": 133
+    }
+  ],
+  "byCategory": [],
+  "excluded": {
+    "dev_insight_count": 0
+  }
+}
