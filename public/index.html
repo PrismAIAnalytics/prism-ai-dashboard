@@ -3276,6 +3276,29 @@ function renderEffortMixChart(mix) {
   canvas.style.display = 'block';
   if (empty) empty.style.display = 'none';
   const axis = window.PRISM.CHART_AXIS;
+  // Draw the % value just past the end of each bar. Actual labels in the axis
+  // text color, Intended (ghost) labels muted so the comparison stays readable.
+  const barPctLabels = {
+    id: 'barPctLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = "600 10px 'Inter', system-ui, sans-serif";
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      chart.data.datasets.forEach((ds, di) => {
+        const meta = chart.getDatasetMeta(di);
+        if (meta.hidden) return;
+        ctx.fillStyle = di === 0 ? axis.text : _withAlpha(axis.text, 0.6);
+        meta.data.forEach((bar, i) => {
+          const v = ds.data[i];
+          if (v == null) return;
+          ctx.fillText(v + '%', bar.x + 5, bar.y);
+        });
+      });
+      ctx.restore();
+    },
+  };
   chartEffortMix = new Chart(canvas.getContext('2d'), {
     type: 'bar',
     data: {
@@ -3297,6 +3320,8 @@ function renderEffortMixChart(mix) {
     },
     options: {
       responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      // Headroom on the right so the end-of-bar % labels don't clip.
+      layout: { padding: { right: 30 } },
       plugins: {
         legend: { position: 'bottom', labels: { color: axis.text, font: { size: 10 }, usePointStyle: true, boxWidth: 8, padding: 10 } },
         tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.x}%` } },
@@ -3306,6 +3331,7 @@ function renderEffortMixChart(mix) {
         y: { ticks: { color: axis.text, font: { size: 11 } }, grid: { display: false } },
       },
     },
+    plugins: [barPctLabels],
   });
 }
 
