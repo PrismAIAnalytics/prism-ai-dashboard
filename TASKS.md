@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-118 | Durable ticket-snapshot store — fix T-117 trend charts resetting on every deploy (volume-backed SQLite + seed backfill) | feat/t118-durable-snapshots | Claude Code | 2026-06-10 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-118 | Durable ticket-snapshot store — fix T-117 trend charts resetting on every deploy (volume-backed SQLite + seed backfill) | 2026-06-10 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #128 as `34fc7931dfe6fac20921180615415ec9d24b3983` (squash) on 2026-06-10. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-117 | Tickets page — trend-over-time charts by category + priority/complexity; slim metric tiles 7→4; Category filter → dropdown | 2026-06-10 | **Shipped:** reworked the Tickets metric area into an at-a-glance monitoring surface. Merged via PR #126 as `1dc7c95d60b06e367e5d5f1c22628f2c10061490` (squash) on 2026-06-10; Railway auto-deployed. **Surfaces:** `server.js` (`_trendsExtractDimension` + `?dimension=category|priority` on `GET /api/tickets/trends/series`, additive); `public/index.html` (tiles 7→4; two stacked-area trend charts; Category pills→`<select>`). **Decisions:** complexity = priority proxy; gold offset out of category-palette lead per brand rule. **Verified:** local demo + prod smoke. **Follow-up that became T-118:** the trend charts depend on `reports/` snapshot files, which are ephemeral on Railway (wiped every deploy) — charts reset to 1 point in prod. Close-out doc: `Handoffs/archive/2026-06/2026-06-10_TicketsTrendCharts_RESULTS.md`. Lock-clear PR #127 was closed and folded into T-118's first commit per WORKFLOW §4 (avoids two PRs racing on TASKS.md). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-116 | Extend `/api/tickets/stale` to flag To Do stalled-start (longer 14d fuse) — follow-up to T-115 | 2026-06-09 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #124 as `ade4a23423a1f73a2ba4e0c7e17ba79d92ead254` (squash) on 2026-06-09. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-115 | `/api/tickets/stale` endpoint + nightly snapshot — flag tickets sitting in an active status (In Progress / Review / Blocked) past a day threshold (silent status-drift detector) | 2026-06-09 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #122 as `b85f5e1fd49350fe3d0dc2c864d772428df0492d` (squash) on 2026-06-09. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
