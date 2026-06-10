@@ -519,7 +519,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .ticket-status-pills button:hover { color: var(--text); border-color: var(--royal); }
 .ticket-status-pills button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
 /* T-117: Category filter is a dropdown (11 chips were too busy as pills). */
-.ticket-filter-group { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 16px; }
+/* T-121: filter dropdowns live in the page header now (spacing via header flex gap). */
+.ticket-header-filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.ticket-filter-group { display: inline-flex; align-items: center; gap: 7px; }
 .ticket-filter-group > .ticket-filter-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .ticket-filter-select {
   background: var(--card); border: 1px solid var(--border); border-radius: 8px;
@@ -1021,9 +1023,42 @@ tr:hover td { background: rgba(255,255,255,0.02); }
     <!-- SERVICES -->
     <!-- TICKETS -->
     <div id="page-tickets" class="page">
-      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div><h2>Tickets</h2><p>Task management — track client and internal work items</p></div>
-        <button class="btn-primary" onclick="ticketShowCreateModal()">+ New Ticket</button>
+      <div class="page-header" style="display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap">
+        <div style="flex-shrink:0"><h2>Tickets</h2><p>Task management — track client and internal work items</p></div>
+        <!-- T-121: Task Type / Category / Due Date filters live in the header as dropdowns. -->
+        <div class="ticket-header-filters">
+            <div class="ticket-filter-group">
+              <span class="ticket-filter-label">Task Type</span>
+              <select class="ticket-filter-select" id="ticket-type-select" aria-label="Filter by task type" onchange="ticketFilterType(this.value)">
+                <option value="all">All</option>
+                <option value="client">Client</option>
+                <option value="internal">Internal</option>
+              </select>
+            </div>
+            <div class="ticket-filter-group">
+              <span class="ticket-filter-label">Category</span>
+              <select class="ticket-filter-select" id="ticket-cat-select" aria-label="Filter by category" onchange="ticketFilterCat(this.value)">
+                <option value="all">All Categories</option>
+              </select>
+            </div>
+            <div class="ticket-filter-group">
+              <span class="ticket-filter-label">Due Date</span>
+              <select class="ticket-filter-select" id="ticket-due-select" aria-label="Filter by due date" onchange="ticketFilterDue(this.value)">
+                <option value="all">All Dates</option>
+                <option value="week">Due This Week</option>
+                <option value="14d">Due Next 14d</option>
+                <option value="overdue">Overdue</option>
+                <option value="nodate">No Date</option>
+                <option value="custom">Custom…</option>
+              </select>
+              <span class="ticket-due-custom" id="ticket-due-custom-inputs">
+                <input type="date" id="ticket-due-start" onchange="ticketRender()">
+                <span style="color:var(--muted);font-size:11px">to</span>
+                <input type="date" id="ticket-due-end" onchange="ticketRender()">
+              </span>
+            </div>
+          </div>
+        <button class="btn-primary" style="margin-left:auto" onclick="ticketShowCreateModal()">+ New Ticket</button>
       </div>
       <div id="ticket-kpis" class="ticket-kpi-grid"></div>
       <!-- T-119: operational charts. Effort-Mix = actual vs intended allocation
@@ -1041,41 +1076,9 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <div id="chart-tickets-flow-empty" class="ticket-trend-empty" style="display:none"></div>
         </div>
       </div>
-      <!-- Filters apply to the Kanban (the only view per Michele's edits 2026-05-24).
-           Within-column ordering uses ticketSortList default (updated_desc).
-           Category chips are populated dynamically from /api/tickets/summary's
-           byCategory so the list always reflects what's actually in the data. -->
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-        <div class="ticket-status-pills" id="ticket-type-filters">
-          <button class="active" onclick="ticketFilterType('all', this)">All</button>
-          <button onclick="ticketFilterType('client', this)">Client</button>
-          <button onclick="ticketFilterType('internal', this)">Internal</button>
-        </div>
-        <!-- T-117: Category as a dropdown — 11 pills were too busy. Options are
-             injected by populateCategoryFilters() from /api/tickets/summary. -->
-        <div class="ticket-filter-group">
-          <span class="ticket-filter-label">Category</span>
-          <select class="ticket-filter-select" id="ticket-cat-select" aria-label="Filter by category" onchange="ticketFilterCat(this.value)">
-            <option value="all">All Categories</option>
-          </select>
-        </div>
-      </div>
-      <!-- Date filter on its own row so it doesn't cram against type+category. -->
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        <div class="ticket-status-pills ticket-due-filter" id="ticket-due-filters">
-          <button class="active" data-due="all" onclick="ticketFilterDue('all', this)">All Dates</button>
-          <button data-due="week" onclick="ticketFilterDue('week', this)">Due This Week</button>
-          <button data-due="14d" onclick="ticketFilterDue('14d', this)">Due Next 14d</button>
-          <button data-due="overdue" onclick="ticketFilterDue('overdue', this)">Overdue</button>
-          <button data-due="nodate" onclick="ticketFilterDue('nodate', this)">No Date</button>
-          <button data-due="custom" onclick="ticketFilterDue('custom', this)">Custom…</button>
-          <span class="ticket-due-custom" id="ticket-due-custom-inputs">
-            <input type="date" id="ticket-due-start" onchange="ticketRender()">
-            <span style="color:var(--muted);font-size:11px">to</span>
-            <input type="date" id="ticket-due-end" onchange="ticketRender()">
-          </span>
-        </div>
-      </div>
+      <!-- Filters (Task Type / Category / Due Date) moved into the page header
+           above as dropdowns (T-121). They apply to the Kanban; within-column
+           ordering uses ticketSortList default (updated_desc). -->
       <div id="tickets-kanban" class="kanban-board"></div>
     </div>
 
@@ -3405,10 +3408,11 @@ function ticketSetSort(val) {
 function ticketRender() {
   // Kanban-only per Michele's edits 2026-05-24. Filters still apply.
   // Within-column ordering uses ticketSortList default (updated_desc).
-  // Reflect persisted due filter in chip group on first render after load.
-  const dueButtons = document.querySelectorAll('#ticket-due-filters > button');
-  if (dueButtons.length && !document.querySelector('#ticket-due-filters > button.active[data-due="' + ticketDueFilter + '"]')) {
-    dueButtons.forEach(b => b.classList.toggle('active', b.dataset.due === ticketDueFilter));
+  // Reflect persisted due filter in the dropdown on first render after load.
+  const dueSel = document.getElementById('ticket-due-select');
+  if (dueSel && dueSel.value !== ticketDueFilter) {
+    dueSel.value = ticketDueFilter;
+    dueSel.classList.toggle('filtered', ticketDueFilter !== 'all');
     const custom = document.getElementById('ticket-due-custom-inputs');
     if (custom) custom.classList.toggle('active', ticketDueFilter === 'custom');
   }
@@ -3426,11 +3430,11 @@ let ticketDueFilter = (function() {
   try { return localStorage.getItem('prism.tickets.dueFilter') || 'all'; }
   catch (e) { return 'all'; }
 })();
-function ticketFilterDue(preset, el) {
+function ticketFilterDue(preset) {
   ticketDueFilter = preset;
-  $$('#ticket-due-filters > button').forEach(b => b.classList.remove('active'));
-  if (el) el.classList.add('active');
-  // Show/hide the custom date inputs
+  const sel = document.getElementById('ticket-due-select');
+  if (sel) { if (sel.value !== preset) sel.value = preset; sel.classList.toggle('filtered', preset !== 'all'); }
+  // Show/hide the custom date-range inputs
   const custom = document.getElementById('ticket-due-custom-inputs');
   if (custom) custom.classList.toggle('active', preset === 'custom');
   try { localStorage.setItem('prism.tickets.dueFilter', preset); } catch (e) {}
@@ -3465,10 +3469,10 @@ function _applyDueFilter(tickets) {
   return tickets;
 }
 
-function ticketFilterType(type, el) {
+function ticketFilterType(type) {
   ticketTypeFilter = type;
-  $$('#ticket-type-filters button').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+  const sel = document.getElementById('ticket-type-select');
+  if (sel) { if (sel.value !== type) sel.value = type; sel.classList.toggle('filtered', type !== 'all'); }
   ticketRender();
 }
 
