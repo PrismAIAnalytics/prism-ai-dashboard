@@ -5237,6 +5237,26 @@ function _trendsExtractMetrics(snap) {
   };
 }
 
+// Extract a per-dimension count map from a snapshot — { <key>: count }.
+// Powers the category- and priority-over-time stacked-area charts (T-117).
+// The snapshot already retains full byCategory / byPriority arrays
+// (snapshot-tickets.js buildSnapshot), so historical series need no backfill.
+// dev_insight is excluded to mirror the byCategory rule applied everywhere else.
+function _trendsExtractDimension(snap, dimension) {
+  if (!snap) return null;
+  const arr = dimension === 'category'
+    ? (Array.isArray(snap.byCategory) ? snap.byCategory : [])
+    : (Array.isArray(snap.byPriority) ? snap.byPriority : []);
+  const field = dimension === 'category' ? 'category' : 'priority';
+  const result = {};
+  for (const row of arr) {
+    const k = String(row[field] || row.name || '').toLowerCase();
+    if (!k || k === 'dev_insight' || k === 'dev-insight') continue;
+    result[k] = Number(row.count || 0);
+  }
+  return Object.keys(result).length ? result : null;
+}
+
 function _trendsLoadSnapshot(date) {
   const p = path.join(__dirname, 'reports', `ticket-snapshot-${date}.json`);
   if (!fs.existsSync(p)) return null;
@@ -5273,8 +5293,34 @@ app.get('/api/tickets/trends', requireAuth, (req, res) => {
 // Multi-point time series: per-metric arrays over the last N days. Powers the
 // inline SVG sparkline on each KPI tile. Skips missing days rather than
 // faking values — the array length tells the frontend how much real data exists.
+//
+// T-117: an optional ?dimension=category|priority switches the payload from the
+// 7 scalar metrics to one series per category (or per priority/complexity),
+// reconstructed from the byCategory / byPriority arrays the snapshot already
+// retains. The series keys are dynamic (only categories/priorities present in
+// the data appear), so available_days still reports how much real history
+// exists. Default (no dimension) is the unchanged scalar-metrics path.
 app.get('/api/tickets/trends/series', requireAuth, (req, res) => {
   const days = Math.max(2, Math.min(90, parseInt(req.query.days, 10) || 14));
+  const dimension = ['category', 'priority'].includes(req.query.dimension) ? req.query.dimension : null;
+
+  if (dimension) {
+    const series = {};
+    let availableDays = 0;
+    for (let i = days - 1; i >= 0; i--) {
+      const date = _trendsDateStr(i);
+      const snap = _trendsLoadSnapshot(date);
+      const m = _trendsExtractDimension(snap, dimension);
+      if (!m) continue;
+      availableDays++;
+      for (const [k, v] of Object.entries(m)) {
+        if (!series[k]) series[k] = [];
+        series[k].push({ date, value: v });
+      }
+    }
+    return res.json({ ok: true, days, available_days: availableDays, dimension, series });
+  }
+
   const series = { total: [], open: [], overdue: [], completed_this_week: [], todo: [], client_tasks: [], internal_tasks: [] };
   let availableDays = 0;
   for (let i = days - 1; i >= 0; i--) {
