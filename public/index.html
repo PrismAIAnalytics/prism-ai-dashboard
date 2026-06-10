@@ -519,6 +519,20 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 .ticket-status-pills button:hover { color: var(--text); border-color: var(--royal); }
 .ticket-status-pills button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
+/* T-117: Category filter is a dropdown (11 chips were too busy as pills). */
+.ticket-filter-group { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 16px; }
+.ticket-filter-group > .ticket-filter-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.ticket-filter-select {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 5px 28px 5px 12px; font-size: 11px; font-family: inherit;
+  cursor: pointer; transition: all 0.2s; appearance: none; max-width: 220px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23BDC9DD' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+.ticket-filter-select:hover { border-color: var(--royal); }
+.ticket-filter-select:focus { outline: none; border-color: var(--royal); }
+/* A non-default selection reads as "active" — royal accent like the active pill. */
+.ticket-filter-select.filtered { color: var(--white); border-color: var(--royal); background-color: rgba(85,119,192,0.18); }
 
 /* ─── Rule Detail Modal ─── */
 .rule-detail-overlay {
@@ -1037,9 +1051,13 @@ tr:hover td { background: rgba(255,255,255,0.02); }
           <button onclick="ticketFilterType('client', this)">Client</button>
           <button onclick="ticketFilterType('internal', this)">Internal</button>
         </div>
-        <div class="ticket-status-pills" id="ticket-cat-filters">
-          <button class="active" onclick="ticketFilterCat('all', this)">All Categories</button>
-          <!-- Per-category chips injected by populateCategoryFilters() -->
+        <!-- T-117: Category as a dropdown — 11 pills were too busy. Options are
+             injected by populateCategoryFilters() from /api/tickets/summary. -->
+        <div class="ticket-filter-group">
+          <span class="ticket-filter-label">Category</span>
+          <select class="ticket-filter-select" id="ticket-cat-select" aria-label="Filter by category" onchange="ticketFilterCat(this.value)">
+            <option value="all">All Categories</option>
+          </select>
         </div>
       </div>
       <!-- Date filter on its own row so it doesn't cram against type+category. -->
@@ -3047,38 +3065,34 @@ loaders.tickets = async () => {
   ticketRender();
 };
 
-// Build category filter chips dynamically from the summary's byCategory data.
-// Sorted by count desc so the highest-volume category shows first.
+// Build the category filter dropdown dynamically from the summary's byCategory
+// data. Sorted by count desc so the highest-volume category shows first. T-117
+// converted this from a row of 11 pills to a single <select> to cut the clutter.
 const _CATEGORY_LABELS = {
   action: 'Action Items', admin: 'Admin', content: 'Content', delivery: 'Delivery',
   engineering: 'Engineering', finance: 'Finance', general: 'General', marketing: 'Marketing',
   prism_studio: 'Prism Studio', sales: 'Sales', training: 'Training',
 };
 function populateCategoryFilters(byCategory) {
-  const container = document.getElementById('ticket-cat-filters');
-  if (!container) return;
-  // Keep the "All Categories" button (first child); rebuild the rest.
-  const allBtn = container.querySelector('button[onclick*="\'all\'"]');
-  const wasActive = ticketCatFilter;
-  container.innerHTML = '';
-  if (allBtn) container.appendChild(allBtn); else {
-    const b = document.createElement('button');
-    b.className = wasActive === 'all' ? 'active' : '';
-    b.textContent = 'All Categories';
-    b.onclick = function() { ticketFilterCat('all', this); };
-    container.appendChild(b);
-  }
-  const sorted = [...byCategory].sort((a, b) => (b.count || 0) - (a.count || 0));
+  const select = document.getElementById('ticket-cat-select');
+  if (!select) return;
+  const sorted = [...byCategory]
+    .filter(row => row.category && row.category !== 'dev_insight' && row.category !== 'dev-insight')
+    .sort((a, b) => (b.count || 0) - (a.count || 0));
+  const total = sorted.reduce((n, row) => n + (row.count || 0), 0);
+  const opts = [`<option value="all">All Categories (${total})</option>`];
   for (const row of sorted) {
     const cat = row.category;
-    if (!cat || cat === 'dev_insight' || cat === 'dev-insight') continue;
     const label = _CATEGORY_LABELS[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase());
-    const b = document.createElement('button');
-    if (wasActive === cat) b.classList.add('active');
-    b.textContent = `${label} (${row.count})`;
-    b.onclick = function() { ticketFilterCat(cat, this); };
-    container.appendChild(b);
+    opts.push(`<option value="${escapeHtml(cat)}">${escapeHtml(label)} (${row.count})</option>`);
   }
+  select.innerHTML = opts.join('');
+  // Preserve the active selection across reloads; fall back to 'all' if the
+  // previously-selected category dropped out of the data.
+  const has = sorted.some(row => row.category === ticketCatFilter);
+  select.value = (ticketCatFilter !== 'all' && has) ? ticketCatFilter : 'all';
+  if (!has && ticketCatFilter !== 'all') ticketCatFilter = 'all';
+  select.classList.toggle('filtered', select.value !== 'all');
 }
 
 // Render delta chips + sparklines into the .kpi-trend slot on each tile.
@@ -3340,10 +3354,13 @@ function ticketFilterType(type, el) {
   ticketRender();
 }
 
-function ticketFilterCat(cat, el) {
+function ticketFilterCat(cat) {
   ticketCatFilter = cat;
-  $$('#ticket-cat-filters button').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+  const select = document.getElementById('ticket-cat-select');
+  if (select) {
+    if (select.value !== cat) select.value = cat;
+    select.classList.toggle('filtered', cat !== 'all');
+  }
   ticketRender();
 }
 
