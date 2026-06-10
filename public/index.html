@@ -331,12 +331,11 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 .ticket-views button:hover { color: var(--text); border-color: var(--royal); }
 .ticket-views button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
-/* T-117: slimmed to 4 headline tiles (Overdue / To Do·Target / Done This Week /
-   Open). The dropped Total + Client + Internal counts are carried more legibly
-   by the category/priority trend charts below the tile row. */
-.ticket-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-@media (max-width: 900px) { .ticket-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-/* T-117: trend-over-time charts — category mix + priority/complexity mix. */
+/* T-119: 7 threshold-colored metric tiles. Auto-fit so the row self-wraps
+   across breakpoints without per-width media queries. */
+.ticket-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr)); gap: 10px; margin-bottom: 16px; }
+/* T-119: Effort-Mix (split bar) + Flow (dual line) charts replace the T-117
+   category/priority vanity charts. */
 .ticket-trend-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
 @media (max-width: 900px) { .ticket-trend-charts { grid-template-columns: 1fr; } }
 .ticket-trend-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
@@ -1027,18 +1026,19 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <button class="btn-primary" onclick="ticketShowCreateModal()">+ New Ticket</button>
       </div>
       <div id="ticket-kpis" class="ticket-kpi-grid"></div>
-      <!-- T-117: trend-over-time charts. Series built from the daily
-           ticket-snapshot files via /api/tickets/trends/series?dimension=. -->
+      <!-- T-119: operational charts. Effort-Mix = actual vs intended allocation
+           (client-side from the live tickets); Flow = backlog vs throughput from
+           the durable snapshot series (/api/tickets/trends/series). -->
       <div class="ticket-trend-charts">
         <div class="ticket-trend-card">
-          <h4>Tickets by Category — 30 days</h4>
-          <div class="ticket-trend-canvas-wrap"><canvas id="chart-tickets-category"></canvas></div>
-          <div id="chart-tickets-category-empty" class="ticket-trend-empty" style="display:none"></div>
+          <h4>Effort Mix — Actual vs Intended</h4>
+          <div class="ticket-trend-canvas-wrap"><canvas id="chart-effort-mix"></canvas></div>
+          <div id="chart-effort-mix-empty" class="ticket-trend-empty" style="display:none"></div>
         </div>
         <div class="ticket-trend-card">
-          <h4>Tickets by Priority / Complexity — 30 days</h4>
-          <div class="ticket-trend-canvas-wrap"><canvas id="chart-tickets-priority"></canvas></div>
-          <div id="chart-tickets-priority-empty" class="ticket-trend-empty" style="display:none"></div>
+          <h4>Flow — Open Backlog vs Completed / week</h4>
+          <div class="ticket-trend-canvas-wrap"><canvas id="chart-tickets-flow"></canvas></div>
+          <div id="chart-tickets-flow-empty" class="ticket-trend-empty" style="display:none"></div>
         </div>
       </div>
       <!-- Filters apply to the Kanban (the only view per Michele's edits 2026-05-24).
@@ -2986,11 +2986,11 @@ let allTickets = [];
 let _trendDelta = { available: false, current: null, delta: null, comparison_date: null, days: 7 };
 let _trendSeries = { available_days: 0, days: 14, series: null };
 
-// T-117: Chart.js instances for the category / priority trend charts. Held at
-// module scope so each loaders.tickets run destroys-then-recreates (the same
-// pattern the compliance + financials charts use) rather than stacking canvases.
-let chartTicketsCategory = null;
-let chartTicketsPriority = null;
+// T-119: Chart.js instances for the Effort-Mix (split bar) + Flow (dual line)
+// charts. Held at module scope so each loaders.tickets run destroys-then-recreates
+// (the same pattern the compliance + financials charts use).
+let chartEffortMix = null;
+let chartTicketsFlow = null;
 // Local hex→rgba (the canonical withAlpha lives in the chart-theme ES module,
 // but this page runs synchronous inline chart code — keep a tiny local copy).
 const _withAlpha = (hex, a) => {
@@ -3012,14 +3012,108 @@ const _TILE_DIRECTION = {
   internal_tasks:      'neutral',
 };
 
+// ── T-119: operational metrics ──────────────────────────────────────────────
+// Targets are Michele's locked choices from the 2026-06-10 metrics brainstorm.
+// All point-in-time metrics compute client-side from allTickets (the Notion-
+// backed source of truth). "revenue-facing" is defined on CATEGORY, not
+// ticket_type — the Notion adapter hardcodes ticket_type to 'internal', so it's
+// unusable; category (delivery/sales) is reliable.
+const _STALE_WIP_DAYS = 7;                 // mirrors server.js STALE_DEFAULT_DAYS
+const _REVENUE_CATEGORIES = ['delivery', 'sales'];
+// 4 strategic buckets and the intended allocation vector (sums to 100).
+const _EFFORT_MIX_BUCKETS = [
+  { key: 'revenue',     label: 'Revenue',      cats: ['delivery', 'sales'],                                    intended: 20 },
+  { key: 'product_eng', label: 'Product + Eng', cats: ['engineering', 'prism_studio'],                          intended: 45 },
+  { key: 'marketing',   label: 'Marketing',    cats: ['marketing', 'content'],                                  intended: 20 },
+  { key: 'admin_ops',   label: 'Admin + Ops',  cats: ['admin', 'finance', 'training', 'action', 'general'],     intended: 15 },
+];
+const _CATEGORY_TO_BUCKET = (() => {
+  const m = {};
+  for (const b of _EFFORT_MIX_BUCKETS) for (const c of b.cats) m[c] = b.key;
+  return m;
+})();
+
+// Each entry maps a metric payload → a window.PRISM.STATUS key (success|warning|
+// danger|neutral). revenueFacing is intentionally absent → measure-only (no color
+// yet; threshold set ~Aug 15 per the filed Notion ticket). `todo` is NOT here —
+// updateTodoKpiTile() owns that tile's color.
+const _METRIC_THRESHOLDS = {
+  decisionsOwed: m => (m.count > 5 || (m.oldestDays ?? 0) > 2) ? 'danger' : ((m.oldestDays ?? 0) > 1 ? 'warning' : 'success'),
+  overdue:       m => (m.hasUrgentHigh || (m.totalOpen > 0 && m.count > 0.10 * m.totalOpen)) ? 'danger' : (m.count > 0 ? 'warning' : 'success'),
+  wip:           m => m.value > 9 ? 'danger' : (m.value >= 6 ? 'warning' : 'success'),
+  staleWip:      m => m.value > 3 ? 'danger' : (m.value >= 1 ? 'warning' : 'success'),
+  netFlow:       m => m.ratio == null ? 'neutral' : (m.ratio < 0.7 ? 'danger' : (m.ratio < 0.9 ? 'warning' : 'success')),
+};
+function evalThreshold(key, payload) {
+  const f = _METRIC_THRESHOLDS[key];
+  if (!f) return null;                      // measure-only metric → default text color
+  return window.PRISM.STATUS[f(payload)] || null;
+}
+// Per-bucket Effort-Mix bar color by gap from intended (pp).
+function mixBucketColor(actual, intended) {
+  const gap = Math.abs(actual - intended);
+  return gap > 20 ? window.PRISM.STATUS.danger : (gap > 10 ? window.PRISM.STATUS.warning : window.PRISM.STATUS.success);
+}
+
+// Compute every point-in-time metric from the live ticket list + summary.
+function computeTicketMetrics(tickets, summary) {
+  const now = Date.now();
+  const DAY = 86400000;
+  const ageDays = (iso) => (iso ? Math.floor((now - Date.parse(iso)) / DAY) : null);
+  const isOpen = (t) => t.status !== 'done' && t.status !== 'cancelled';
+  const open = tickets.filter(isOpen);
+  const totalOpen = open.length;
+  const todayISO = new Date().toISOString().slice(0, 10);
+
+  // Revenue-facing % (measure-only)
+  const revOpen = open.filter(t => _REVENUE_CATEGORIES.includes(t.category)).length;
+  const revenuePct = totalOpen ? Math.round(100 * revOpen / totalOpen) : null;
+
+  // Effort mix — actual % per bucket over open tickets
+  const bucketCounts = Object.fromEntries(_EFFORT_MIX_BUCKETS.map(b => [b.key, 0]));
+  for (const t of open) {
+    const bk = _CATEGORY_TO_BUCKET[t.category];
+    if (bk) bucketCounts[bk]++;
+    else if (t.category && t.category !== 'dev-insight' && t.category !== 'dev_insight') console.warn('[metrics] unmapped category:', t.category);
+  }
+  const effortMix = _EFFORT_MIX_BUCKETS.map(b => ({
+    key: b.key, label: b.label, intended: b.intended,
+    actual: totalOpen ? Math.round(100 * bucketCounts[b.key] / totalOpen) : 0,
+  }));
+
+  // Decisions owed — Review-column age
+  const review = tickets.filter(t => t.status === 'review');
+  const reviewAges = review.map(t => ageDays(t.updated_at) ?? 0);
+  const decisionsOwed = { count: review.length, oldestDays: reviewAges.length ? Math.max(...reviewAges) : 0 };
+
+  // WIP + Stale WIP
+  const inProgress = tickets.filter(t => t.status === 'in_progress');
+  const wip = inProgress.length;
+  const staleWip = inProgress.filter(t => (ageDays(t.updated_at) ?? 0) > _STALE_WIP_DAYS).length;
+
+  // Net flow — created (7d) vs closed (7d). Closed comes from summary.completedThisWeek
+  // (it already handles the Notion completed_date approximation).
+  const created7d = tickets.filter(t => t.created_at && (now - Date.parse(t.created_at)) <= 7 * DAY).length;
+  const closed7d = Number(summary.completedThisWeek || 0);
+  const netFlow = { created7d, closed7d, net: created7d - closed7d, ratio: created7d > 0 ? closed7d / created7d : null };
+
+  // Overdue — headline count from summary; trigger/aging from the client set.
+  const overdueSet = open.filter(t => t.due_date && t.due_date < todayISO);
+  const overdue = {
+    count: Number(summary.overdue || 0),
+    totalOpen,
+    hasUrgentHigh: overdueSet.some(t => t.priority === 'urgent' || t.priority === 'high'),
+  };
+
+  return { totalOpen, revenuePct, revOpen, effortMix, decisionsOwed, wip, staleWip, netFlow, overdue };
+}
+
 loaders.tickets = async () => {
-  const [ticketRes, summaryRes, trendRes, seriesRes, catSeriesRes, priSeriesRes] = await Promise.all([
+  const [ticketRes, summaryRes, trendRes, seriesRes] = await Promise.all([
     api('tickets'),
     api('tickets/summary'),
     api('tickets/trends?days=7').catch(() => ({ ok: false })),
-    api('tickets/trends/series?days=14').catch(() => ({ ok: false })),
-    api('tickets/trends/series?days=30&dimension=category').catch(() => ({ ok: false })),
-    api('tickets/trends/series?days=30&dimension=priority').catch(() => ({ ok: false })),
+    api('tickets/trends/series?days=30').catch(() => ({ ok: false })),
   ]);
   // Hide dev-insight tickets from the Tickets page — they get their own surface in T-020.
   allTickets = (ticketRes.tickets || []).filter(t => t.category !== 'dev-insight');
@@ -3027,10 +3121,10 @@ loaders.tickets = async () => {
   _trendDelta  = trendRes && trendRes.ok ? trendRes : _trendDelta;
   _trendSeries = seriesRes && seriesRes.ok ? seriesRes : _trendSeries;
 
-  // KPIs — Phase C added the "To Do current/target" tile (color-coded vs target).
-  // Trend layer (2026-05-24): each tile carries a delta chip + 14-day sparkline,
-  // hidden when there's no historical snapshot to compare against.
+  // T-119: compute the operational metrics client-side from the live ticket list.
+  const M = computeTicketMetrics(allTickets, s);
   const initialTodoCount = allTickets.filter(t => t.status === 'todo').length;
+
   const tileHtml = (metricKey, opts) => {
     const { label, value, valueColor, tileId } = opts;
     const idAttr = tileId ? ` id="${tileId}"` : '';
@@ -3041,15 +3135,19 @@ loaders.tickets = async () => {
       <div class="kpi-trend"></div>
     </div>`;
   };
-  // T-117: 4 headline tiles ordered by monitoring urgency — what's on fire
-  // (Overdue), is the queue healthy (To Do/Target), is throughput moving
-  // (Done This Week), and baseline volume (Open). Total / Client / Internal
-  // counts were dropped here — the trend charts below carry that mix.
+
+  // T-119: 7 operational tiles, urgency-ordered. Each carries a target + a
+  // green/amber/red threshold (except Revenue-Facing %, which is measure-only
+  // until a floor is set ~Aug 15, and To Do/Target, which owns its own color).
+  const d = M.decisionsOwed;
   $('#ticket-kpis').innerHTML = [
-    tileHtml('overdue',             { label: 'Overdue',         value: s.overdue || 0, valueColor: 'var(--red)' }),
-    tileHtml('todo',                { label: 'To Do / Target',  value: initialTodoCount + ' / ' + _RECOMMENDED_TODO_TARGET, tileId: 'ticket-kpi-todo', title: "Approve backlog into To Do from the Daily Agenda 'Recommended for To Do' panel" }),
-    tileHtml('completed_this_week', { label: 'Done This Week',  value: s.completedThisWeek || 0, valueColor: 'var(--green)' }),
-    tileHtml('open',                { label: 'Open',            value: s.open || 0, valueColor: 'var(--blue)' }),
+    tileHtml('decisionsOwed',  { label: 'Decisions Owed',  value: `${d.count}${d.count ? ' · ' + d.oldestDays + 'd' : ''}`, valueColor: evalThreshold('decisionsOwed', d), title: 'Tickets in Review awaiting your decision. Target: clear within 1 day. Oldest shown after the dot.' }),
+    tileHtml('overdue',        { label: 'Overdue',         value: M.overdue.count, valueColor: evalThreshold('overdue', M.overdue), title: 'Open tickets past due date. Red if >10% of open or any urgent/high is late.' }),
+    tileHtml('wip',            { label: 'WIP',             value: M.wip, valueColor: evalThreshold('wip', { value: M.wip }), title: 'Tickets In Progress. Target ≤5 for the team; high WIP balloons cycle time.' }),
+    tileHtml('staleWip',       { label: 'Stale WIP',       value: M.staleWip, valueColor: evalThreshold('staleWip', { value: M.staleWip }), title: `In Progress with no movement >${_STALE_WIP_DAYS}d. Target 0 — move it or park it.` }),
+    tileHtml('netFlow',        { label: 'Net Flow (7d)',   value: `${M.netFlow.net > 0 ? '+' : ''}${M.netFlow.net}${M.netFlow.ratio != null ? ' · ' + M.netFlow.ratio.toFixed(2) + '×' : ''}`, valueColor: evalThreshold('netFlow', M.netFlow), title: `Created − Closed over 7 days (${M.netFlow.created7d} created, ${M.netFlow.closed7d} closed). Completion ratio after the dot; target ≥0.9.` }),
+    tileHtml('revenueFacing',  { label: 'Revenue-Facing %', value: M.revenuePct == null ? '—' : M.revenuePct + '%', title: `Share of open work in revenue categories (delivery, sales): ${M.revOpen}/${M.totalOpen}. Measuring baseline — target floor set ~Aug 15.` }),
+    tileHtml('todo',           { label: 'To Do / Target',  value: initialTodoCount + ' / ' + _RECOMMENDED_TODO_TARGET, tileId: 'ticket-kpi-todo', title: "Approve backlog into To Do from the Daily Agenda 'Recommended for To Do' panel" }),
   ].join('');
   // Color the To Do tile based on initial seed; the daily-agenda loader will
   // refresh it again when recommended-todo resolves with the canonical count.
@@ -3058,9 +3156,9 @@ loaders.tickets = async () => {
   renderTileTrends();
   populateCategoryFilters(s.byCategory || []);
 
-  // T-117: trend-over-time charts. Tolerant of failed/absent series (empty state).
-  renderTicketCategoryChart(catSeriesRes && catSeriesRes.ok ? catSeriesRes.series : null, catSeriesRes && catSeriesRes.ok ? catSeriesRes.available_days : 0);
-  renderTicketPriorityChart(priSeriesRes && priSeriesRes.ok ? priSeriesRes.series : null, priSeriesRes && priSeriesRes.ok ? priSeriesRes.available_days : 0);
+  // T-119: operational charts — allocation mix vs intent, and flow over time.
+  renderEffortMixChart(M.effortMix);
+  renderFlowChart(seriesRes && seriesRes.ok ? seriesRes : null);
 
   ticketRender();
 };
@@ -3155,10 +3253,7 @@ function _sparklineSvg(points, metric) {
   return `<svg class="kpi-sparkline" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-label="${vals.length}-day trend"><path d="${path}" fill="none" stroke="${stroke}" stroke-width="1.5"/><circle cx="${lastX}" cy="${lastY}" r="2" fill="${stroke}"/></svg>`;
 }
 
-// ── T-117: trend-over-time stacked-area charts ──────────────────────────────
-// Stacked area (line + fill + stacked y) so the silhouette reads as total queue
-// volume while the bands show mix shift over time. A shared builder keeps the
-// category and priority charts identical except for series colors + ordering.
+// ── T-119: operational charts ───────────────────────────────────────────────
 const _CHART_DAY_LABEL = (iso) => {
   // iso = 'YYYY-MM-DD' — render as 'Jun 9' without constructing a TZ-shifted Date.
   const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -3166,105 +3261,96 @@ const _CHART_DAY_LABEL = (iso) => {
   return `${M[Number(mo) - 1]} ${Number(d)}`;
 };
 
-function _renderTrendChart(opts) {
-  const { canvasId, emptyId, series, availableDays, order, colorFor, labelFor } = opts;
-  const canvas = document.getElementById(canvasId);
-  const empty = document.getElementById(emptyId);
-  if (!canvas) return null;
-
-  // A trend line needs at least two days. With 0 or 1 day of history, hide the
-  // canvas and show a baseline note that reports how much data exists so far —
-  // an empty plot reads as "broken", a counted note reads as "warming up".
-  if (!series || availableDays < 2 || Object.keys(series).length === 0) {
-    if (empty) {
-      const d = availableDays || 0;
-      empty.textContent = `Collecting baseline — ${d} day${d === 1 ? '' : 's'} of history so far; the trend appears once 2+ daily snapshots accumulate.`;
-      empty.style.display = 'block';
-    }
+// Effort Mix — horizontal grouped bar: Actual % (gap-colored per bucket) vs the
+// intended allocation (neutral ghost). Answers "is my effort going where I intend".
+function renderEffortMixChart(mix) {
+  if (chartEffortMix) { chartEffortMix.destroy(); chartEffortMix = null; }
+  const canvas = document.getElementById('chart-effort-mix');
+  const empty = document.getElementById('chart-effort-mix-empty');
+  if (!canvas) return;
+  if (!mix || !mix.length) {
+    if (empty) { empty.textContent = 'No open tickets to measure allocation.'; empty.style.display = 'block'; }
     canvas.style.display = 'none';
-    return null;
+    return;
   }
   canvas.style.display = 'block';
   if (empty) empty.style.display = 'none';
-
-  // X axis = union of every date seen across series, sorted ascending.
-  const dateSet = new Set();
-  Object.values(series).forEach(pts => pts.forEach(p => dateSet.add(p.date)));
-  const dates = [...dateSet].sort();
-  const labels = dates.map(_CHART_DAY_LABEL);
-
-  // Order known keys first (per the supplied order), then any extras alphabetically.
-  const keys = Object.keys(series);
-  const ordered = [
-    ...order.filter(k => keys.includes(k)),
-    ...keys.filter(k => !order.includes(k)).sort(),
-  ];
-
-  const datasets = ordered.map((key, i) => {
-    const byDate = Object.fromEntries(series[key].map(p => [p.date, p.value]));
-    const color = colorFor(key, i);
-    return {
-      label: labelFor(key),
-      data: dates.map(d => byDate[d] ?? 0),
-      backgroundColor: _withAlpha(color, 0.65),
-      borderColor: color,
-      borderWidth: 1.5,
-      fill: true,
-      tension: 0.3,
-      pointRadius: 0,
-      pointHoverRadius: 3,
-    };
-  });
-
   const axis = window.PRISM.CHART_AXIS;
-  const cfg = {
+  chartEffortMix = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: mix.map(b => b.label),
+      datasets: [
+        {
+          label: 'Actual',
+          data: mix.map(b => b.actual),
+          backgroundColor: mix.map(b => mixBucketColor(b.actual, b.intended)),
+          borderRadius: 4, borderSkipped: false,
+        },
+        {
+          label: 'Intended',
+          data: mix.map(b => b.intended),
+          backgroundColor: _withAlpha(window.PRISM.STATUS.neutral, 0.35),
+          borderRadius: 4, borderSkipped: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: axis.text, font: { size: 10 }, usePointStyle: true, boxWidth: 8, padding: 10 } },
+        tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.x}%` } },
+      },
+      scales: {
+        x: { beginAtZero: true, max: Math.max(50, ...mix.map(b => Math.max(b.actual, b.intended))), ticks: { color: axis.text, font: { size: 10 }, callback: v => v + '%' }, grid: { color: axis.grid } },
+        y: { ticks: { color: axis.text, font: { size: 11 } }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+// Flow — dual line: open backlog vs completed/week, from the durable snapshot
+// series (scalar /api/tickets/trends/series). Answers "am I keeping up". Needs
+// 2+ days of history; otherwise a counted baseline note (same pattern as T-117).
+function renderFlowChart(seriesRes) {
+  if (chartTicketsFlow) { chartTicketsFlow.destroy(); chartTicketsFlow = null; }
+  const canvas = document.getElementById('chart-tickets-flow');
+  const empty = document.getElementById('chart-tickets-flow-empty');
+  if (!canvas) return;
+  const series = seriesRes && seriesRes.series;
+  const days = seriesRes ? (seriesRes.available_days || 0) : 0;
+  if (!series || days < 2 || !series.open || !series.completed_this_week) {
+    if (empty) { empty.textContent = `Collecting baseline — ${days} day${days === 1 ? '' : 's'} of history so far; the flow lines appear once 2+ daily snapshots accumulate.`; empty.style.display = 'block'; }
+    canvas.style.display = 'none';
+    return;
+  }
+  canvas.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+  const dateSet = new Set();
+  [series.open, series.completed_this_week].forEach(pts => pts.forEach(p => dateSet.add(p.date)));
+  const dates = [...dateSet].sort();
+  const byDate = (pts) => Object.fromEntries(pts.map(p => [p.date, p.value]));
+  const openByDate = byDate(series.open);
+  const doneByDate = byDate(series.completed_this_week);
+  const axis = window.PRISM.CHART_AXIS;
+  chartTicketsFlow = new Chart(canvas.getContext('2d'), {
     type: 'line',
-    data: { labels, datasets },
+    data: {
+      labels: dates.map(_CHART_DAY_LABEL),
+      datasets: [
+        { label: 'Open backlog', data: dates.map(d => openByDate[d] ?? null), borderColor: '#6E8FD8', backgroundColor: _withAlpha('#6E8FD8', 0.12), borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0, pointHoverRadius: 3, spanGaps: true },
+        { label: 'Completed / week', data: dates.map(d => doneByDate[d] ?? null), borderColor: window.PRISM.STATUS.success, backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 0, pointHoverRadius: 3, spanGaps: true },
+      ],
+    },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { position: 'bottom', labels: { color: axis.text, font: { size: 10 }, usePointStyle: true, boxWidth: 8, padding: 10 } },
-      },
+      plugins: { legend: { position: 'bottom', labels: { color: axis.text, font: { size: 10 }, usePointStyle: true, boxWidth: 8, padding: 10 } } },
       scales: {
-        x: { stacked: true, ticks: { color: axis.text, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: axis.grid } },
-        y: { stacked: true, beginAtZero: true, ticks: { color: axis.text, font: { size: 10 }, precision: 0 }, grid: { color: axis.grid } },
+        x: { ticks: { color: axis.text, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: axis.grid } },
+        y: { beginAtZero: true, ticks: { color: axis.text, font: { size: 10 }, precision: 0 }, grid: { color: axis.grid } },
       },
     },
-  };
-  const ctx = canvas.getContext('2d');
-  return new Chart(ctx, cfg);
-}
-
-function renderTicketCategoryChart(series, availableDays) {
-  if (chartTicketsCategory) { chartTicketsCategory.destroy(); chartTicketsCategory = null; }
-  // Brand rule: navy-led, gold never leads a volume chart. PALETTE[0] is gold,
-  // so offset by 1 — gold (#C8A45A) only appears if a chart has 8+ categories.
-  const palette = window.PRISM.PALETTE;
-  const CAT_ORDER = ['engineering','marketing','admin','content','training','delivery','prism_studio','action','sales','finance','general'];
-  chartTicketsCategory = _renderTrendChart({
-    canvasId: 'chart-tickets-category',
-    emptyId: 'chart-tickets-category-empty',
-    series, availableDays,
-    order: CAT_ORDER,
-    colorFor: (key, i) => palette[(i + 1) % palette.length],
-    labelFor: (key) => (_CATEGORY_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase())),
-  });
-}
-
-function renderTicketPriorityChart(series, availableDays) {
-  if (chartTicketsPriority) { chartTicketsPriority.destroy(); chartTicketsPriority = null; }
-  // Semantic colors: urgent=danger, high=amber-warning, medium=blue, low=success.
-  // Gold-as-`high` is a named warning role here, not a decorative lead — within brand rule.
-  const PRIO_COLOR = { urgent: '#D96A6A', high: '#C8A45A', medium: '#6E8FD8', low: '#4FB48A' };
-  const PRIO_LABEL = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
-  chartTicketsPriority = _renderTrendChart({
-    canvasId: 'chart-tickets-priority',
-    emptyId: 'chart-tickets-priority-empty',
-    series, availableDays,
-    order: ['urgent', 'high', 'medium', 'low'],
-    colorFor: (key) => PRIO_COLOR[key] || '#7A85C4',
-    labelFor: (key) => (PRIO_LABEL[key] || key.replace(/\b\w/g, m => m.toUpperCase())),
   });
 }
 
