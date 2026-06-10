@@ -3172,9 +3172,15 @@ function _renderTrendChart(opts) {
   const empty = document.getElementById(emptyId);
   if (!canvas) return null;
 
-  // No history at all → hide the canvas, show the baseline note.
-  if (!series || availableDays < 1 || Object.keys(series).length === 0) {
-    if (empty) { empty.textContent = 'Collecting baseline — the trend appears once daily snapshots accumulate.'; empty.style.display = 'block'; }
+  // A trend line needs at least two days. With 0 or 1 day of history, hide the
+  // canvas and show a baseline note that reports how much data exists so far —
+  // an empty plot reads as "broken", a counted note reads as "warming up".
+  if (!series || availableDays < 2 || Object.keys(series).length === 0) {
+    if (empty) {
+      const d = availableDays || 0;
+      empty.textContent = `Collecting baseline — ${d} day${d === 1 ? '' : 's'} of history so far; the trend appears once 2+ daily snapshots accumulate.`;
+      empty.style.display = 'block';
+    }
     canvas.style.display = 'none';
     return null;
   }

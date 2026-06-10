@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "date": "2026-06-07",
+  "captured_at": "2026-06-07T14:36:17.277Z",
+  "source": "unknown",
+  "counts": {
+    "total": 390,
+    "open": 128,
+    "overdue": 18,
+    "completed_this_week": 0
+  },
+  "byStatus": [
+    {
+      "status": "backlog",
+      "count": 79
+    },
+    {
+      "status": "blocked",
+      "count": 3
+    },
+    {
+      "status": "done",
+      "count": 262
+    },
+    {
+      "status": "in_progress",
+      "count": 20
+    },
+    {
+      "status": "todo",
+      "count": 26
+    }
+  ],
+  "byPriority": [
+    {
+      "priority": "high",
+      "count": 59
+    },
+    {
+      "priority": "low",
+      "count": 8
+    },
+    {
+      "priority": "medium",
+      "count": 314
+    },
+    {
+      "priority": "urgent",
+      "count": 9
+    }
+  ],
+  "byType": [
+    {
+      "ticket_type": "client",
+      "count": 3
+    },
+    {
+      "ticket_type": "internal",
+      "count": 387
+    }
+  ],
+  "byCategory": [
+    {
+      "category": "action",
+      "count": 10
+    },
+    {
+      "category": "admin",
+      "count": 19
+    },
+    {
+      "category": "content",
+      "count": 15
+    },
+    {
+      "category": "delivery",
+      "count": 12
+    },
+    {
+      "category": "engineering",
+      "count": 243
+    },
+    {
+      "category": "general",
+      "count": 5
+    },
+    {
+      "category": "marketing",
+      "count": 42
+    },
+    {
+      "category": "prism_studio",
+      "count": 17
+    },
+    {
+      "category": "sales",
+      "count": 1
+    },
+    {
+      "category": "training",
+      "count": 26
+    }
+  ],
+  "excluded": {
+    "dev_insight_count": 0
+  }
+}

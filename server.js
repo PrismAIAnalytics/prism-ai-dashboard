@@ -1265,6 +1265,17 @@ function initDB() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- T-118: durable daily ticket-snapshot store. The file-based snapshots in
+    -- reports/ are ephemeral on Railway (wiped every deploy), so the T-117 trend
+    -- charts kept resetting to one data point. This table lives on the persistent
+    -- volume (with the rest of prism.db), so per-category / per-priority history
+    -- survives deploys. One row per UTC day; payload is the full snapshot JSON.
+    CREATE TABLE IF NOT EXISTS ticket_snapshots (
+      date TEXT PRIMARY KEY,
+      captured_at TEXT,
+      payload TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
@@ -2295,6 +2306,9 @@ if (APP_ENV !== 'production') {
 } else {
   console.log('[startup] APP_ENV=production — skipping demo seed functions.');
 }
+// T-118: snapshot seed runs in ALL envs (real history, not demo data) — populates
+// the durable ticket_snapshots table from committed seed files on a fresh volume.
+seedTicketSnapshotsIfEmpty();
 
 // ─── External Service Initialization ───────────────────────────────────────
 stripeService.init();
@@ -5257,11 +5271,61 @@ function _trendsExtractDimension(snap, dimension) {
   return Object.keys(result).length ? result : null;
 }
 
+// T-118: read a day's snapshot durable-first. The ticket_snapshots table lives
+// on the persistent volume so it survives deploys; the reports/ file is the
+// fallback for same-day reads before the row is written (and for local dev).
 function _trendsLoadSnapshot(date) {
+  try {
+    const row = db.prepare('SELECT payload FROM ticket_snapshots WHERE date = ?').get(date);
+    if (row && row.payload) return JSON.parse(row.payload);
+  } catch (e) { /* table may not exist yet on a brand-new DB — fall through to file */ }
   const p = path.join(__dirname, 'reports', `ticket-snapshot-${date}.json`);
   if (!fs.existsSync(p)) return null;
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
   catch (e) { return null; }
+}
+
+// T-118: upsert a snapshot JSON into the durable table. Idempotent per date.
+// Accepts a parsed snapshot object (must carry a `date`); returns true on write.
+function _trendsPersistSnapshot(snap) {
+  if (!snap || !snap.date) return false;
+  try {
+    db.prepare(
+      `INSERT INTO ticket_snapshots (date, captured_at, payload) VALUES (?, ?, ?)
+       ON CONFLICT(date) DO UPDATE SET captured_at = excluded.captured_at, payload = excluded.payload`
+    ).run(snap.date, snap.captured_at || new Date().toISOString(), JSON.stringify(snap));
+    return true;
+  } catch (e) {
+    console.error('[snapshot-persist] failed for', snap.date, '-', e.message);
+    return false;
+  }
+}
+
+// T-118: one-time boot seed. If the durable table is empty (e.g. a fresh volume),
+// import any ticket-snapshot-*.json files shipped in config/snapshot-seed/
+// (committed real history — config/ is COPYed into the image) plus any present
+// in reports/, so the trend charts have a line from first boot instead of
+// waiting days for the cron to accumulate.
+function seedTicketSnapshotsIfEmpty() {
+  try {
+    const n = db.prepare('SELECT COUNT(*) AS n FROM ticket_snapshots').get().n;
+    if (n > 0) return;
+    const dirs = [path.join(__dirname, 'config', 'snapshot-seed'), path.join(__dirname, 'reports')];
+    let seeded = 0;
+    for (const dir of dirs) {
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        if (!/^ticket-snapshot-\d{4}-\d{2}-\d{2}\.json$/.test(f)) continue;
+        try {
+          const snap = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+          if (_trendsPersistSnapshot(snap)) seeded++;
+        } catch (e) { /* skip unreadable seed file */ }
+      }
+    }
+    if (seeded) console.log(`  [snapshot-seed] imported ${seeded} historical snapshot(s) into ticket_snapshots`);
+  } catch (e) {
+    console.error('[snapshot-seed] failed:', e.message);
+  }
 }
 
 function _trendsDateStr(daysAgo) {
@@ -8104,7 +8168,18 @@ app.listen(PORT, () => {
         child.stdout.on('data', (d) => process.stdout.write(`[snapshot-cron] ${d}`));
         child.stderr.on('data', (d) => process.stderr.write(`[snapshot-cron] ${d}`));
         child.on('error', (e) => console.error('[snapshot-cron] spawn failed:', e.message));
-        child.on('close', (code) => console.log(`[snapshot-cron] ${date} run exited ${code}`));
+        child.on('close', (code) => {
+          console.log(`[snapshot-cron] ${date} run exited ${code}`);
+          // T-118: mirror the just-written file into the durable table so the
+          // trend series survives the next deploy. Best-effort — a failure here
+          // never affects the file write.
+          if (code === 0) {
+            try {
+              const snap = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+              if (_trendsPersistSnapshot(snap)) console.log(`[snapshot-cron] ${date} persisted to ticket_snapshots`);
+            } catch (e) { console.error('[snapshot-cron] persist failed:', e.message); }
+          }
+        });
       } catch (e) {
         console.error('[snapshot-cron] check failed:', e.message);
       }
