@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-120 | Effort Mix chart — show % value labels at the end of each bar | feat/t120-effort-mix-bar-labels | Claude Code | 2026-06-10 |
 
 ---
 
