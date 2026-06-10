@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-117 | Tickets page — trend-over-time charts by category + priority/complexity; slim metric tiles 7→4 | feat/t117-tickets-trend-charts | Claude Code | 2026-06-10 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-117 | Tickets page — trend-over-time charts by category + priority/complexity; slim metric tiles 7→4 | 2026-06-10 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #126 as `1dc7c95d60b06e367e5d5f1c22628f2c10061490` (squash) on 2026-06-10. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-116 | Extend `/api/tickets/stale` to flag To Do stalled-start (longer 14d fuse) — follow-up to T-115 | 2026-06-09 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #124 as `ade4a23423a1f73a2ba4e0c7e17ba79d92ead254` (squash) on 2026-06-09. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-115 | `/api/tickets/stale` endpoint + nightly snapshot — flag tickets sitting in an active status (In Progress / Review / Blocked) past a day threshold (silent status-drift detector) | 2026-06-09 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #122 as `b85f5e1fd49350fe3d0dc2c864d772428df0492d` (squash) on 2026-06-09. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-114 | Add a Research Sources nav link to the dashboard (the T-113 standalone page had no entry point) | 2026-06-07 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #120 as `bca2a273cb460b9414d2ba9796692e84a27e1a4d` (squash) on 2026-06-07. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
