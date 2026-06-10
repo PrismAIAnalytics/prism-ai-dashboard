@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-117 | Tickets page — trend-over-time charts by category + priority/complexity; slim metric tiles 7→4 | feat/t117-tickets-trend-charts | Claude Code | 2026-06-10 |
 
 ---
 

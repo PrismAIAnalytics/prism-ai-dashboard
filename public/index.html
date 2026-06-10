@@ -331,10 +331,18 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 }
 .ticket-views button:hover { color: var(--text); border-color: var(--royal); }
 .ticket-views button.active { color: var(--white); background: var(--royal); border-color: var(--royal); }
-/* 7 KPI tiles after Phase C added To Do/Target — single-row layout on desktop. */
-.ticket-kpi-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 20px; }
-@media (max-width: 1400px) { .ticket-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+/* T-117: slimmed to 4 headline tiles (Overdue / To Do·Target / Done This Week /
+   Open). The dropped Total + Client + Internal counts are carried more legibly
+   by the category/priority trend charts below the tile row. */
+.ticket-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
 @media (max-width: 900px) { .ticket-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+/* T-117: trend-over-time charts — category mix + priority/complexity mix. */
+.ticket-trend-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+@media (max-width: 900px) { .ticket-trend-charts { grid-template-columns: 1fr; } }
+.ticket-trend-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.ticket-trend-card h4 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 10px; }
+.ticket-trend-canvas-wrap { position: relative; height: 200px; }
+.ticket-trend-empty { font-size: 12px; color: var(--muted); text-align: center; padding: 70px 12px; line-height: 1.5; }
 /* KPI trend layer (2026-05-24): delta chip + 14-day sparkline per tile */
 .kpi-trend { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .kpi-trend:empty { display: none; }
@@ -1005,6 +1013,20 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <button class="btn-primary" onclick="ticketShowCreateModal()">+ New Ticket</button>
       </div>
       <div id="ticket-kpis" class="ticket-kpi-grid"></div>
+      <!-- T-117: trend-over-time charts. Series built from the daily
+           ticket-snapshot files via /api/tickets/trends/series?dimension=. -->
+      <div class="ticket-trend-charts">
+        <div class="ticket-trend-card">
+          <h4>Tickets by Category — 30 days</h4>
+          <div class="ticket-trend-canvas-wrap"><canvas id="chart-tickets-category"></canvas></div>
+          <div id="chart-tickets-category-empty" class="ticket-trend-empty" style="display:none"></div>
+        </div>
+        <div class="ticket-trend-card">
+          <h4>Tickets by Priority / Complexity — 30 days</h4>
+          <div class="ticket-trend-canvas-wrap"><canvas id="chart-tickets-priority"></canvas></div>
+          <div id="chart-tickets-priority-empty" class="ticket-trend-empty" style="display:none"></div>
+        </div>
+      </div>
       <!-- Filters apply to the Kanban (the only view per Michele's edits 2026-05-24).
            Within-column ordering uses ticketSortList default (updated_desc).
            Category chips are populated dynamically from /api/tickets/summary's
@@ -2946,6 +2968,18 @@ let allTickets = [];
 let _trendDelta = { available: false, current: null, delta: null, comparison_date: null, days: 7 };
 let _trendSeries = { available_days: 0, days: 14, series: null };
 
+// T-117: Chart.js instances for the category / priority trend charts. Held at
+// module scope so each loaders.tickets run destroys-then-recreates (the same
+// pattern the compliance + financials charts use) rather than stacking canvases.
+let chartTicketsCategory = null;
+let chartTicketsPriority = null;
+// Local hex→rgba (the canonical withAlpha lives in the chart-theme ES module,
+// but this page runs synchronous inline chart code — keep a tiny local copy).
+const _withAlpha = (hex, a) => {
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+};
+
 // Tile direction semantics — drives delta-chip color.
 //   lower-is-better:  up=red (bad)    down=green (good)
 //   higher-is-better: up=green (good) down=red (bad)
@@ -2961,11 +2995,13 @@ const _TILE_DIRECTION = {
 };
 
 loaders.tickets = async () => {
-  const [ticketRes, summaryRes, trendRes, seriesRes] = await Promise.all([
+  const [ticketRes, summaryRes, trendRes, seriesRes, catSeriesRes, priSeriesRes] = await Promise.all([
     api('tickets'),
     api('tickets/summary'),
     api('tickets/trends?days=7').catch(() => ({ ok: false })),
     api('tickets/trends/series?days=14').catch(() => ({ ok: false })),
+    api('tickets/trends/series?days=30&dimension=category').catch(() => ({ ok: false })),
+    api('tickets/trends/series?days=30&dimension=priority').catch(() => ({ ok: false })),
   ]);
   // Hide dev-insight tickets from the Tickets page — they get their own surface in T-020.
   allTickets = (ticketRes.tickets || []).filter(t => t.category !== 'dev-insight');
@@ -2987,14 +3023,15 @@ loaders.tickets = async () => {
       <div class="kpi-trend"></div>
     </div>`;
   };
+  // T-117: 4 headline tiles ordered by monitoring urgency — what's on fire
+  // (Overdue), is the queue healthy (To Do/Target), is throughput moving
+  // (Done This Week), and baseline volume (Open). Total / Client / Internal
+  // counts were dropped here — the trend charts below carry that mix.
   $('#ticket-kpis').innerHTML = [
-    tileHtml('total',               { label: 'Total Tickets',   value: s.total || 0 }),
-    tileHtml('open',                { label: 'Open',            value: s.open || 0, valueColor: 'var(--blue)' }),
-    tileHtml('todo',                { label: 'To Do / Target',  value: initialTodoCount + ' / ' + _RECOMMENDED_TODO_TARGET, tileId: 'ticket-kpi-todo', title: "Approve backlog into To Do from the Daily Agenda 'Recommended for To Do' panel" }),
     tileHtml('overdue',             { label: 'Overdue',         value: s.overdue || 0, valueColor: 'var(--red)' }),
+    tileHtml('todo',                { label: 'To Do / Target',  value: initialTodoCount + ' / ' + _RECOMMENDED_TODO_TARGET, tileId: 'ticket-kpi-todo', title: "Approve backlog into To Do from the Daily Agenda 'Recommended for To Do' panel" }),
     tileHtml('completed_this_week', { label: 'Done This Week',  value: s.completedThisWeek || 0, valueColor: 'var(--green)' }),
-    tileHtml('client_tasks',        { label: 'Client Tasks',    value: (s.byType || []).find(t => t.ticket_type === 'client')?.count || 0, valueColor: 'var(--green)' }),
-    tileHtml('internal_tasks',      { label: 'Internal Tasks',  value: (s.byType || []).find(t => t.ticket_type === 'internal')?.count || 0, valueColor: 'var(--purple)' }),
+    tileHtml('open',                { label: 'Open',            value: s.open || 0, valueColor: 'var(--blue)' }),
   ].join('');
   // Color the To Do tile based on initial seed; the daily-agenda loader will
   // refresh it again when recommended-todo resolves with the canonical count.
@@ -3002,6 +3039,10 @@ loaders.tickets = async () => {
   updateTodoKpiTile();
   renderTileTrends();
   populateCategoryFilters(s.byCategory || []);
+
+  // T-117: trend-over-time charts. Tolerant of failed/absent series (empty state).
+  renderTicketCategoryChart(catSeriesRes && catSeriesRes.ok ? catSeriesRes.series : null, catSeriesRes && catSeriesRes.ok ? catSeriesRes.available_days : 0);
+  renderTicketPriorityChart(priSeriesRes && priSeriesRes.ok ? priSeriesRes.series : null, priSeriesRes && priSeriesRes.ok ? priSeriesRes.available_days : 0);
 
   ticketRender();
 };
@@ -3098,6 +3139,113 @@ function _sparklineSvg(points, metric) {
   const lastX = ((vals.length - 1) * stepX).toFixed(1);
   const lastY = (padY + (h - 2 * padY) * (1 - (latest - min) / range)).toFixed(1);
   return `<svg class="kpi-sparkline" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-label="${vals.length}-day trend"><path d="${path}" fill="none" stroke="${stroke}" stroke-width="1.5"/><circle cx="${lastX}" cy="${lastY}" r="2" fill="${stroke}"/></svg>`;
+}
+
+// ── T-117: trend-over-time stacked-area charts ──────────────────────────────
+// Stacked area (line + fill + stacked y) so the silhouette reads as total queue
+// volume while the bands show mix shift over time. A shared builder keeps the
+// category and priority charts identical except for series colors + ordering.
+const _CHART_DAY_LABEL = (iso) => {
+  // iso = 'YYYY-MM-DD' — render as 'Jun 9' without constructing a TZ-shifted Date.
+  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [, mo, d] = iso.split('-');
+  return `${M[Number(mo) - 1]} ${Number(d)}`;
+};
+
+function _renderTrendChart(opts) {
+  const { canvasId, emptyId, series, availableDays, order, colorFor, labelFor } = opts;
+  const canvas = document.getElementById(canvasId);
+  const empty = document.getElementById(emptyId);
+  if (!canvas) return null;
+
+  // No history at all → hide the canvas, show the baseline note.
+  if (!series || availableDays < 1 || Object.keys(series).length === 0) {
+    if (empty) { empty.textContent = 'Collecting baseline — the trend appears once daily snapshots accumulate.'; empty.style.display = 'block'; }
+    canvas.style.display = 'none';
+    return null;
+  }
+  canvas.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+
+  // X axis = union of every date seen across series, sorted ascending.
+  const dateSet = new Set();
+  Object.values(series).forEach(pts => pts.forEach(p => dateSet.add(p.date)));
+  const dates = [...dateSet].sort();
+  const labels = dates.map(_CHART_DAY_LABEL);
+
+  // Order known keys first (per the supplied order), then any extras alphabetically.
+  const keys = Object.keys(series);
+  const ordered = [
+    ...order.filter(k => keys.includes(k)),
+    ...keys.filter(k => !order.includes(k)).sort(),
+  ];
+
+  const datasets = ordered.map((key, i) => {
+    const byDate = Object.fromEntries(series[key].map(p => [p.date, p.value]));
+    const color = colorFor(key, i);
+    return {
+      label: labelFor(key),
+      data: dates.map(d => byDate[d] ?? 0),
+      backgroundColor: _withAlpha(color, 0.65),
+      borderColor: color,
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      pointHoverRadius: 3,
+    };
+  });
+
+  const axis = window.PRISM.CHART_AXIS;
+  const cfg = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: axis.text, font: { size: 10 }, usePointStyle: true, boxWidth: 8, padding: 10 } },
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: axis.text, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { color: axis.grid } },
+        y: { stacked: true, beginAtZero: true, ticks: { color: axis.text, font: { size: 10 }, precision: 0 }, grid: { color: axis.grid } },
+      },
+    },
+  };
+  const ctx = canvas.getContext('2d');
+  return new Chart(ctx, cfg);
+}
+
+function renderTicketCategoryChart(series, availableDays) {
+  if (chartTicketsCategory) { chartTicketsCategory.destroy(); chartTicketsCategory = null; }
+  // Brand rule: navy-led, gold never leads a volume chart. PALETTE[0] is gold,
+  // so offset by 1 — gold (#C8A45A) only appears if a chart has 8+ categories.
+  const palette = window.PRISM.PALETTE;
+  const CAT_ORDER = ['engineering','marketing','admin','content','training','delivery','prism_studio','action','sales','finance','general'];
+  chartTicketsCategory = _renderTrendChart({
+    canvasId: 'chart-tickets-category',
+    emptyId: 'chart-tickets-category-empty',
+    series, availableDays,
+    order: CAT_ORDER,
+    colorFor: (key, i) => palette[(i + 1) % palette.length],
+    labelFor: (key) => (_CATEGORY_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, m => m.toUpperCase())),
+  });
+}
+
+function renderTicketPriorityChart(series, availableDays) {
+  if (chartTicketsPriority) { chartTicketsPriority.destroy(); chartTicketsPriority = null; }
+  // Semantic colors: urgent=danger, high=amber-warning, medium=blue, low=success.
+  // Gold-as-`high` is a named warning role here, not a decorative lead — within brand rule.
+  const PRIO_COLOR = { urgent: '#D96A6A', high: '#C8A45A', medium: '#6E8FD8', low: '#4FB48A' };
+  const PRIO_LABEL = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
+  chartTicketsPriority = _renderTrendChart({
+    canvasId: 'chart-tickets-priority',
+    emptyId: 'chart-tickets-priority-empty',
+    series, availableDays,
+    order: ['urgent', 'high', 'medium', 'low'],
+    colorFor: (key) => PRIO_COLOR[key] || '#7A85C4',
+    labelFor: (key) => (PRIO_LABEL[key] || key.replace(/\b\w/g, m => m.toUpperCase())),
+  });
 }
 
 function ticketSortList(arr) {
