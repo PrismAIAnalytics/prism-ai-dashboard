@@ -218,6 +218,25 @@ function inferPlanWorkstream(roadmap, allTickets) {
   return best;
 }
 
+// T-123: normalize a pending-plan's optional `ticket_spec` into the roadmap
+// shape that plansAggregator.computeProgress understands. Accepts the same
+// {kind:'range'|'ids', value:[...]} shape activatePendingPlan takes, so a plan
+// promoted manually and one auto-flipped read from the identical field.
+// Returns null when the spec is absent or malformed (plan stays Pending).
+function normalizeTicketSpec(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const value = spec.value;
+  if (!Array.isArray(value) || value.length === 0) return null;
+  if (spec.kind === 'range') {
+    if (value.length !== 2) return null;
+    return { kind: 'range', value: [String(value[0]), String(value[1])] };
+  }
+  if (spec.kind === 'ids') {
+    return { kind: 'ids', value: value.map(String) };
+  }
+  return null;
+}
+
 function median(nums) {
   if (!nums || nums.length === 0) return null;
   const sorted = nums.slice().sort((a, b) => a - b);
@@ -277,19 +296,82 @@ async function compute(notionAdapter, { useCache = true } = {}) {
   }));
 
   // ─── 3. Pending plans ──────────────────────────────────────────────────
+  // T-123: a Pending plan that declares a `ticket_spec` is no longer "awaiting
+  // review" the moment any of its tickets start moving in Notion. Rather than
+  // wait for a manual `→ Active` click, we reclassify it to Active at compute
+  // time (display-only — the pending-plans.json manifest is never rewritten,
+  // so this is self-correcting and can't corrupt the manifest). Plans without a
+  // ticket_spec, or whose tickets haven't started, stay Pending.
   let pendingItems = [];
+  const autoActivatedItems = [];
   try {
     const pending = await pendingPlansAggregator.getPendingPlans(plansAggregator);
-    pendingItems = (pending.pending_plans || []).map(p => ({
-      id: `pending:${p.slug}`,
-      state: 'pending',
-      title: p.name,
-      workstream: null, // pending manifest carries no workstream — left null
-      source: p.plan_file,
-      last_updated: p.review_date || p.created_date || null,
-      summary: p.summary || '',
-      drill_link: p.plan_file,
-    }));
+
+    for (const p of (pending.pending_plans || [])) {
+      const spec = normalizeTicketSpec(p.ticket_spec);
+      if (spec && notionAvailable) {
+        const roadmapShape = spec.kind === 'range'
+          ? { ticket_id_range: spec.value }
+          : { ticket_ids: spec.value };
+        const progress = plansAggregator.computeProgress(roadmapShape, allTickets);
+        // "Started" = at least one member ticket has left Backlog. shipped/done,
+        // in_progress, and blocked all count as started work.
+        const started = progress.total > 0
+          && (progress.shipped > 0 || progress.in_progress > 0 || progress.blocked > 0);
+        if (started) {
+          autoActivatedItems.push({
+            id: `active:${p.slug}`,
+            state: 'active',
+            title: p.name,
+            slug: p.slug,
+            workstream: inferPlanWorkstream(roadmapShape, allTickets),
+            source: p.plan_file,
+            last_updated: p.review_date || p.created_date || null,
+            progress,
+            // All tickets Done → surface the "Ship this plan" CTA, but never
+            // auto-archive: the Shipped write is irreversible and needs a human
+            // closing comment (decided 2026-06-18).
+            ready_to_ship: progress.shipped === progress.total,
+            spec: spec.kind === 'range'
+              ? { kind: 'range', from: spec.value[0], to: spec.value[1] }
+              : { kind: 'list', ids: spec.value },
+            note: p.summary || '',
+            auto_activated: true, // T-123 provenance — flipped from Pending by ticket activity
+          });
+          continue;
+        }
+      }
+      pendingItems.push({
+        id: `pending:${p.slug}`,
+        state: 'pending',
+        title: p.name,
+        workstream: null, // pending manifest carries no workstream — left null
+        source: p.plan_file,
+        last_updated: p.review_date || p.created_date || null,
+        summary: p.summary || '',
+        drill_link: p.plan_file,
+      });
+    }
+
+    // T-123: surface recent auto-scanned drafts (~/.claude/plans/ files carrying
+    // a review marker, modified in the scanner's window) on the Lifecycle table
+    // too — previously they only appeared in the Daily Agenda's side panel, so
+    // a plan drafted yesterday never showed up here. Tagged auto_suggested so
+    // the UI can mark them as not-yet-in-the-manifest. Empty on Railway (no
+    // plans dir), same graceful degradation as the scanner.
+    for (const s of (pending.suggested_plans || [])) {
+      pendingItems.push({
+        id: `pending:suggested:${s.slug}`,
+        state: 'pending',
+        title: s.name,
+        workstream: null,
+        source: s.plan_file,
+        last_updated: s.modified_date || null,
+        summary: '',
+        drill_link: s.plan_file,
+        auto_suggested: true, // T-123 — from plans-dir auto-scan, not yet curated into the manifest
+      });
+    }
   } catch (e) {
     console.warn('[lifecycleAggregator] pending fetch failed:', e.message);
   }
@@ -341,6 +423,13 @@ async function compute(notionAdapter, { useCache = true } = {}) {
       ready_to_ship: false,
       note: r.note,
     }));
+  }
+
+  // T-123: fold the plans that auto-flipped Pending → Active into the Active
+  // column. The pending/active dedup (getPendingPlans masks active slugs) keeps
+  // a slug from appearing in both, so no collision filter is needed here.
+  if (autoActivatedItems.length > 0) {
+    activeItems = [...activeItems, ...autoActivatedItems];
   }
 
   // ─── 5. Shipped (archived) ────────────────────────────────────────────

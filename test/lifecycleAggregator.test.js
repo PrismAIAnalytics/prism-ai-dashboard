@@ -16,6 +16,7 @@ const path = require('path');
 
 const lifecycleAggregator = require('../services/lifecycleAggregator');
 const plansAggregator = require('../services/plansAggregator');
+const pendingPlansAggregator = require('../services/pendingPlansAggregator');
 
 // ─── Stub notionAdapter ──────────────────────────────────────────────────
 function makeStubAdapter(tickets) {
@@ -208,22 +209,31 @@ test('shipPlan rejects retired plans with status 409', async () => {
 });
 
 test('shipPlan rejects when plan is not at 100% with status 409', async () => {
-  // Founder Journey has 1 ticket SOC-005 with status in_progress in fixture — not at 100%
-  const stub = makeStubAdapter(FIXTURE_TICKETS);
+  // Mission Control's spec is the explicit ids [T-036,T-037,T-038,T-039,T-043,T-044].
+  // Stub a fixture where two of them are present but one is still in_progress so
+  // the plan computes < 100%. (Founder Journey — the old fixture here — is now
+  // retired:true, which would short-circuit to a different 409 before the
+  // 100% check; mission-control is the only live ship-gated arc.)
+  const partial = [
+    { title: 'T-036: phase', status: 'done', category: 'engineering' },
+    { title: 'T-037: phase', status: 'in_progress', category: 'engineering' },
+  ];
+  const stub = makeStubAdapter(partial);
   await assert.rejects(
-    () => lifecycleAggregator.shipPlan('founder-journey-personal-account', 'This is a valid closing comment over 20 chars.', stub),
+    () => lifecycleAggregator.shipPlan('mission-control', 'This is a valid closing comment over 20 chars.', stub),
     (e) => e.status === 409 && /not at 100/i.test(e.message),
   );
 });
 
 test('shipPlan succeeds for a 100%-complete plan and moves it atomically', async () => {
-  // Mission Control spec is T-036..T-055 (range). Build a fixture where every
-  // ticket in the range is done so the aggregator counts the plan as 100%.
+  // Mission Control's spec is the explicit ids [T-036,T-037,T-038,T-039,T-043,T-044]
+  // (the manifest switched from a T-036..T-055 range to 6 filed-in-Notion ids).
+  // Build a fixture where all six are done so the aggregator counts it 100%.
   // Snapshot the manifest before so we can restore it.
-  const allDoneTickets = [];
-  for (let n = 36; n <= 55; n += 1) {
-    allDoneTickets.push({ title: `T-0${n}: phase`, status: 'done', category: 'engineering' });
-  }
+  const MISSION_CONTROL_IDS = ['T-036', 'T-037', 'T-038', 'T-039', 'T-043', 'T-044'];
+  const allDoneTickets = MISSION_CONTROL_IDS.map(id => (
+    { title: `${id}: phase`, status: 'done', category: 'engineering' }
+  ));
   const stub = makeStubAdapter(allDoneTickets);
 
   // Snapshot both manifests so the test is non-destructive
@@ -242,7 +252,7 @@ test('shipPlan succeeds for a 100%-complete plan and moves it atomically', async
     assert.ok(out.shipped.shipped_at, 'shipped_at timestamp present');
     assert.ok(out.shipped.closing_comment.length >= 20, 'closing comment preserved');
     assert.ok(Array.isArray(out.shipped.ticket_snapshot), 'ticket snapshot is an array');
-    assert.equal(out.shipped.ticket_snapshot.length, 20, 'all 20 tickets in range snapshotted');
+    assert.equal(out.shipped.ticket_snapshot.length, 6, 'all 6 mission-control tickets snapshotted');
     assert.equal(out.shipped.workstream, 'engineering', 'workstream inferred');
 
     // Active manifest should no longer contain this slug
@@ -283,6 +293,141 @@ test('plansAggregator exposes ready_to_ship flag for 100% plans', async () => {
   // Solopreneur OS is retired — should be absent entirely
   const solopreneur = result.active_roadmaps.find(r => r.slug === 'solopreneur-os-etsy-sku');
   assert.equal(solopreneur, undefined, 'retired plan filtered out of active output');
+});
+
+// ─── T-123: Pending → Active auto-flip on ticket activity ────────────────
+// lifecycleAggregator.compute() reads pending plans via
+// pendingPlansAggregator.getPendingPlans. We override that singleton method to
+// drive deterministic pending/suggested fixtures, then assert how compute()
+// reclassifies them against the stub Notion ticket list. Restored in finally.
+async function withStubbedPending(pendingResult, fn) {
+  const original = pendingPlansAggregator.getPendingPlans;
+  pendingPlansAggregator.getPendingPlans = async () => pendingResult;
+  try {
+    return await fn();
+  } finally {
+    pendingPlansAggregator.getPendingPlans = original;
+  }
+}
+
+test('compute() auto-flips a Pending plan to Active once a ticket has started', async () => {
+  const stub = makeStubAdapter(FIXTURE_TICKETS); // SOC-005 is in_progress
+  await withStubbedPending(
+    {
+      pending_plans: [
+        { slug: 'in-flight-plan', name: 'In-flight plan', plan_file: '~/x.md',
+          review_date: '2026-06-10', ticket_spec: { kind: 'ids', value: ['SOC-005'] } },
+      ],
+      suggested_plans: [],
+    },
+    async () => {
+      lifecycleAggregator.invalidateCache();
+      const data = await lifecycleAggregator.compute(stub, { useCache: false });
+      const pending = data.items.filter(i => i.state === 'pending').map(i => i.title);
+      const active = data.items.filter(i => i.state === 'active');
+      assert.equal(pending.includes('In-flight plan'), false, 'started plan left the Pending column');
+      const flipped = active.find(i => i.slug === 'in-flight-plan');
+      assert.ok(flipped, 'started plan now appears in Active');
+      assert.equal(flipped.auto_activated, true, 'tagged auto_activated for provenance');
+      assert.equal(flipped.ready_to_ship, false, 'in_progress (not all done) → not ready_to_ship');
+      assert.equal(flipped.workstream, 'marketing', 'workstream inferred from SOC-005 category');
+    },
+  );
+});
+
+test('compute() auto-flips an all-done Pending plan to Active with ready_to_ship', async () => {
+  const stub = makeStubAdapter(FIXTURE_TICKETS); // T-036 is done
+  await withStubbedPending(
+    {
+      pending_plans: [
+        { slug: 'done-plan', name: 'Done plan', plan_file: '~/y.md',
+          review_date: '2026-06-10', ticket_spec: { kind: 'ids', value: ['T-036'] } },
+      ],
+      suggested_plans: [],
+    },
+    async () => {
+      lifecycleAggregator.invalidateCache();
+      const data = await lifecycleAggregator.compute(stub, { useCache: false });
+      const flipped = data.items.find(i => i.state === 'active' && i.slug === 'done-plan');
+      assert.ok(flipped, 'all-done plan appears in Active');
+      assert.equal(flipped.ready_to_ship, true, 'all tickets done → ready_to_ship (but NOT auto-archived)');
+      // It must NOT have been auto-archived into Shipped.
+      assert.equal(
+        data.items.some(i => i.state === 'shipped' && i.slug === 'done-plan'),
+        false,
+        'all-done plan is never auto-moved to Shipped (human closing-comment gate preserved)',
+      );
+    },
+  );
+});
+
+test('compute() keeps a Pending plan pending when its ticket_spec resolves to zero Notion tickets', async () => {
+  const stub = makeStubAdapter(FIXTURE_TICKETS);
+  await withStubbedPending(
+    {
+      pending_plans: [
+        { slug: 'unfiled-plan', name: 'Unfiled plan', plan_file: '~/z.md',
+          review_date: '2026-06-10', ticket_spec: { kind: 'ids', value: ['ZZ-999'] } },
+      ],
+      suggested_plans: [],
+    },
+    async () => {
+      lifecycleAggregator.invalidateCache();
+      const data = await lifecycleAggregator.compute(stub, { useCache: false });
+      assert.equal(
+        data.items.some(i => i.state === 'pending' && i.title === 'Unfiled plan'),
+        true,
+        'plan whose tickets are absent from Notion stays Pending (engineering T-### gap is safe)',
+      );
+      assert.equal(
+        data.items.some(i => i.state === 'active' && i.slug === 'unfiled-plan'),
+        false,
+        'absent-ticket plan is not falsely activated',
+      );
+    },
+  );
+});
+
+test('compute() leaves a Pending plan with no ticket_spec untouched', async () => {
+  const stub = makeStubAdapter(FIXTURE_TICKETS);
+  await withStubbedPending(
+    {
+      pending_plans: [
+        { slug: 'unlinked-plan', name: 'Unlinked plan', plan_file: '~/u.md', review_date: '2026-06-10' },
+      ],
+      suggested_plans: [],
+    },
+    async () => {
+      lifecycleAggregator.invalidateCache();
+      const data = await lifecycleAggregator.compute(stub, { useCache: false });
+      assert.equal(
+        data.items.some(i => i.state === 'pending' && i.title === 'Unlinked plan'),
+        true,
+        'no ticket_spec → stays Pending (manual → Active still available)',
+      );
+    },
+  );
+});
+
+test('compute() surfaces auto-suggested drafts as Pending items', async () => {
+  const stub = makeStubAdapter(FIXTURE_TICKETS);
+  await withStubbedPending(
+    {
+      pending_plans: [],
+      suggested_plans: [
+        { slug: 'fresh-draft', name: 'Fresh draft from yesterday', plan_file: '~/fresh.md',
+          modified_date: '2026-06-17', source: 'auto_scan' },
+      ],
+    },
+    async () => {
+      lifecycleAggregator.invalidateCache();
+      const data = await lifecycleAggregator.compute(stub, { useCache: false });
+      const item = data.items.find(i => i.state === 'pending' && i.title === 'Fresh draft from yesterday');
+      assert.ok(item, 'auto-scanned draft now shows on the Lifecycle table, not just the side panel');
+      assert.equal(item.auto_suggested, true, 'tagged auto_suggested (not yet curated into the manifest)');
+      assert.equal(item.last_updated, '2026-06-17', 'uses the file modified date');
+    },
+  );
 });
 
 // ─── T-080: prefetchedTickets dedupe ────────────────────────────────────
