@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-123 | Auto-flip Lifecycle Pending→Active when a plan's tickets start (display-time) + surface recent auto-suggested drafts on the Lifecycle table | feat/t123-pending-autoflip | Claude Code | 2026-06-18 |
 
 ---
 
