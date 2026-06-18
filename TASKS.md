@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-122 | Tickets filters → Task Type + Due Date dropdowns; move all 3 filter dropdowns into the page header | feat/t121-header-filters | Claude Code | 2026-06-10 |
 
 ---
 
