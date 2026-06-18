@@ -41,6 +41,11 @@
     .section-head { display: flex; align-items: baseline; gap: var(--space-3); margin: var(--space-5) 0 var(--space-3); }
     .section-head h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; }
     .section-head .sub { color: var(--text-dim); font-size: var(--text-xs); }
+    .gran-toggle { margin-left: auto; display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-pill); overflow: hidden; }
+    .gran-toggle button { background: transparent; color: var(--text-muted); border: none; padding: 4px 13px; font-size: var(--text-xs); font-family: inherit; cursor: pointer; letter-spacing: 0.02em; }
+    .gran-toggle button + button { border-left: 1px solid var(--border-strong); }
+    .gran-toggle button:hover { color: var(--text); }
+    .gran-toggle button.active { background: var(--sky); color: var(--core); font-weight: 600; }
     .trends-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-4); margin-bottom: var(--space-5); }
     @media (max-width: 860px) { .trends-grid { grid-template-columns: 1fr; } }
     .chart-card { background: var(--shell); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-5); }
@@ -116,7 +121,11 @@
 
     <div class="section-head">
       <h2>Trends</h2>
-      <span class="sub">research attention by month — a lens on our focus, not the field</span>
+      <span class="sub" id="trend-sub">research attention by week — a lens on our focus, not the field</span>
+      <div class="gran-toggle" role="group" aria-label="Trend granularity">
+        <button type="button" id="gran-week" class="active" aria-pressed="true">Week</button>
+        <button type="button" id="gran-month" aria-pressed="false">Month</button>
+      </div>
     </div>
     <div class="trends-grid" id="trends" hidden>
       <div class="chart-card">
@@ -128,7 +137,7 @@
         <div class="chart-wrap"><canvas id="chart-keywords"></canvas></div>
       </div>
       <div class="chart-card" style="grid-column: 1 / -1;">
-        <h3>Rising &amp; fading <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">— latest month vs the one before</span></h3>
+        <h3>Rising &amp; fading <span id="movers-sub" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-dim)">— latest week vs the one before</span></h3>
         <div class="movers">
           <div><h4>▲ Rising</h4><div id="rising"></div></div>
           <div><h4>▼ Fading</h4><div id="fading"></div></div>
@@ -157,9 +166,11 @@
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmtMonth = (b) => { const [y, m] = b.split('-'); return new Date(y, m - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }); };
+    const fmtWeek = (b) => { const [y, m, d] = b.split('-'); return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
 
     let DEBOUNCE = null;
     let tagFilter = '';
+    let granularity = 'week'; // 'week' | 'month' — drives trend bucketing
     let volumeChart = null, keywordChart = null;
 
     function buildQuery() {
@@ -214,7 +225,7 @@
     function renderCharts(trends) {
       if (!window.Chart) return;
       const buckets = trends.buckets || [];
-      const labels = buckets.map(fmtMonth);
+      const labels = buckets.map(trends.granularity === 'week' ? fmtWeek : fmtMonth);
       if (volumeChart) volumeChart.destroy();
       if (keywordChart) keywordChart.destroy();
       if (!buckets.length) { $('trends').hidden = true; return; }
@@ -257,9 +268,10 @@
       $('list').innerHTML = '';
       try {
         const qs = buildQuery();
+        const trendsQs = (qs ? qs + '&' : '') + 'granularity=' + granularity;
         const [listData, trends] = await Promise.all([
           fetchJson('/api/research-sources' + (qs ? '?' + qs : '')),
-          fetchJson('/api/research-sources/trends' + (qs ? '?' + qs : '')),
+          fetchJson('/api/research-sources/trends?' + trendsQs),
         ]);
         const rows = (listData && listData.sources) || [];
         renderTiles(rows);
@@ -283,6 +295,21 @@
 
     ['f-q', 'f-cited'].forEach((id) => $(id).addEventListener('input', () => { clearTimeout(DEBOUNCE); DEBOUNCE = setTimeout(load, 250); }));
     ['f-from', 'f-to'].forEach((id) => $(id).addEventListener('change', load));
+
+    function setGranularity(g) {
+      if (g === granularity) return;
+      granularity = g;
+      const isWeek = g === 'week';
+      $('gran-week').classList.toggle('active', isWeek);
+      $('gran-month').classList.toggle('active', !isWeek);
+      $('gran-week').setAttribute('aria-pressed', String(isWeek));
+      $('gran-month').setAttribute('aria-pressed', String(!isWeek));
+      $('trend-sub').textContent = `research attention by ${g} — a lens on our focus, not the field`;
+      $('movers-sub').textContent = `— latest ${g} vs the one before`;
+      load();
+    }
+    $('gran-week').addEventListener('click', () => setGranularity('week'));
+    $('gran-month').addEventListener('click', () => setGranularity('month'));
 
     load();
   </script>

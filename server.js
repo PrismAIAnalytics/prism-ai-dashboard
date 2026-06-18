@@ -3693,10 +3693,23 @@ app.post('/api/research-sources', express.json({ limit: '256kb' }), (req, res) =
   }
 });
 
+// Returns the ISO-week-start (Monday) for a YYYY-MM-DD string, as YYYY-MM-DD.
+// Used as the bucket key when trends are requested at week granularity. The
+// Monday anchor keeps week buckets sortable as plain date strings.
+function weekStartOf(dateStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || '');
+  if (!m) return '';
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  const dow = d.getUTCDay(); // 0=Sun .. 6=Sat
+  d.setUTCDate(d.getUTCDate() + (dow === 0 ? -6 : 1 - dow)); // shift back to Monday
+  return d.toISOString().slice(0, 10);
+}
+
 // GET /api/research-sources/trends — longitudinal view of research attention.
-// Buckets entries by month (pulled_at YYYY-MM), counts volume, and auto-flags
-// each entry against the keyword watchlist + its stored tags. Honors the same
-// cited_in / tag / q / from / to filters as the list endpoint.
+// Buckets entries by month (pulled_at YYYY-MM) or week (Monday YYYY-MM-DD) per
+// the optional ?granularity=week|month param (default month), counts volume, and
+// auto-flags each entry against the keyword watchlist + its stored tags. Honors
+// the same cited_in / tag / q / from / to filters as the list endpoint.
 // Returns: { ok, granularity, buckets[], volume{}, keywords[], tags[], trending }
 app.get('/api/research-sources/trends', (req, res) => {
   try {
@@ -3719,11 +3732,16 @@ app.get('/api/research-sources/trends', (req, res) => {
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const rows = db.prepare(`SELECT * FROM research_sources ${where}`).all(...params);
 
-    // Collect the full set of month buckets present, sorted ascending.
+    // Bucket granularity: week (Monday-anchored YYYY-MM-DD) or month (YYYY-MM).
+    const granularity = req.query.granularity === 'week' ? 'week' : 'month';
+    const bucketOf = (dateStr) =>
+      granularity === 'week' ? weekStartOf(dateStr) : (dateStr || '').slice(0, 7);
+
+    // Collect the full set of buckets present, sorted ascending.
     const bucketSet = new Set();
     for (const r of rows) {
-      const b = (r.pulled_at || '').slice(0, 7);
-      if (/^\d{4}-\d{2}$/.test(b)) bucketSet.add(b);
+      const b = bucketOf(r.pulled_at);
+      if (b) bucketSet.add(b);
     }
     const buckets = [...bucketSet].sort();
     const idx = Object.fromEntries(buckets.map((b, i) => [b, i]));
@@ -3736,7 +3754,7 @@ app.get('/api/research-sources/trends', (req, res) => {
     const blank = () => buckets.map(() => 0);
 
     for (const r of rows) {
-      const b = (r.pulled_at || '').slice(0, 7);
+      const b = bucketOf(r.pulled_at);
       if (!(b in idx)) continue;
       volume[b]++;
       for (const label of matchResearchKeywords(r)) {
@@ -3768,7 +3786,7 @@ app.get('/api/research-sources/trends', (req, res) => {
 
     res.json({
       ok: true,
-      granularity: 'month',
+      granularity,
       total: rows.length,
       buckets,
       volume,
