@@ -5793,7 +5793,10 @@ loaders['prism-studio'] = async () => {
 const escHtml = escapeHtml;
 
 function setAgendaContextLine() {
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+  // Pin to America/New_York (T-124) so the header date is the firm's business day
+  // for every viewer — matching the server's ET-anchored brief date. Without the
+  // timeZone, a non-ET viewer's browser-local date could disagree with the brief.
+  const today = new Date().toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
   $('#agenda-context-line').textContent = `${today} — what needs your attention.`;
 }
 

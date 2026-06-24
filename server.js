@@ -23,6 +23,7 @@ const lifecycleAggregator = require('./services/lifecycleAggregator'); // T-078 
 const prismStudioActivityLog = require('./services/prismStudioActivityLog');
 const knowledgebaseScanner = require('./services/knowledgebaseScanner'); // T-076 — Knowledgebase manifest reader
 const knowledgebaseVisibility = require('./services/knowledgebaseVisibility'); // T-076 — public/non-public curation
+const { businessToday, businessDayMinus } = require('./services/businessDay'); // T-124 — Eastern business-day "today"
 const readinessScoring = require('./lib/readiness-scoring');
 const serviceRecommender = require('./lib/service-recommender');
 const emailSender = require('./lib/email-sender');
@@ -125,6 +126,9 @@ function requireAuth(req, res, next) {
   } catch(e) {}
   return res.status(403).json({ ok: false, error: 'Invalid or expired token' });
 }
+
+// Eastern business-day helpers (businessToday / businessDayMinus) live in
+// ./services/businessDay (T-124 / PRISM-715) — required at the top of this file.
 
 // ─── Auth endpoints (public) ──────────────────────────────────────────────
 app.post('/api/auth/login', express.json(), (req, res) => {
@@ -676,7 +680,7 @@ app.post('/api/assessments', (req, res) => {
   }
 
   const id = uuid();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = businessToday(); // Eastern business day (T-124) — assessment_date
   try {
     db.prepare(`INSERT INTO ai_readiness_assessments
       (id, client_id, project_id, assessed_by, assessment_date,
@@ -4879,7 +4883,7 @@ app.patch('/api/milestones/:id', [
     allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
 
     // Auto-set completed_date when marking as completed
-    if (updates.status === 'completed') updates.completed_date = new Date().toISOString().split('T')[0];
+    if (updates.status === 'completed') updates.completed_date = businessToday(); // Eastern business day (T-124)
     if (updates.status && updates.status !== 'completed') updates.completed_date = null;
 
     if (Object.keys(updates).length === 0) return res.status(400).json({ ok: false, error: 'No valid fields' });
@@ -5033,7 +5037,7 @@ app.post('/api/documents', [
   try {
     const { title, description, category, visibility, doc_type, drive_url, tags, linked_date, review_section } = req.body;
     // Auto-set linked_date to today if not provided
-    const effectiveDate = linked_date || new Date().toISOString().split('T')[0];
+    const effectiveDate = linked_date || businessToday(); // Eastern business day (T-124)
     const result = db.prepare(`INSERT INTO documents
       (title, description, category, visibility, doc_type, drive_url, tags, linked_date, review_section)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
@@ -5575,7 +5579,7 @@ app.get('/api/tickets/stale', requireAuth, async (req, res) => {
 app.get('/api/tickets/recommended-todo', requireAuth, async (req, res) => {
   const n = Math.max(1, Math.min(50, parseInt(req.query.n, 10) || 10));
   const target = Math.max(1, Math.min(50, parseInt(req.query.target, 10) || 10));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = businessToday(); // Eastern business day (T-124)
   try {
     let tickets = [];
     if (process.env.USE_NOTION_SOURCE === 'true') {
@@ -5703,7 +5707,7 @@ app.patch('/api/tickets/:id', requireAuth, async (req, res) => {
       if (req.body[k] !== undefined) updates[k] = req.body[k];
     }
     if (req.body.status === 'done' && !req.body.completed_date) {
-      updates.completed_date = new Date().toISOString().split('T')[0];
+      updates.completed_date = businessToday(); // Eastern business day (T-124)
     }
     if (req.body.status && req.body.status !== 'done') {
       updates.completed_date = null;
@@ -5915,7 +5919,7 @@ const PRISM_STUDIO_ROUTINE = [
 
 app.get('/api/prism-studio/today', requireAuth, (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessToday(); // Eastern business day (T-124) — drives overdue/due_today
     const rows = db.prepare(`
       SELECT
         SUM(CASE WHEN status != 'done' AND due_date IS NOT NULL AND due_date < ? THEN 1 ELSE 0 END) as overdue,
@@ -5967,13 +5971,13 @@ app.get('/api/prism-studio/routine', requireAuth, (req, res) => {
 // the daily_artifacts table via mcResolveBriefForDate.
 
 function mcReadTodayContext() {
-  const today = new Date().toISOString().slice(0, 10);
+  const at = new Date();
+  const today = businessToday(at); // Eastern business day (T-124)
   const ctx = { date: today, brief_headline: null };
 
   // Today's brief headline, with yesterday fallback (orchestrator runs ~7 AM ET).
   const candidates = [today];
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  candidates.push(y.toISOString().slice(0, 10));
+  candidates.push(businessDayMinus(1, at));
   for (const d of candidates) {
     const file = mcResolveBriefForDate(d);
     if (file) {
@@ -6050,10 +6054,10 @@ function mcReadAndParseBriefForDate(dateStr) {
 function mcReadMorningBriefFile() {
   // Single Date instance — avoids the (astronomical) midnight-straddle case
   // where today and yesterday could be computed from different ms timestamps.
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const yesterday = y.toISOString().slice(0, 10);
+  // Eastern business day (T-124): briefs are keyed to the orchestrator's ET date.
+  const at = new Date();
+  const today = businessToday(at);
+  const yesterday = businessDayMinus(1, at);
   for (const d of [today, yesterday]) {
     const filename = `cos-morning-brief-${d}.md`;
     // Containment — filename is server-derived (ISO date) but defense in depth:
@@ -6090,10 +6094,11 @@ function mcResolveBriefForDate(dateStr) {
 // T-062: today→yesterday variant of the resolver. Mirrors mcReadMorningBriefFile's
 // fallback semantics but checks the DB first for each date before disk.
 function mcResolveTodayOrYesterdayBrief() {
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const yesterday = y.toISOString().slice(0, 10);
+  // Eastern business day (T-124): single instant, today + yesterday in ET so the
+  // resolver matches the orchestrator's ET-dated artifacts (was UTC — the bug).
+  const at = new Date();
+  const today = businessToday(at);
+  const yesterday = businessDayMinus(1, at);
   for (const d of [today, yesterday]) {
     const resolved = mcResolveBriefForDate(d);
     if (resolved) return { date: d, content: resolved.content, filename: resolved.filename, isToday: d === today, source: resolved.source };
@@ -6265,7 +6270,7 @@ app.get('/api/mission-control/morning-brief', requireAuth, (req, res) => {
 
 app.get('/api/mission-control/today', requireAuth, async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessToday(); // Eastern business day (T-124) — drives due_today/overdue tiles
     const useNotion = process.env.USE_NOTION_SOURCE === 'true';
 
     let tiles = {
