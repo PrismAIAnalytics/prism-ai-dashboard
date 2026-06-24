@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-124 | Fix dashboard brief date computation — use Eastern business day, not UTC (PRISM-715) | feat/t124-eastern-business-day | Claude Code | 2026-06-24 |
 
 ---
 
