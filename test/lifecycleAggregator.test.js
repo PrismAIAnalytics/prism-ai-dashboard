@@ -464,3 +464,32 @@ test('plansAggregator.getActiveRoadmaps accepts prefetchedTickets and skips the 
   assert.equal(result.notion_available, true, 'notion_available true because prefetched data was usable');
   assert.ok(Array.isArray(result.active_roadmaps), 'active_roadmaps array returned');
 });
+
+// Cancelled-ticket handling in computeProgress (Cancelled status fix). A
+// cancelled member is terminal and excluded from `total`, so a roadmap whose
+// only remaining item is cancelled can still read shipped === total (100%).
+test('computeProgress excludes cancelled tickets from the roadmap total', () => {
+  const roadmap = { ticket_ids: ['T-900', 'T-901'] };
+  const tickets = [
+    { title: 'T-900: shipped thing', status: 'done' },
+    { title: 'T-901: cancelled thing', status: 'cancelled' },
+  ];
+  const p = plansAggregator.computeProgress(roadmap, tickets);
+  assert.equal(p.cancelled, 1, 'cancelled counted');
+  assert.equal(p.total, 1, 'cancelled excluded from total denominator');
+  assert.equal(p.shipped, 1, 'the done ticket is shipped');
+  assert.equal(p.shipped, p.total, 'roadmap reaches 100% despite the cancelled member');
+});
+
+// Dedup guard: a cancelled duplicate of a live ticket never flips it to cancelled.
+test('computeProgress keeps the active status when a cancelled duplicate exists', () => {
+  const roadmap = { ticket_ids: ['T-902'] };
+  const tickets = [
+    { title: 'T-902: in progress copy', status: 'in_progress' },
+    { title: 'T-902: cancelled copy', status: 'cancelled' },
+  ];
+  const p = plansAggregator.computeProgress(roadmap, tickets);
+  assert.equal(p.in_progress, 1, 'live status wins the dedup');
+  assert.equal(p.cancelled, 0, 'cancelled duplicate did not win');
+  assert.equal(p.total, 1);
+});

@@ -84,7 +84,11 @@ function makeBelongsTo(roadmap) {
 // Status precedence for dedupe: when multiple Notion pages share the same
 // ticket ID (the Business Health Auto-Eval 5x-dupe pattern), the most-progressed
 // status wins. Higher number = further along.
-const STATUS_PROGRESS = { done: 4, in_progress: 3, blocked: 2, backlog: 1 };
+// `cancelled` ranks lowest (0) so a genuinely-active duplicate always wins the
+// dedup — a cancelled copy of a ticket never flips a live roadmap item to
+// cancelled. (Not -1: the initial existingRank is -1, so -1 would fail the
+// first-encounter `incomingRank > existingRank` and drop a lone cancelled ticket.)
+const STATUS_PROGRESS = { done: 4, in_progress: 3, blocked: 2, backlog: 1, cancelled: 0 };
 
 // Bucket counts for one roadmap. `tickets` is the full Notion ticket list from
 // notionAdapter.listTickets({}); we extract each title's ticket ID, dedupe by ID
@@ -105,7 +109,7 @@ function computeProgress(roadmap, tickets) {
     }
   }
 
-  const counts = { total: byId.size, shipped: 0, in_progress: 0, blocked: 0, backlog: 0, other: 0 };
+  const counts = { total: byId.size, shipped: 0, in_progress: 0, blocked: 0, backlog: 0, cancelled: 0, other: 0 };
   let nextInProgressId = null;
 
   for (const m of byId.values()) {
@@ -119,9 +123,16 @@ function computeProgress(roadmap, tickets) {
         break;
       case 'blocked': counts.blocked += 1; break;
       case 'backlog': counts.backlog += 1; break;
+      case 'cancelled': counts.cancelled += 1; break;
       default: counts.other += 1;
     }
   }
+
+  // Cancelled tickets are terminal and excluded from the roadmap denominator so
+  // a roadmap containing a cancelled ticket can still reach 100% (shipped ===
+  // total). Without this, one cancelled member would cap a done roadmap below
+  // ready-to-ship forever.
+  counts.total -= counts.cancelled;
 
   return { ...counts, in_progress_headline: nextInProgressId };
 }

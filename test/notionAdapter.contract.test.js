@@ -175,6 +175,7 @@ test('Notion status names map to dashboard enum values', () => {
     ['In progress', 'in_progress'],
     ['Blocked', 'blocked'],
     ['Done', 'done'],
+    ['Cancelled', 'cancelled'],
   ];
   for (const [notion, dash] of cases) {
     const t = notionPageToTicket(makeNotionPage({
@@ -182,6 +183,24 @@ test('Notion status names map to dashboard enum values', () => {
     }));
     assert.strictEqual(t.status, dash, `Status ${notion} → ${dash}`);
   }
+});
+
+// Cancelled read-map regression guard: before this fix, `Cancelled` had no
+// STATUS_NOTION_TO_DASH entry and collapsed to `backlog` via the `|| 'backlog'`
+// fallback — the display bug that produced a 22-day phantom brief item.
+test('Cancelled maps to cancelled, not backlog', () => {
+  const t = notionPageToTicket(makeNotionPage({
+    properties: { Status: { type: 'status', status: { name: 'Cancelled' } } },
+  }));
+  assert.strictEqual(t.status, 'cancelled');
+});
+
+// Write-map regression guard: `cancelled` must round-trip back to Notion as
+// `Cancelled`, not `Done`. The old map wrote `Done`, silently corrupting the
+// Notion source of truth on every cancelled-ticket write.
+test('dashboard cancelled writes back to Notion as Cancelled, not Done', () => {
+  const props = dashboardToNotionProperties({ status: 'cancelled' });
+  assert.strictEqual(props.Status?.status?.name, 'Cancelled');
 });
 
 test('Notion priority names map to dashboard enum values', () => {
@@ -313,10 +332,10 @@ test('dashboardToNotionProperties maps title to Ticket title property', () => {
   assert.deepStrictEqual(p['Ticket'], { title: [{ text: { content: 'New ticket' } }] });
 });
 
-test('dashboardToNotionProperties maps the 7-option status vocabulary to Notion status names', () => {
-  // Phase 2D schema close-out (2026-05-24) — the full 7-option Notion Status
-  // vocabulary round-trips losslessly. See STATUS_DASH_TO_NOTION at the top of
-  // notionAdapter.js for the canonical map.
+test('dashboardToNotionProperties maps the 8-option status vocabulary to Notion status names', () => {
+  // Phase 2D schema close-out (2026-05-24), extended with Cancelled (2026-06-11)
+  // — the full 8-option Notion Status vocabulary round-trips losslessly. See
+  // STATUS_DASH_TO_NOTION at the top of notionAdapter.js for the canonical map.
   const cases = [
     ['backlog', 'Backlog'],
     ['todo', 'To Do'],
@@ -324,7 +343,7 @@ test('dashboardToNotionProperties maps the 7-option status vocabulary to Notion 
     ['review', 'Review'],
     ['blocked', 'Blocked'],
     ['done', 'Done'],
-    ['cancelled', 'Done'], // 'cancelled' is the one dashboard status with no Notion equivalent — collapses to Done.
+    ['cancelled', 'Cancelled'], // now round-trips to its own Notion option (was buggily 'Done').
   ];
   for (const [dash, notion] of cases) {
     const p = dashboardToNotionProperties({ status: dash });

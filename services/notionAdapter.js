@@ -37,6 +37,7 @@ const STATUS_NOTION_TO_DASH = {
   'Review': 'review',
   'Blocked': 'blocked',
   'Done': 'done',
+  'Cancelled': 'cancelled',
 };
 
 const PRIORITY_NOTION_TO_DASH = {
@@ -71,10 +72,11 @@ function categoryNotionToDash(notionCat) {
 }
 
 // ─── Write-direction maps (T-026 Phase 4) ──────────────────────────────────
-// Mirror the read-direction maps. The Notion `Status` property now has the
-// full 7-option vocabulary (Phase 2D schema close-out, 2026-05-24), so the
-// dashboard's 5-column Kanban round-trips losslessly. `cancelled` still has
-// no Notion equivalent and collapses to `Done`.
+// Mirror the read-direction maps. The Notion `Status` property carries the full
+// vocabulary including `Cancelled` (added to the DB 2026-06-11), so the
+// dashboard's 5-column Kanban + cancelled bucket all round-trip losslessly.
+// Previously `cancelled` wrote back as `Done`, silently corrupting the Notion
+// source of truth on every cancelled-ticket write — fixed here (Cancelled fix).
 const STATUS_DASH_TO_NOTION = {
   backlog: 'Backlog',
   todo: 'To Do',
@@ -82,15 +84,16 @@ const STATUS_DASH_TO_NOTION = {
   review: 'Review',
   blocked: 'Blocked',
   done: 'Done',
-  cancelled: 'Done',
+  cancelled: 'Cancelled',
 };
 
-// Phase 2D schema close-out (2026-05-24). The full 7-option vocabulary that
-// the dashboard's 5-column Kanban + cancelled bucket round-trips through.
-// `verifySchema()` runs once at boot and disables Status writes if any of
-// these go missing in the Notion UI (defends against a future tidy-up).
+// Phase 2D schema close-out (2026-05-24), extended with `Cancelled` (2026-06-11).
+// The full 8-option vocabulary that the dashboard's 5-column Kanban + cancelled
+// bucket round-trips through. `verifySchema()` runs once at boot and disables
+// Status writes if any of these go missing in the Notion UI (defends against a
+// future tidy-up).
 const EXPECTED_STATUS_OPTIONS = [
-  'Not started', 'Backlog', 'To Do', 'In progress', 'Review', 'Blocked', 'Done',
+  'Not started', 'Backlog', 'To Do', 'In progress', 'Review', 'Blocked', 'Done', 'Cancelled',
 ];
 
 let _schemaCheckPromise = null;
@@ -509,6 +512,15 @@ async function verifySchema({ apiKey, dbId }) {
       const j = await r.json();
       const options = j.properties?.Status?.status?.options || [];
       const present = new Set(options.map(o => o.name));
+      // (D) Fail loud on read-map drift. Any Notion Status option we don't know
+      // how to read collapses to 'backlog' via the `|| 'backlog'` fallback at the
+      // read site — the exact silent bug that produced a 22-day phantom brief
+      // recommendation when `Cancelled` was added without a map entry. Surface it
+      // at boot instead of swallowing it.
+      const unmapped = [...present].filter(name => !(name in STATUS_NOTION_TO_DASH));
+      if (unmapped.length > 0) {
+        console.error(`[STATUS_MAP_DRIFT] Notion Status has option(s) with no read-map entry: ${unmapped.join(', ')}. These collapse to 'backlog' on read (inflating the backlog count and hiding the true status). Add them to STATUS_NOTION_TO_DASH in services/notionAdapter.js.`);
+      }
       const missing = EXPECTED_STATUS_OPTIONS.filter(n => !present.has(n));
       if (missing.length > 0) {
         _statusWriteAllowed = false;
