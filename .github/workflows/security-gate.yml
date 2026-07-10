@@ -22,8 +22,8 @@ jobs:
     name: npm audit (critical in prod deps)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -49,7 +49,7 @@ jobs:
     container:
       image: semgrep/semgrep
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Scan
         # Two confirmed-stable Semgrep registry packs. p/express and
         # p/nodejs-best-practice both 404 on the registry as of 2026-05-22 —
@@ -89,10 +89,10 @@ jobs:
     # See PRISM-485 (Notion 36b236b6-b03a-8155-9503-edb879fa94f3) for the
     # full incident timeline and evidence.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      - uses: trufflesecurity/trufflehog@main
+      - uses: trufflesecurity/trufflehog@27b0417c16317ca9a472a9a8092acce143b49c55 # v3.95.9
         with:
           path: ./
           extra_args: --only-verified
@@ -103,8 +103,8 @@ jobs:
     # Release-only: emit SBOM on push to main, not on every PR
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -113,7 +113,7 @@ jobs:
       - name: Generate CycloneDX SBOM
         run: npx --yes @cyclonedx/cyclonedx-npm@1.19.3 --output-file sbom.cdx.json
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sbom-cyclonedx-${{ github.sha }}
           path: sbom.cdx.json

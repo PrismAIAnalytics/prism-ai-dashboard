@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-127 | My To-Dos personal checklist card on Daily Agenda — `personal_todos` SQLite table + GET/POST/PATCH API + collapsible card under Morning Brief, seeded with Michele's July/early-Aug travel-runway tasks | task/personal-todos | Claude Code | 2026-07-10 |
+| T-128 | Pin all GitHub Action refs to commit SHAs — clear the 11 `github-actions-mutable-action-tag` Semgrep findings that have failed Security Gate on every main push since 7/1 (which, via Railway "Wait for CI", silently blocked ALL deploys — prod stuck on the 6/24 build) | fix/pin-action-shas | Claude Code | 2026-07-10 |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-127 | My To-Dos personal checklist card on Daily Agenda (`personal_todos` table + API + card) | 2026-07-10 | Merged via PR #143 as `4d5c09d` (squash) on 2026-07-10. Close-out bundled into T-128's first commit per WORKFLOW.md §4 (post-merge close-out Action did not clear the row — recurring gap). **Prod verification pending:** merge did NOT deploy — Security Gate has failed every main push since 7/1 (11 mutable-action-tag findings) and Railway "Wait for CI" held all deploys since 6/24; T-128 is the unblock. Verify the card on prod Daily Agenda once T-128 merges and Railway deploys. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-126 | KB workflow diagram — /publish-blog pipeline + orchestrator edit guard (`publish_blog_and_edit_guard.html`) via /diagram-from-source | 2026-07-10 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #141 as `2d66426472b79eed3ef1c8ed857de32f9f137654` (squash) on 2026-07-10. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-125 | Fix Cancelled-status display bug — read-map add + write-map correction + `EXPECTED_STATUS_OPTIONS` + plansAggregator terminal handling + `verifySchema` fail-loud drift guard (scope B+D) | 2026-07-10 | Merged via PR #140 as `c990bb8` (squash); Railway auto-deployed. The post-merge close-out Action pushed `chore/auto-close-t125` but its PR was never merged, so the In Progress lock drifted 9 days (same recurring gap as T-059/T-088/T-090/T-093/T-120/T-122/T-124). Lock cleared here as the first bookkeeping step of T-126 per WORKFLOW.md §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-124 | Fix dashboard brief date computation — use Eastern business day, not UTC (PRISM-715) | 2026-06-24 | Shipped via PR #139 as `5deee09` (squash) on 2026-06-24; Railway auto-deployed. The post-merge close-out Action never cleared the In Progress row, so the WIP=1 lock drifted 7 days (same recurring gap as T-059/T-088/T-090/T-093/T-120/T-122). Lock cleared here as the first bookkeeping step of T-125 per WORKFLOW.md §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
