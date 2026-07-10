@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-125 | Fix Cancelled-status display bug — read-map add + write-map correction + `EXPECTED_STATUS_OPTIONS` + plansAggregator terminal handling + `verifySchema` fail-loud drift guard (scope B+D) | fix/cancelled-status-mapping | Claude Code | 2026-07-01 |
+| T-126 | KB workflow diagram — /publish-blog pipeline + orchestrator edit guard (`publish_blog_and_edit_guard.html`) via /diagram-from-source | feat/diagram-publish-blog-and-edit-guard | Claude Code | 2026-07-10 |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-125 | Fix Cancelled-status display bug — read-map add + write-map correction + `EXPECTED_STATUS_OPTIONS` + plansAggregator terminal handling + `verifySchema` fail-loud drift guard (scope B+D) | 2026-07-10 | Merged via PR #140 as `c990bb8` (squash); Railway auto-deployed. The post-merge close-out Action pushed `chore/auto-close-t125` but its PR was never merged, so the In Progress lock drifted 9 days (same recurring gap as T-059/T-088/T-090/T-093/T-120/T-122/T-124). Lock cleared here as the first bookkeeping step of T-126 per WORKFLOW.md §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-124 | Fix dashboard brief date computation — use Eastern business day, not UTC (PRISM-715) | 2026-06-24 | Shipped via PR #139 as `5deee09` (squash) on 2026-06-24; Railway auto-deployed. The post-merge close-out Action never cleared the In Progress row, so the WIP=1 lock drifted 7 days (same recurring gap as T-059/T-088/T-090/T-093/T-120/T-122). Lock cleared here as the first bookkeeping step of T-125 per WORKFLOW.md §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-123 | Auto-flip Lifecycle Pending→Active when a plan's tickets start (display-time) + surface recent auto-suggested drafts on the Lifecycle table | 2026-06-18 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #137 as `50c565c80198e5d1b725a8c3cfc3b55086b35169` (squash) on 2026-06-18. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-122 | Tickets filters → Task Type + Due Date dropdowns; move all 3 filter dropdowns into the page header | 2026-06-18 | Shipped via PR #134 as `d656a041e1e4d81d181ecbf2779f0483b144809d` (squash) on 2026-06-18; Railway auto-deployed. The post-merge close-out Action pushed `chore/auto-close-t122` but never opened/merged its PR, so the In Progress lock drifted (same recurring gap as T-059/T-088/T-090/T-093/T-120). Lock cleared + this Done entry folded into T-123's branch (PR #137) per WORKFLOW.md §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
