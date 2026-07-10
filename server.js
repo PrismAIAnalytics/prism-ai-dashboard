@@ -1921,7 +1921,7 @@ ensureLeadSources();
       ['Book CPA session — FL domicile + LLC disposition', 'July', 60, 0, null],
       ['Decide Bailey’s care model with Devin', 'July', 70, 0, null],
       ['Book Mexico City lodging for October (month 1)', 'July', 80, 0, null],
-      ['Order apostille on birth certificate (issuing state) — Panama dual citizenship', 'July', 90, 0, null],
+      ['Order MD apostille on birth certificate (VitalChek copy → mail to MD SOS, $5) — Panama dual citizenship', 'July', 90, 0, null],
       ['FL trip: Declaration of Domicile, FL license, voter registration, vehicle', 'early Aug', 100, 0, null],
       ['Pick health insurance that covers monthly US weeks', 'early Aug', 110, 0, null],
       ['Greenlight UTC re-anchor of scheduled tasks (before 8/19)', 'early Aug', 120, 0, null],
