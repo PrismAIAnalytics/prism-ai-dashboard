@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(none)_ | | | | |
+| T-127 | My To-Dos personal checklist card on Daily Agenda — `personal_todos` SQLite table + GET/POST/PATCH API + collapsible card under Morning Brief, seeded with Michele's July/early-Aug travel-runway tasks | task/personal-todos | Claude Code | 2026-07-10 |
 
 ---
 
