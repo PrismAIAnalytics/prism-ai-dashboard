@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-06-05T19:07:55.725Z",
+  "generated_at": "2026-07-10T16:29:05.081Z",
   "website_root": "C:\\Users\\miche\\Prism AI\\PRISM AI Analytics\\prism_website_project",
   "counts": {
     "total": 50,
     "by_topic": {
-      "Configuration Management": 11,
+      "Configuration Management": 12,
       "AI Readiness": 8,
       "Data & Analytics": 7,
       "Advisory & Practice": 4,
       "General": 8,
-      "AI Agent Governance": 3,
+      "AI Agent Governance": 1,
       "Compliance & Regulation": 4,
       "Architecture & Platform": 2,
-      "Internal Workflows": 3
+      "Internal Workflows": 4
     },
     "by_content_type": {
-      "blog": 23,
+      "blog": 22,
       "service-page": 1,
       "assessment": 1,
       "podcast-index": 1,
       "page": 1,
       "download": 1,
-      "infographic": 22
+      "infographic": 23
     }
   },
   "topics": [
     {
       "topic": "Configuration Management",
-      "count": 11,
+      "count": 12,
       "items": [
         {
           "id": "blog/configuration-management-and-the-aigp-body-of-knowledge",
@@ -39,7 +39,7 @@
           "category": "AI Agent Governance",
           "series": "Configuration Management for AI Agents",
           "series_part": "6 of 6",
-          "date": "2026-06-25",
+          "date": "2026-06-30",
           "read_time": "11 min",
           "author": "Michele Fisher",
           "description": "The AIGP Body of Knowledge defines what AI governance professionals are accountable for. Configuration management provides the operational mechanic that turns those accountabilities into runtime contr"
@@ -54,25 +54,40 @@
           "category": "AI Agent Governance",
           "series": "Configuration Management for AI Agents",
           "series_part": "5 of 6",
-          "date": "2026-06-25",
+          "date": "2026-06-30",
           "read_time": "12 min",
           "author": "Michele Fisher",
           "description": "An evidence walkthrough of the four-discipline framework running in production at Prism today — not a product demo. What the implementation does, and what it does not yet do."
         },
         {
-          "id": "blog/microsoft-agent-governance-toolkit-and-the-cm-layer-above-it",
-          "slug": "microsoft-agent-governance-toolkit-and-the-cm-layer-above-it",
-          "title": "Microsoft's Agent Governance Toolkit Is the Kernel. Configuration Management Is the Layer Above It.",
-          "url": "/blog/microsoft-agent-governance-toolkit-and-the-cm-layer-above-it/",
+          "id": "blog/from-wrangling-to-governing",
+          "slug": "from-wrangling-to-governing",
+          "title": "From Wrangling to Governing: Adopt, Operate, Govern",
+          "url": "/blog/from-wrangling-to-governing/",
           "content_type": "blog",
           "topic": "Configuration Management",
           "category": "AI Agent Governance",
           "series": "Configuration Management for AI Agents",
-          "series_part": "Bonus",
-          "date": "2026-06-18",
-          "read_time": "9 min",
+          "series_part": "On-ramp · CM-AI Framework",
+          "date": "2026-06-22",
+          "read_time": "8 min",
           "author": "Michele Fisher",
-          "description": "Microsoft&#39;s Agent Governance Toolkit is the kernel for AI agents. Configuration management is the layer above it. An enterprise running production AI agents needs both."
+          "description": "Most teams treat &#39;we adopted AI&#39; as the finish line. It is the first of three stages — and the two that follow are where staying in control of your agents is actually won or lost."
+        },
+        {
+          "id": "blog/wrangling-ai-agents-in-the-wild",
+          "slug": "wrangling-ai-agents-in-the-wild",
+          "title": "Wrangling AI Agents in the Wild",
+          "url": "/blog/wrangling-ai-agents-in-the-wild/",
+          "content_type": "blog",
+          "topic": "Configuration Management",
+          "category": "AI Agent Governance",
+          "series": "Configuration Management for AI Agents",
+          "series_part": "On-ramp · CM-AI Framework",
+          "date": "2026-06-18",
+          "read_time": "8 min",
+          "author": "Michele Fisher",
+          "description": "Most teams now run more autonomous agents than they can name, let alone watch. This is the problem before the framework — the part nobody has a playbook for yet — and what I found when I tried to wran"
         },
         {
           "id": "blog/nist-ai-rmf-meets-configuration-management",
@@ -387,19 +402,19 @@
       "count": 7,
       "items": [
         {
-          "id": "blog/trust-is-the-product",
-          "slug": "trust-is-the-product",
-          "title": "The Dashboard Is Becoming a Commodity. Trust Is the Product.",
-          "url": "/blog/trust-is-the-product/",
+          "id": "blog/mission-control-for-an-ai-integrated-company",
+          "slug": "mission-control-for-an-ai-integrated-company",
+          "title": "Mission Control for an AI-Integrated Company: Why the Dashboard Changes Shape",
+          "url": "/blog/mission-control-for-an-ai-integrated-company/",
           "content_type": "blog",
           "topic": "Data & Analytics",
-          "category": "Industry Insights",
+          "category": "Claude for Business",
           "series": null,
           "series_part": null,
-          "date": "2026-07-23",
-          "read_time": "9 min",
+          "date": "2026-06-15",
+          "read_time": "8 min",
           "author": "Michele Fisher",
-          "description": "When an AI can draw any chart in seconds, the chart stops being the asset. The asset is whether the number behind it is one you can stake a decision on."
+          "description": "A dashboard built for a pre-AI company answers one question: how did we do? When Claude is wired into the work itself, the dashboard has to answer something else entirely."
         },
         {
           "id": "blog/from-chaos-to-cadence-claude-operating-system",
@@ -534,21 +549,6 @@
       "count": 4,
       "items": [
         {
-          "id": "blog/the-2026-ai-regulation-clock-is-ticking",
-          "slug": "the-2026-ai-regulation-clock-is-ticking",
-          "title": "The 2026 AI Regulation Clock Is Ticking — What Small Businesses Need to Know Right Now",
-          "url": "/blog/the-2026-ai-regulation-clock-is-ticking/",
-          "content_type": "blog",
-          "topic": "Compliance & Regulation",
-          "category": "Industry Insights",
-          "series": null,
-          "series_part": null,
-          "date": "2026-04-23",
-          "read_time": "9 min",
-          "author": "Michele Fisher",
-          "description": "The EU AI Act, state AI laws, and new governance standards all have concrete 2026 deadlines. Here&#39;s the timeline every small business using AI should have on their calendar."
-        },
-        {
           "id": "dashboard/prism-compliance-checks",
           "slug": "prism-compliance-checks",
           "title": "20 Compliance Automation Checks",
@@ -574,64 +574,55 @@
           "content_type": "download",
           "topic": "Compliance & Regulation",
           "description": ""
-        }
-      ]
-    },
-    {
-      "topic": "AI Agent Governance",
-      "count": 3,
-      "items": [
-        {
-          "id": "blog/the-visibility-economy-build-not-panic",
-          "slug": "the-visibility-economy-build-not-panic",
-          "title": "The Visibility Economy Is a Build, Not a Panic",
-          "url": "/blog/the-visibility-economy-build-not-panic/",
-          "content_type": "blog",
-          "topic": "AI Agent Governance",
-          "category": "Industry Insights",
-          "series": "The Visibility Economy",
-          "series_part": "3 of 3",
-          "date": "2026-08-13",
-          "read_time": "9 min",
-          "author": "Michele Fisher",
-          "description": "The infrastructure for agent-led commerce is real and shipping. The demand is not here yet. That gap is not a reason to panic — it is the window to build, on purpose."
         },
         {
-          "id": "blog/is-your-business-visible-to-an-agent",
-          "slug": "is-your-business-visible-to-an-agent",
-          "title": "Is Your Business Visible to an AI Agent? A Four-Part Diagnostic",
-          "url": "/blog/is-your-business-visible-to-an-agent/",
+          "id": "blog/the-2026-ai-regulation-clock-is-ticking",
+          "slug": "the-2026-ai-regulation-clock-is-ticking",
+          "title": "The 2026 AI Regulation Clock Is Ticking — What Small Businesses Need to Know Right Now",
+          "url": "/blog/the-2026-ai-regulation-clock-is-ticking/",
           "content_type": "blog",
-          "topic": "AI Agent Governance",
-          "category": "Industry Insights",
-          "series": "The Visibility Economy",
-          "series_part": "2 of 3",
-          "date": "2026-08-06",
-          "read_time": "9 min",
-          "author": "Michele Fisher",
-          "description": "If agents now do the finding and the choosing, the first question is whether they can find you at all. Four dimensions decide it — and most businesses have never checked."
-        },
-        {
-          "id": "blog/the-visibility-economy",
-          "slug": "the-visibility-economy",
-          "title": "The Visibility Economy: When the Customer You're Selling To Is a Machine",
-          "url": "/blog/the-visibility-economy/",
-          "content_type": "blog",
-          "topic": "AI Agent Governance",
-          "category": "Industry Insights",
-          "series": "The Visibility Economy",
-          "series_part": "1 of 3",
-          "date": "2026-07-30",
-          "read_time": "10 min",
-          "author": "Michele Fisher",
-          "description": "For fifty years, business competed for human attention. The next audience is the AI agent that researches and buys on a person&#39;s behalf — and it rewards almost the opposite of what attention did."
+          "topic": "Compliance & Regulation",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "The EU AI Act, state AI laws, and new governance standards all have concrete 2026 deadlines. Here's the timeline every small business using AI should have on their calendar."
         }
       ]
     },
     {
       "topic": "Internal Workflows",
-      "count": 3,
+      "count": 4,
       "items": [
+        {
+          "id": "kb/workflows/publish_blog_and_edit_guard.html",
+          "slug": "workflows/publish_blog_and_edit_guard.html",
+          "title": "Blog Publish Pipeline & Edit Guard — Workflow",
+          "url": "/knowledgebase/workflows/publish_blog_and_edit_guard.html",
+          "content_type": "infographic",
+          "topic": "Internal Workflows",
+          "category": null,
+          "series": null,
+          "series_part": null,
+          "date": null,
+          "read_time": null,
+          "author": null,
+          "description": "Interactive diagram of the gated /publish-blog pipeline — brand-pass gates, deck interleave, LinkedIn companions, verify_publish.py stages, 12-row gate table — plus the PreToolUse orchestrator edit guard. Four views: Overview, Swim-Lane, Procedural, Gate Reference. Source: .claude/skills/publish-blog/SKILL.md.",
+          "workflow_diagram": {
+            "name": "publish_blog_and_edit_guard",
+            "source": ".claude/skills/publish-blog/SKILL.md",
+            "source_hash_recorded": "cd1f30374290eb113022b2f9c965ce80167be35c5279434b0c386b0e2fe71e91",
+            "source_hash_current": "cd1f30374290eb113022b2f9c965ce80167be35c5279434b0c386b0e2fe71e91",
+            "drift": false,
+            "created": "2026-07-10",
+            "last_verified": "2026-07-10",
+            "mermaid_blocks": 4,
+            "status": "active",
+            "regenerated_by": "/diagram-from-source"
+          }
+        },
         {
           "id": "kb/workflows/brand_pass_pipeline.html",
           "slug": "workflows/brand_pass_pipeline.html",
@@ -650,7 +641,7 @@
             "name": "brand_pass_pipeline",
             "source": "Development/prism-notebooklm/.claude/skills/brand-pass/SKILL.md",
             "source_hash_recorded": "60cec9feefbbf734a20cd6f7136dcd5d2c68b4eeeb9d0c91c3ff4f36ec713a58",
-            "source_hash_current": "2945c223d81d7e5748fca450585a93c68beb036ad0f595d2adb8467e6637a209",
+            "source_hash_current": "a18d0ca9cf0943c2fa015256a4ee368ace95a47acdd99a11b89039d5e73e584d",
             "drift": true,
             "created": "2026-05-30",
             "last_verified": "2026-05-30",
@@ -677,7 +668,7 @@
             "name": "prism_dashboard_workflow",
             "source": "prism-agents/",
             "source_hash_recorded": "23145c6cb31c628dc7ca07fa90a482f251e958595391c02e1a83d5962667be2b",
-            "source_hash_current": "8a2c23a6de6a8c8d5512950482c4733d313841389b1c7acd0bc40fe3a41687c5",
+            "source_hash_current": "29bb37f7e401b38400d1c4f5f98b43c9d533cb469179202b17c22a012840abfc",
             "drift": true,
             "created": "2026-05-25",
             "last_verified": "2026-05-25",
@@ -704,7 +695,7 @@
             "name": "reply_and_resume_workflow",
             "source": "Development/dashboard/server.js",
             "source_hash_recorded": "a9a1c5479b902de442bba036efdb710b875e8aa9a56cecc3f738c496b5f1dfe3",
-            "source_hash_current": "5898f240e32941e46c8d368f51fe56c3f65547d23e2d18ae139dbd605dee07f4",
+            "source_hash_current": "b6fe66b2249f0b5fa4ba632adda038eec9ee63b2f48d5f99a09bd294a2c212f8",
             "drift": true,
             "created": "2026-05-27",
             "last_verified": "2026-05-27",
@@ -736,6 +727,27 @@
           "content_type": "infographic",
           "topic": "Architecture & Platform",
           "description": ""
+        }
+      ]
+    },
+    {
+      "topic": "AI Agent Governance",
+      "count": 1,
+      "items": [
+        {
+          "id": "blog/studying-for-an-ai-exam-with-ai",
+          "slug": "studying-for-an-ai-exam-with-ai",
+          "title": "Studying for an AI Architecture Exam, With AI",
+          "url": "/blog/studying-for-an-ai-exam-with-ai/",
+          "content_type": "blog",
+          "topic": "AI Agent Governance",
+          "category": "Claude for Business",
+          "series": null,
+          "series_part": null,
+          "date": "2026-06-17",
+          "read_time": "9 min",
+          "author": "Michele Fisher",
+          "description": "A few weeks ago this exam wasn&#39;t open to a firm my size. The access gate lifted, I gave myself a target, and the first thing I did to prepare was get an agent to fix the plumbing on my study tools. Th"
         }
       ]
     }

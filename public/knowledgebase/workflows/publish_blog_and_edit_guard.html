@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<!--
+workflow-diagram:
+  name: publish_blog_and_edit_guard
+  source: .claude/skills/publish-blog/SKILL.md
+  source_hash: cd1f30374290eb113022b2f9c965ce80167be35c5279434b0c386b0e2fe71e91
+  created: 2026-07-10
+  last_verified: 2026-07-10
+  mermaid_blocks: 4
+  status: active
+  regenerated_by: /diagram-from-source
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="description" content="Interactive diagram of the gated /publish-blog pipeline — brand-pass gates, deck interleave, LinkedIn companions, verify_publish.py stages, 12-row gate table — plus the PreToolUse orchestrator edit guard. Four views: Overview, Swim-Lane, Procedural, Gate Reference. Source: .claude/skills/publish-blog/SKILL.md.">
+<title>Blog Publish Pipeline &amp; Edit Guard — Workflow</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.0/mermaid.min.js"></script>
+<style>
+  :root {
+    /* Prism brand palette */
+    --prism-navy: #17135C;
+    --prism-royal: #3A5998;
+    --prism-blue: #4A6DB5;
+    --prism-sky: #BDC9DD;
+    --prism-gold: #C8A45A;
+    --prism-charcoal: #1A1A2E;
+    --prism-deep-royal: #2E4EAD;
+    --prism-steel: #5C7BB8;
+
+    --off-white: #F4F7FB;
+    --light-gray: #D0D7DE;
+    --bg: #F4F7FB;
+    --panel: #FFFFFF;
+    --border: #D0D7DE;
+    --text: #1A1A2E;
+    --muted: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(135deg, var(--prism-navy) 0%, #2a2580 100%);
+    color: white;
+    padding: 24px 32px;
+    border-bottom: 4px solid var(--prism-gold);
+  }
+  header h1 { margin: 0 0 4px 0; font-size: 24px; font-weight: 600; }
+  header .sub { font-size: 14px; opacity: 0.85; }
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(23,19,92,0.06);
+  }
+  .tab {
+    padding: 14px 22px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--prism-navy); background: var(--off-white); }
+  .tab.active {
+    color: var(--prism-navy);
+    border-bottom-color: var(--prism-royal);
+    background: var(--off-white);
+  }
+  .tab .num {
+    display: inline-block;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    margin-right: 6px;
+    font-weight: 600;
+  }
+  .tab.active .num { background: var(--prism-navy); }
+  main { padding: 24px 32px 60px 32px; max-width: 1600px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .view-header { margin-bottom: 16px; }
+  .view-header h2 { margin: 0 0 4px 0; font-size: 20px; color: var(--prism-navy); }
+  .view-header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(23,19,92,0.04);
+    overflow-x: auto;
+  }
+  .panel h3 { margin: 0 0 12px 0; font-size: 15px; color: var(--prism-navy); }
+  .mermaid { text-align: center; min-height: 200px; overflow-x: auto; }
+  .mermaid svg { max-width: 100% !important; height: auto !important; display: block; margin: 0 auto; }
+  .mermaid .nodeLabel, .mermaid .edgeLabel { font-size: 12px !important; }
+  .mermaid .nodeLabel { white-space: nowrap; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--off-white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(23,19,92,0.15); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--prism-royal);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .kpi-card h4 { margin: 0 0 6px 0; font-size: 13px; color: var(--prism-navy); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card p { margin: 0; font-size: 14px; color: var(--text); }
+  .kpi-card.gold { border-left-color: var(--prism-gold); }
+  .kpi-card.blue { border-left-color: var(--prism-blue); }
+  .kpi-card.deep { border-left-color: var(--prism-deep-royal); }
+  .kpi-card.navy { border-left-color: var(--prism-navy); }
+  .kpi-card.charcoal { border-left-color: var(--prism-charcoal); }
+  table.spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  table.spec-table th { text-align: left; background: var(--off-white); padding: 10px 12px; border-bottom: 2px solid var(--border); color: var(--prism-navy); font-weight: 600; }
+  table.spec-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.spec-table tr:nth-child(even) { background: var(--off-white); }
+  table.spec-table tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: white; }
+  .pill.royal { background: var(--prism-royal); }
+  .pill.gold { background: var(--prism-gold); }
+  .pill.navy { background: var(--prism-navy); }
+  .pill.blue { background: var(--prism-blue); }
+  .pill.deep { background: var(--prism-deep-royal); }
+  .pill.charcoal { background: var(--prism-charcoal); }
+  .pill.steel { background: var(--prism-steel); }
+  .footer-note {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--off-white);
+    border-left: 3px solid var(--prism-gold);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .step-list { counter-reset: step; padding-left: 0; list-style: none; }
+  .step-list li {
+    counter-increment: step;
+    padding: 12px 12px 12px 48px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    width: 26px;
+    height: 26px;
+    background: var(--prism-royal);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .step-list li strong { color: var(--prism-navy); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Blog Publish Pipeline &amp; Edit Guard — Workflow</h1>
+  <div class="sub">/publish-blog gated pipeline • Brand-pass → Assemble → Verify → Ship • PreToolUse orchestrator edit guard</div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-view="v1"><span class="num">1</span>High-level Overview</button>
+  <button class="tab" data-view="v2"><span class="num">2</span>Detailed Swim-Lane</button>
+  <button class="tab" data-view="v3"><span class="num">3</span>Step-by-Step Procedural</button>
+  <button class="tab" data-view="v4"><span class="num">4</span>Gate Reference</button>
+</nav>
+
+<main>
+
+<!-- VIEW 1: HIGH-LEVEL OVERVIEW -->
+<section class="view active" id="v1">
+  <div class="view-header">
+    <h2>1 · High-Level Overview</h2>
+    <p>Two flows: the gated /publish-blog pipeline Michele invokes, and the always-on edit guard that protects live automation.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Trigger / delivery</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Pipeline step</div>
+    <div class="legend-item"><span class="swatch" style="background:#4A6DB5;"></span>Decision / gate</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Brand-pass execution</div>
+    <div class="legend-item"><span class="swatch" style="background:#C8A45A;"></span>FAIL / blocked</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Ship / record</div>
+  </div>
+
+  <div class="panel">
+    <h3>Flow A — /publish-blog (invoked per post)</h3>
+    <pre class="mermaid">
+flowchart LR
+    Start(["/publish-blog invoked"]):::trigger
+    Confirm["1. Confirm post,<br/>date, work folder"]:::ops
+    BP["2–4. Brand-pass<br/>hero + deck + infographic"]:::exec
+    Asm["5–6. Interleave deck,<br/>podcast link"]:::ops
+    LI["7. LinkedIn ×2<br/>URL + first comment"]:::ops
+    V1{"verify_publish.py<br/>pre-pr = exit 0?"}:::decision
+    PR["8. Open gated PR,<br/>merge on/after date UTC"]:::ops
+    V2{"verify_publish.py<br/>post-merge = exit 0?"}:::decision
+    Gate{"Gate table<br/>12 rows all PASS?"}:::decision
+    Fix["Fix + re-verify"]:::fail
+    Notion["9. Notion closing<br/>comment + status"]:::output
+    Out(["Post live, table reported"]):::trigger
+
+    Start --> Confirm --> BP --> Asm --> LI --> V1
+    V1 -->|yes| PR --> V2
+    V1 -->|no| Fix
+    V2 -->|yes| Gate
+    V2 -->|no| Fix
+    Gate -->|all PASS| Notion --> Out
+    Gate -->|any FAIL| Fix
+    Fix -.-> BP
+
+    classDef trigger fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+    classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+    classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+    classDef fail fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="panel">
+    <h3>Flow B — orchestrator edit guard (every Edit/Write, every session)</h3>
+    <pre class="mermaid">
+flowchart LR
+    E(["Edit or Write<br/>tool call"]):::trigger
+    G{"Path ends .cmd or<br/>contains orchestrator?"}:::decision
+    Scan["Scan Win32 processes<br/>for automation signatures"]:::ops
+    R{"Signature<br/>running?"}:::decision
+    OK["Edit proceeds"]:::output
+    Deny["Edit denied —<br/>wait for run to finish"]:::fail
+
+    E --> G
+    G -->|no| OK
+    G -->|yes| Scan --> R
+    R -->|none| OK
+    R -->|running| Deny
+
+    classDef trigger fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+    classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+    classDef decision fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+    classDef fail fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:2px
+    classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card">
+      <h4>Bundle per post</h4>
+      <p>Blog source (canonical) · _work mirror · hero · deck slides · infographic · linkedin-institutional.md · linkedin-personal.md · podcast link</p>
+    </div>
+    <div class="kpi-card blue">
+      <h4>Hard gates</h4>
+      <p>12-row gate table, every row PASS or agreed N/A. verify_publish.py runs twice: <code>--stage pre-pr</code> (before PR) and <code>--stage post-merge</code> (cache-busted live fetch).</p>
+    </div>
+    <div class="kpi-card gold">
+      <h4>Guard signatures</h4>
+      <p>orchestrator-wakeup · summary-log-wakeup · brief-watchdog · prism-daily-orchestrator · prism-daily-summary-log. Fails open on scan error — never wedges a session.</p>
+    </div>
+    <div class="kpi-card navy">
+      <h4>Timing rules</h4>
+      <p>Blog <code>date:</code> = LinkedIn <code>post_by:</code> = work-folder prefix (same-day rule). Unstub PR merges on/after publish date <strong>UTC</strong> — early merges silently restore the stub.</p>
+    </div>
+  </div>
+</section>
+
+<!-- VIEW 2: DETAILED SWIM-LANE -->
+<section class="view" id="v2">
+  <div class="view-header">
+    <h2>2 · Detailed Swim-Lane</h2>
+    <p>Who/what owns each publish step. Lanes = actors and systems. Cross-lane arrows = handoffs.</p>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#17135C;"></span>Michele (user)</div>
+    <div class="legend-item"><span class="swatch" style="background:#3A5998;"></span>Claude /publish-blog</div>
+    <div class="legend-item"><span class="swatch" style="background:#2E4EAD;"></span>Brand-pass toolkit</div>
+    <div class="legend-item"><span class="swatch" style="background:#BDC9DD;border:1px solid #94a4c5;"></span>Website repo + Netlify</div>
+    <div class="legend-item"><span class="swatch" style="background:#1A1A2E;"></span>Notion + dashboard</div>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  subgraph User["MICHELE"]
+    direction TB
+    U1(["Requests publish"]):::user
+    U2(["Approves squash-merge"]):::user
+    U3(["Reads gate table"]):::user
+  end
+
+  subgraph Skill["CLAUDE — /publish-blog"]
+    direction TB
+    C1["Confirm slug, date,<br/>work folder"]:::cos
+    C2["Interleave deck +<br/>podcast link"]:::cos
+    C3["Draft LinkedIn ×2<br/>URL + first comment"]:::cos
+    C4["Assemble gate table"]:::cos
+  end
+
+  subgraph Toolkit["BRAND-PASS TOOLKIT"]
+    direction TB
+    T1["brand_pass.py<br/>hero · deck · infographic"]:::exec
+    T2["stage_blog_post.py<br/>frontmatter-stripped body"]:::exec
+    T3["verify_publish.py<br/>pre-pr + post-merge"]:::exec
+  end
+
+  subgraph Site["WEBSITE REPO + NETLIFY"]
+    direction TB
+    W1["POSTS array in<br/>_build_blog_html.js"]:::ext
+    W2["Gated PR → squash merge<br/>on/after date UTC"]:::ext
+    W3["Netlify deploy +<br/>cache-busted live check"]:::ext
+  end
+
+  subgraph Rec["NOTION + DASHBOARD"]
+    direction TB
+    N1[("Ticket — closing<br/>comment + status")]:::data
+  end
+
+  U1 --> C1
+  C1 -.run.-> T1
+  T1 --> C2
+  C2 -.stage.-> T2
+  T2 -.slug check.-> W1
+  C2 --> C3
+  C3 -.gate.-> T3
+  T3 -.exit 0.-> W2
+  U2 --> W2
+  W2 --> W3
+  W3 -.live proof.-> C4
+  C4 --> N1
+  C4 --> U3
+
+  classDef user fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef cos fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:2px
+  classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:2px
+  classDef ext fill:#BDC9DD,stroke:#94a4c5,color:#1A1A2E,stroke-width:1.5px
+  classDef data fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <div class="footer-note">
+    <strong>Non-negotiables in every lane:</strong> blog-sources/&lt;slug&gt;.md is canonical (the _work mirror loses on divergence) · deck is hand-interleaved, never auto-embedded · LinkedIn copy always carries the blog URL and a promo first-comment · never name the bank ("one of the four largest U.S. banks") · no stray exclamation points, no banned phrases from prism-marketing/brand/do-not-do.md.
+  </div>
+</section>
+
+<!-- VIEW 3: STEP-BY-STEP PROCEDURAL -->
+<section class="view" id="v3">
+  <div class="view-header">
+    <h2>3 · Step-by-Step Procedural</h2>
+    <p>Every decision point, branch, and verifier call — SOP-grade detail.</p>
+  </div>
+
+  <div class="panel">
+    <pre class="mermaid">
+flowchart LR
+  A(["/publish-blog"]):::start --> B["Resolve slug, date,<br/>work folder, ticket"]:::ops
+  B --> B2{"Same-day rule holds?<br/>date = post_by = prefix"}:::dec
+  B2 -->|no| B3["Rename folder /<br/>align dates"]:::warn
+  B3 --> B2
+  B2 -->|yes| H["Brand-pass hero"]:::exec
+  H --> H2{"Lockup top-right,<br/>sized, navy recolor?"}:::dec
+  H2 -->|no| H
+  H2 -->|yes| D["Brand-pass every<br/>deck slide"]:::exec
+  D --> I["Brand-pass<br/>infographic"]:::exec
+  I --> E1["Interleave deck —<br/>one slide per section + alt"]:::ops
+  E1 --> P1{"Paired podcast<br/>episode?"}:::dec
+  P1 -->|yes| P2["Embed episode link"]:::ops
+  P1 -->|no| P3["Record explicit<br/>no-episode"]:::warn
+  P2 --> L1["LinkedIn institutional +<br/>personal, URL + comment"]:::ops
+  P3 --> L1
+  L1 --> V1{"verify_publish.py<br/>--stage pre-pr = 0?"}:::dec
+  V1 -->|no| FIX["Fix failing check"]:::warn
+  FIX --> V1
+  V1 -->|yes| PR["Open gated PR"]:::ops
+  PR --> M{"Publish date<br/>reached UTC?"}:::dec
+  M -->|no| WAIT["Hold unstub merge"]:::warn
+  WAIT --> M
+  M -->|yes| MG["Michele squash-merges"]:::start
+  MG --> V2{"verify_publish.py<br/>--stage post-merge = 0?"}:::dec
+  V2 -->|no| FIX2["Netlify skip? Stub back?<br/>Redeploy / empty-commit PR"]:::warn
+  FIX2 --> V2
+  V2 -->|yes| GT{"Gate table —<br/>12 rows PASS?"}:::dec
+  GT -->|any FAIL| FIX
+  GT -->|all PASS| NC["Notion closing comment<br/>then status Done"]:::output
+  NC --> R(["Report gate table<br/>to Michele"]):::start
+
+  classDef start fill:#17135C,stroke:#0d0a3f,color:#fff,stroke-width:2px
+  classDef dec fill:#4A6DB5,stroke:#3a548a,color:#fff,stroke-width:2px
+  classDef ops fill:#3A5998,stroke:#2c4577,color:#fff,stroke-width:1.5px
+  classDef exec fill:#2E4EAD,stroke:#1f3a87,color:#fff,stroke-width:1.5px
+  classDef warn fill:#C8A45A,stroke:#a07f3f,color:#fff,stroke-width:1.5px
+  classDef output fill:#1A1A2E,stroke:#0a0a18,color:#fff,stroke-width:2px
+    </pre>
+  </div>
+
+  <ol class="step-list">
+    <li><strong>Resolve inputs</strong> — bare website slug, publish date, work folder <code>Development/prism-notebooklm/brandpass/_work/&lt;YYYY-MM-DD_&gt;&lt;slug&gt;/</code>, Notion ticket. Same-day rule enforced up front: blog <code>date:</code> = LinkedIn <code>post_by:</code> = folder prefix.</li>
+    <li><strong>Confirm the post</strong> — read <code>prism_website_project/blog-sources/&lt;slug&gt;.md</code> (canonical) and quote title/slug/date back. The <code>_work/&lt;slug&gt;/blog.md</code> mirror loses on divergence.</li>
+    <li><strong>Brand-pass hero</strong> — <code>scripts/brand_pass.py</code> with the bare slug, then visual check: full triangle+wordmark lockup top-right, correctly sized, navy recolor complete.</li>
+    <li><strong>Brand-pass every deck slide</strong> — no sampling. Lockup present and sized, no off-palette gold in new assets, no leftover NotebookLM branding.</li>
+    <li><strong>Brand-pass infographic</strong> — same bar as the hero. A skipped infographic is a FAIL even when hero and deck passed.</li>
+    <li><strong>Interleave the deck</strong> — one slide per section with descriptive alt text, hand-placed in the post body. Staging via <code>stage_blog_post.py</code> needs the body frontmatter-stripped (double-frontmatter bug).</li>
+    <li><strong>Podcast branch</strong> — paired episode gets embedded; no episode gets recorded explicitly in the gate table, never silently skipped.</li>
+    <li><strong>LinkedIn companions</strong> — institutional (firm voice, no first person) + personal (founder voice, first person), each with the blog URL in the copy and a promo first-comment draft.</li>
+    <li><strong>Pre-PR verifier</strong> — <code>verify_publish.py --stage pre-pr</code> must exit 0: brand-pass artifacts, deck embeds + alt text, LinkedIn checks, same-day rule, podcast mapping, and the slug present in the hardcoded <code>POSTS</code> array in <code>_build_blog_html.js</code>.</li>
+    <li><strong>Gated PR + UTC timing</strong> — future-dated posts merge as stubs; the unstub PR merges on/after the publish date (UTC). An early merge silently restores the stub — recover with an empty-commit PR on publish day.</li>
+    <li><strong>Post-merge verifier</strong> — <code>verify_publish.py --stage post-merge</code> does the cache-busted live fetch and stub check itself. Netlify's webhook can silently skip a merge; "PR merged" is not "deployed".</li>
+    <li><strong>Close-out</strong> — canonical closing comment on the Notion ticket first, then status change. The 12-row gate table is shown to Michele before the post is declared live.</li>
+  </ol>
+</section>
+
+<!-- VIEW 4: GATE REFERENCE -->
+<section class="view" id="v4">
+  <div class="view-header">
+    <h2>4 · Gate Reference</h2>
+    <p>Every gate in the final table, what it checks, and the guard's process signatures.</p>
+  </div>
+
+  <div class="panel" style="padding: 0;">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 24%;">Gate</th>
+          <th style="width: 40%;">What it checks</th>
+          <th style="width: 18%;">Checked by</th>
+          <th style="width: 18%;">Typical failure</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="pill deep">hero brand-pass</span></td><td>Lockup top-right, correct size, navy recolor complete, visual check done</td><td>brand_pass.py + eyes</td><td>Oversized lockup</td></tr>
+        <tr><td><span class="pill deep">deck slides brand-pass</span></td><td>Every slide passed, lockup sizing, no leftover NotebookLM branding</td><td>brand_pass.py + eyes</td><td>Sampled instead of all</td></tr>
+        <tr><td><span class="pill deep">infographic brand-pass</span></td><td>Same treatment as hero — not skippable</td><td>brand_pass.py + eyes</td><td>Published without pass</td></tr>
+        <tr><td><span class="pill royal">deck interleaved</span></td><td>One slide per section in the body, descriptive alt text</td><td>verify_publish.py</td><td>Deck embed forgotten</td></tr>
+        <tr><td><span class="pill royal">podcast link</span></td><td>Episode embedded, or explicit "no episode" recorded</td><td>verify_publish.py</td><td>Silently skipped</td></tr>
+        <tr><td><span class="pill royal">LinkedIn institutional</span></td><td>Firm voice, blog URL in copy, promo first-comment, no banned phrases</td><td>verify_publish.py</td><td>Missing blog URL</td></tr>
+        <tr><td><span class="pill royal">LinkedIn personal</span></td><td>Founder voice, blog URL in copy, promo first-comment</td><td>verify_publish.py</td><td>Missing first-comment</td></tr>
+        <tr><td><span class="pill blue">same-day rule</span></td><td>Blog <code>date:</code> = <code>post_by:</code> = work-folder date prefix</td><td>verify_publish.py</td><td>Folder not renamed</td></tr>
+        <tr><td><span class="pill blue">POSTS array</span></td><td>Slug present in hardcoded <code>POSTS</code> in <code>_build_blog_html.js</code></td><td>verify_publish.py</td><td>New post silently skipped</td></tr>
+        <tr><td><span class="pill gold">unstub timing</span></td><td>Unstub PR merged on/after publish date UTC</td><td>process rule</td><td>Early merge restores stub</td></tr>
+        <tr><td><span class="pill gold">prod live</span></td><td>Cache-busted fetch shows the real post, not a stub or stale cache</td><td>verify_publish.py post-merge</td><td>Netlify webhook skipped</td></tr>
+        <tr><td><span class="pill charcoal">Notion close-out</span></td><td>Canonical closing comment posted before status flip</td><td>process rule</td><td>Status flipped commentless</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="padding: 0;">
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th style="width: 28%;">Edit-guard signature</th>
+          <th style="width: 44%;">What it is</th>
+          <th style="width: 28%;">Fires</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>orchestrator-wakeup</code></td><td>Handoffs/orchestrator-wakeup.cmd — wrapper run by the "Prism Orchestrator Wake Up" Windows task</td><td>~7:00 AM daily</td></tr>
+        <tr><td><code>summary-log-wakeup</code></td><td>Handoffs/summary-log-wakeup.cmd — wrapper run by the "Prism Daily Summary Log" Windows task</td><td>~6:00 PM daily</td></tr>
+        <tr><td><code>brief-watchdog</code></td><td>Handoffs/brief-watchdog.ps1 — "Prism Brief Watchdog" Windows task</td><td>per its trigger</td></tr>
+        <tr><td><code>prism-daily-orchestrator</code></td><td>Headless claude -p run spawned by the morning wrapper</td><td>during the 7 AM run</td></tr>
+        <tr><td><code>prism-daily-summary-log</code></td><td>Headless claude -p run spawned by the evening wrapper</td><td>during the 6 PM run</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="kpi-card gold">
+      <h4>Guard behavior</h4>
+      <p>PreToolUse hook on Edit|Write in <code>.claude/settings.json</code> → <code>.claude/hooks/block-orchestrator-edits.js</code>. Only scans when the target path ends <code>.cmd</code> or contains "orchestrator". Denies with a BLOCKED message while a signature process runs; <strong>fails open</strong> on any scan error.</p>
+    </div>
+    <div class="kpi-card navy">
+      <h4>Why it exists</h4>
+      <p>Editing a .cmd mid-run corrupts it at the byte offset cmd.exe is reading and has caused an orchestrator double-run. The guard makes the CLAUDE.md "never edit a running automation file" rule mechanical.</p>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <strong>Source files:</strong> <code>.claude/skills/publish-blog/SKILL.md</code> (drift-tracked source of this diagram) · <code>.claude/hooks/block-orchestrator-edits.js</code> + <code>.claude/settings.json</code> (edit guard — not drift-tracked here) · <code>Development/prism-notebooklm/scripts/</code> brand_pass.py, stage_blog_post.py, verify_publish.py · workspace CLAUDE.md "Blog request workflow" + "Orchestrator / Automation Safety".
+  </div>
+</section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+      fontSize: '14px',
+      primaryColor: '#3A5998',
+      primaryTextColor: '#FFFFFF',
+      primaryBorderColor: '#2c4577',
+      lineColor: '#475569',
+      textColor: '#1A1A2E',
+      mainBkg: '#3A5998',
+      secondaryColor: '#4A6DB5',
+      tertiaryColor: '#F4F7FB',
+      /* Subgraph (cluster) styling — defaults render red, banned by brand */
+      clusterBkg: '#F4F7FB',
+      clusterBorder: '#BDC9DD',
+      titleColor: '#17135C',
+      edgeLabelBackground: '#FFFFFF',
+      noteBkgColor: '#F4F7FB',
+      noteBorderColor: '#BDC9DD',
+      noteTextColor: '#1A1A2E'
+    },
+    flowchart: {
+      htmlLabels: true,
+      curve: 'basis',
+      nodeSpacing: 25,
+      rankSpacing: 45,
+      padding: 8,
+      useMaxWidth: true,
+      diagramPadding: 8
+    },
+    securityLevel: 'loose'
+  });
+
+  function captureSources() {
+    document.querySelectorAll('.mermaid').forEach(d => {
+      if (!d.dataset.src) d.dataset.src = d.textContent.trim();
+    });
+  }
+  async function renderView(viewId) {
+    const diagrams = document.querySelectorAll('#' + viewId + ' .mermaid');
+    for (const d of diagrams) {
+      if (d.dataset.rendered) continue;
+      try {
+        const src = d.dataset.src || d.textContent.trim();
+        const id = 'm_' + Math.random().toString(36).slice(2);
+        const { svg } = await mermaid.render(id, src);
+        d.innerHTML = svg;
+        d.dataset.rendered = '1';
+      } catch (err) {
+        d.innerHTML = '<div style="color:#C8A45A;padding:20px;font-family:monospace;font-size:12px;text-align:left;">Mermaid render error:<br>' + (err && err.message ? err.message : err) + '</div>';
+      }
+    }
+  }
+
+  const tabs = document.querySelectorAll('.tab');
+  const views = document.querySelectorAll('.view');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-view');
+      tabs.forEach(t => t.classList.remove('active'));
+      views.forEach(v => v.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      renderView(target);
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    captureSources();
+    renderView('v1');
+  });
+</script>
+
+</body>
+</html>
