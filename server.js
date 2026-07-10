@@ -1889,6 +1889,46 @@ ensureLeadSources();
   try { emailSender.ensureEmailLog(db); } catch (e) { /* non-fatal */ }
 })();
 
+// T-127 — Michele's personal to-do checklist (Daily Agenda "My To-Dos" card).
+// Volume SQLite so check-offs survive Railway redeploys (ephemeral FS).
+// Deliberately separate from the Morning Brief Top 10: the brief is the firm's
+// recommended agenda; this list is Michele's own committed tasks.
+(function ensurePersonalTodos() {
+  db.exec(`CREATE TABLE IF NOT EXISTS personal_todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    due_hint TEXT,                       -- freeform chip: 'July' | 'early Aug' | a date
+    sort_order INTEGER DEFAULT 100,
+    done INTEGER DEFAULT 0,
+    done_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  )`);
+  // Seed on first boot only. Rows are completed in place, never deleted, so a
+  // used table never re-triggers the empty check.
+  const todoCount = db.prepare('SELECT COUNT(*) AS n FROM personal_todos').get().n;
+  if (todoCount === 0) {
+    const seedTodo = db.prepare(
+      'INSERT INTO personal_todos (text, due_hint, sort_order, done, done_at) VALUES (?, ?, ?, ?, ?)'
+    );
+    const seededDoneAt = new Date().toISOString().slice(0, 10);
+    [
+      ['Buy Data Con LA ticket', 'July', 10, 1, seededDoneAt],
+      ['Book CLT⇄LAX flights for DataCon (8/19–8/25)', 'July', 20, 1, seededDoneAt],
+      ['Book Long Beach lodging — 6 nights, 8/19–8/25', 'July', 30, 0, null],
+      ['Pick early-August FL domicile trip dates', 'July', 40, 0, null],
+      ['Sign up for FL mail service (before FL trip)', 'July', 50, 0, null],
+      ['Book CPA session — FL domicile + LLC disposition', 'July', 60, 0, null],
+      ['Decide Bailey’s care model with Devin', 'July', 70, 0, null],
+      ['Book Mexico City lodging for October (month 1)', 'July', 80, 0, null],
+      ['Order apostille on birth certificate (issuing state) — Panama dual citizenship', 'July', 90, 0, null],
+      ['FL trip: Declaration of Domicile, FL license, voter registration, vehicle', 'early Aug', 100, 0, null],
+      ['Pick health insurance that covers monthly US weeks', 'early Aug', 110, 0, null],
+      ['Greenlight UTC re-anchor of scheduled tasks (before 8/19)', 'early Aug', 120, 0, null],
+    ].forEach(r => seedTodo.run(...r));
+  }
+})();
+
 // Add category + examples_json columns to services table (schema-only; the
 // categorization UPDATE runs post-seed — see applyServiceCategories() below).
 (function migrateServicesColumns() {
@@ -6590,6 +6630,77 @@ app.post('/api/mission-control/inbox/:id/triage', requireAuth, [
   } catch (e) {
     console.warn('[inbox] POST /api/mission-control/inbox/:id/triage failed:', e.message);
     return res.status(e.status || 502).json({ ok: false, error: e.message });
+  }
+});
+
+// ─── Personal To-Dos API (T-127) ────────────────────────────────────────────
+// Michele's own committed tasks — the "My To-Dos" card on the Daily Agenda.
+// SQLite-resident (volume-persisted), not Notion: these are personal checklist
+// items, not firm tickets, and must not pollute the Tickets DB.
+
+// GET — full list; open items first (by sort_order), done items last (newest done first).
+app.get('/api/personal-todos', requireAuth, (req, res) => {
+  try {
+    const todos = db.prepare(
+      `SELECT id, text, due_hint, sort_order, done, done_at, created_at
+       FROM personal_todos
+       ORDER BY done ASC, CASE WHEN done = 0 THEN sort_order END ASC, done_at DESC, id ASC`
+    ).all();
+    return res.json({ ok: true, todos });
+  } catch (e) {
+    console.warn('[personal-todos] GET failed:', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST — add an item. Appends to the end of the open list.
+app.post('/api/personal-todos', requireAuth, [
+  body('text').isString().trim().notEmpty().withMessage('text is required'),
+  body('due_hint').optional({ nullable: true }).isString().trim(),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const maxSort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM personal_todos').get().m;
+    const info = db.prepare(
+      'INSERT INTO personal_todos (text, due_hint, sort_order) VALUES (?, ?, ?)'
+    ).run(req.body.text.trim(), req.body.due_hint?.trim() || null, maxSort + 10);
+    const todo = db.prepare('SELECT * FROM personal_todos WHERE id = ?').get(info.lastInsertRowid);
+    return res.status(201).json({ ok: true, todo });
+  } catch (e) {
+    console.warn('[personal-todos] POST failed:', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// PATCH — toggle done and/or edit text / due_hint.
+app.patch('/api/personal-todos/:id', requireAuth, [
+  body('done').optional().isBoolean().withMessage('done must be boolean'),
+  body('text').optional().isString().trim().notEmpty().withMessage('text cannot be empty'),
+  body('due_hint').optional({ nullable: true }).isString().trim(),
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
+  try {
+    const existing = db.prepare('SELECT * FROM personal_todos WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'not found' });
+    const sets = [];
+    const args = [];
+    if (typeof req.body.done !== 'undefined') {
+      const isDone = req.body.done === true || req.body.done === 'true';
+      sets.push('done = ?', "done_at = CASE WHEN ? = 1 THEN datetime('now') ELSE NULL END");
+      args.push(isDone ? 1 : 0, isDone ? 1 : 0);
+    }
+    if (typeof req.body.text !== 'undefined') { sets.push('text = ?'); args.push(req.body.text.trim()); }
+    if (typeof req.body.due_hint !== 'undefined') { sets.push('due_hint = ?'); args.push(req.body.due_hint?.trim() || null); }
+    if (!sets.length) return res.status(400).json({ ok: false, error: 'nothing to update' });
+    sets.push("updated_at = datetime('now')");
+    db.prepare(`UPDATE personal_todos SET ${sets.join(', ')} WHERE id = ?`).run(...args, req.params.id);
+    const todo = db.prepare('SELECT * FROM personal_todos WHERE id = ?').get(req.params.id);
+    return res.json({ ok: true, todo });
+  } catch (e) {
+    console.warn('[personal-todos] PATCH failed:', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
