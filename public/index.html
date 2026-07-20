@@ -504,16 +504,24 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .agenda-twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .agenda-twocol > details { min-width: 0; margin: 0; }
 @media (max-width: 900px) { .agenda-twocol { grid-template-columns: 1fr; } }
-/* T-127 — My To-Dos personal checklist card on Daily Agenda */
+/* T-127 — personal checklist card on Daily Agenda (renamed "Agenda" by T-129) */
 .my-todo-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .my-todo-row:last-of-type { border-bottom: none; }
 .my-todo-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; }
 .my-todo-text { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.4; }
 .my-todo-row.is-done .my-todo-text { color: var(--muted); text-decoration: line-through; }
+/* T-129 — create/due date chips; due computed in Eastern time */
+.my-todo-chip { flex-shrink: 0; font-size: 11px; color: var(--muted); background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; white-space: nowrap; cursor: default; }
+.my-todo-chip.is-overdue { color: var(--danger, #e5534b); border-color: var(--danger, #e5534b); font-weight: 600; }
+.my-todo-chip.is-today { color: var(--warning, #d29922); border-color: var(--warning, #d29922); font-weight: 600; }
+.my-todos-done { margin-top: 10px; border-top: 1px solid var(--border); }
+.my-todos-done > summary { cursor: pointer; list-style: none; font-size: 12px; color: var(--muted); padding: 8px 0 4px; user-select: none; }
+.my-todos-done > summary::before { content: '\25B8\00a0'; }
+.my-todos-done[open] > summary::before { content: '\25BE\00a0'; }
 .my-todos-add { display: flex; gap: 8px; margin-top: 12px; }
 .my-todos-add input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 7px 10px; font-size: 12px; font-family: inherit; }
 .my-todos-add #my-todos-input { flex: 1; min-width: 0; }
-.my-todos-add #my-todos-due { width: 110px; flex-shrink: 0; }
+.my-todos-add #my-todos-due { width: 140px; flex-shrink: 0; color-scheme: dark; }
 .my-todos-loading { font-size: 12px; color: var(--muted); padding: 6px 0; }
 /* Phase B — stale Backlog card warning pill on the Kanban */
 .ticket-card.stale-backlog { border-left: 3px solid var(--red); }
@@ -1234,20 +1242,23 @@ tr:hover td { background: rgba(255,255,255,0.02); }
         <div id="agenda-brief-body" class="brief-loading">Loading morning brief…</div>
       </div>
 
-      <!-- T-127: My To-Dos — Michele's personal checklist, deliberately separate from the
-           Morning Brief Top 10 (firm's recommended agenda vs her own committed tasks).
+      <!-- T-127 (renamed "Agenda" by T-129): Michele's personal checklist, deliberately
+           separate from the Morning Brief Top 10 (firm's recommended agenda vs her own
+           committed tasks) and from the Daily Agenda page itself.
            SQLite-backed (personal_todos, volume-persisted) so check-offs survive deploys.
+           Element ids + API route keep the my-todos/personal-todos plumbing — T-129 renamed
+           the display layer only (other sessions write to the endpoint).
            Open by default; collapse state persists via data-persist-key like the other panels. -->
       <details class="card agenda-collapsible" id="my-todos-card" data-persist-key="agenda.my-todos" open style="margin-bottom:24px">
         <summary class="agenda-collapsible-summary">
           <span class="agenda-collapsible-chevron">&#9654;</span>
-          <h3 class="agenda-collapsible-title">My To-Dos <span id="my-todos-count" class="agenda-collapsible-count"></span></h3>
+          <h3 class="agenda-collapsible-title">Agenda <span id="my-todos-count" class="agenda-collapsible-count"></span></h3>
         </summary>
         <div class="agenda-collapsible-body">
           <div id="my-todos-list" class="my-todos-loading">Loading&hellip;</div>
           <div class="my-todos-add">
-            <input id="my-todos-input" type="text" placeholder="Add a task&hellip;" onkeydown="if(event.key==='Enter')addPersonalTodo()"/>
-            <input id="my-todos-due" type="text" placeholder="Due (e.g. July)"/>
+            <input id="my-todos-input" type="text" placeholder="Add an item&hellip;" onkeydown="if(event.key==='Enter')addPersonalTodo()"/>
+            <input id="my-todos-due" type="date" title="Due date (optional)"/>
             <button type="button" onclick="addPersonalTodo()" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;flex-shrink:0">Add</button>
           </div>
         </div>
@@ -6741,8 +6752,9 @@ function needsDecisionTileClick() {
   }
 }
 
-// ── T-127: My To-Dos — Michele's personal checklist ─────────────────────────
+// ── T-127: Agenda (né My To-Dos) — Michele's personal checklist ─────────────
 // Separate surface from the Morning Brief Top 10 (firm agenda vs her own tasks).
+// T-129: create/due dates visible, due-date sort, collapsed Done section.
 async function loadPersonalTodos() {
   try {
     const r = await api('personal-todos');
@@ -6750,26 +6762,101 @@ async function loadPersonalTodos() {
     renderPersonalTodos(r.todos || []);
   } catch (e) {
     const el = $('#my-todos-list');
-    if (el) el.innerHTML = '<span style="color:var(--muted);font-size:12px">Could not load to-dos.</span>';
+    if (el) el.innerHTML = '<span style="color:var(--muted);font-size:12px">Could not load the agenda.</span>';
   }
+}
+
+// Today's date in Eastern time as YYYY-MM-DD — the dashboard's business-day
+// convention (T-124). Never use toISOString() for "today" here.
+function _etToday() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+// SQLite timestamps are UTC 'YYYY-MM-DD HH:MM:SS' (or bare dates from seed
+// rows). Returns the Eastern calendar date YYYY-MM-DD, or null.
+function _etDateOf(sqliteTs) {
+  if (!sqliteTs) return null;
+  if (sqliteTs.length <= 10) return sqliteTs; // date-only — already a calendar date
+  const d = new Date(sqliteTs.replace(' ', 'T') + (sqliteTs.endsWith('Z') ? '' : 'Z'));
+  if (isNaN(d)) return null;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York',
+    year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+function _shortDate(ymd) {
+  if (!ymd) return '';
+  const [y, m, d] = ymd.split('-').map(Number);
+  const label = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US',
+    { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return y !== Number(_etToday().slice(0, 4)) ? `${label} ${y}` : label;
+}
+
+function _daysBetween(fromYmd, toYmd) {
+  const p = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((p(toYmd) - p(fromYmd)) / 86400000);
+}
+
+// Due chip: compact relative label, exact date on hover, overdue flagged red.
+function _todoDueChip(t) {
+  if (!t.due_date) {
+    return t.due_hint
+      ? `<span class="my-todo-chip" title="Due (approx.)">${escapeHtml(t.due_hint)}</span>` : '';
+  }
+  const diff = _daysBetween(_etToday(), t.due_date);
+  let cls = '', label;
+  if (diff < 0)       { cls = ' is-overdue'; label = `${-diff}d overdue`; }
+  else if (diff === 0){ cls = ' is-today';   label = 'due today'; }
+  else if (diff === 1){ label = 'due tomorrow'; }
+  else if (diff < 7)  {
+    const [y, m, d] = t.due_date.split('-').map(Number);
+    label = 'due ' + new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+  }
+  else                { label = 'due ' + _shortDate(t.due_date); }
+  return `<span class="my-todo-chip${cls}" title="Due ${t.due_date}">${label}</span>`;
+}
+
+function _todoRow(t) {
+  const createdEt = _etDateOf(t.created_at);
+  const doneEt = _etDateOf(t.done_at);
+  return `
+    <div class="my-todo-row${t.done ? ' is-done' : ''}">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="togglePersonalTodo(${t.id}, this.checked)" title="${t.done ? 'Mark open (To Do)' : 'Mark done'}"/>
+      <span class="my-todo-text">${escapeHtml(t.text)}</span>
+      ${t.done
+        ? (doneEt ? `<span class="my-todo-chip" title="Completed ${doneEt}">done ${_shortDate(doneEt)}</span>` : '')
+        : _todoDueChip(t)}
+      ${createdEt ? `<span class="my-todo-chip" title="Created ${createdEt}">added ${_shortDate(createdEt)}</span>` : ''}
+    </div>`;
 }
 
 function renderPersonalTodos(todos) {
   const el = $('#my-todos-list');
   if (!el) return;
-  const open = todos.filter(t => !t.done).length;
+  const open = todos.filter(t => !t.done);
+  const done = todos.filter(t => t.done);
   const countEl = $('#my-todos-count');
-  if (countEl) countEl.textContent = `${open} open · ${todos.length - open} done`;
+  if (countEl) countEl.textContent = `${open.length} open`;
   if (!todos.length) {
-    el.innerHTML = '<span style="color:var(--muted);font-size:12px">Nothing here — add your first task below.</span>';
+    el.innerHTML = '<span style="color:var(--muted);font-size:12px">Nothing here — add your first item below.</span>';
     return;
   }
-  el.innerHTML = todos.map(t => `
-    <div class="my-todo-row${t.done ? ' is-done' : ''}">
-      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="togglePersonalTodo(${t.id}, this.checked)" title="${t.done ? 'Mark open' : 'Mark done'}"/>
-      <span class="my-todo-text">${escapeHtml(t.text)}</span>
-      ${t.due_hint ? `<span class="agenda-date-chip">${escapeHtml(t.due_hint)}</span>` : ''}
-    </div>`).join('');
+  // Done section renders the last 30 days only (older rows stay in the DB).
+  const today = _etToday();
+  const recentDone = done.filter(t => {
+    const d = _etDateOf(t.done_at);
+    return d && _daysBetween(d, today) <= 30;
+  });
+  const openHtml = open.length
+    ? open.map(_todoRow).join('')
+    : '<span style="color:var(--muted);font-size:12px">All caught up — nothing on the agenda.</span>';
+  const doneHtml = recentDone.length
+    ? `<details class="my-todos-done">
+         <summary>Done (${recentDone.length})</summary>
+         ${recentDone.map(_todoRow).join('')}
+       </details>`
+    : '';
+  el.innerHTML = openHtml + doneHtml;
 }
 
 async function togglePersonalTodo(id, checked) {
@@ -6789,7 +6876,7 @@ async function addPersonalTodo() {
   const r = await api('personal-todos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, due_hint: (due.value || '').trim() || null }),
+    body: JSON.stringify({ text, due_date: (due.value || '').trim() || null }),
   });
   if (r && r.ok) { input.value = ''; due.value = ''; loadPersonalTodos(); }
 }
