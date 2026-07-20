@@ -1927,6 +1927,12 @@ ensureLeadSources();
       ['Greenlight UTC re-anchor of scheduled tasks (before 8/19)', 'early Aug', 120, 0, null],
     ].forEach(r => seedTodo.run(...r));
   }
+  // T-129 — Agenda card: real due dates alongside the freeform due_hint chip.
+  // due_hint stays for legacy rows ('July', 'early Aug'); due_date is ISO YYYY-MM-DD.
+  const todoCols = db.prepare('PRAGMA table_info(personal_todos)').all().map(c => c.name);
+  if (!todoCols.includes('due_date')) {
+    db.exec('ALTER TABLE personal_todos ADD COLUMN due_date TEXT');
+  }
 })();
 
 // Add category + examples_json columns to services table (schema-only; the
@@ -6633,18 +6639,25 @@ app.post('/api/mission-control/inbox/:id/triage', requireAuth, [
   }
 });
 
-// ─── Personal To-Dos API (T-127) ────────────────────────────────────────────
-// Michele's own committed tasks — the "My To-Dos" card on the Daily Agenda.
+// ─── Personal To-Dos API (T-127; Agenda card since T-129) ───────────────────
+// Michele's own committed tasks — the "Agenda" card on the Daily Agenda.
 // SQLite-resident (volume-persisted), not Notion: these are personal checklist
 // items, not firm tickets, and must not pollute the Tickets DB.
+// Route + table names deliberately keep the personal-todos plumbing (T-129
+// renamed the display layer only — other sessions write to this endpoint).
 
-// GET — full list; open items first (by sort_order), done items last (newest done first).
+// GET — full list; open items first (due date ascending, undated last), done
+// items last (newest done first).
 app.get('/api/personal-todos', requireAuth, (req, res) => {
   try {
     const todos = db.prepare(
-      `SELECT id, text, due_hint, sort_order, done, done_at, created_at
+      `SELECT id, text, due_hint, due_date, sort_order, done, done_at, created_at
        FROM personal_todos
-       ORDER BY done ASC, CASE WHEN done = 0 THEN sort_order END ASC, done_at DESC, id ASC`
+       ORDER BY done ASC,
+         CASE WHEN done = 0 THEN (due_date IS NULL) END ASC,
+         CASE WHEN done = 0 THEN due_date END ASC,
+         CASE WHEN done = 0 THEN sort_order END ASC,
+         done_at DESC, id ASC`
     ).all();
     return res.json({ ok: true, todos });
   } catch (e) {
@@ -6657,14 +6670,15 @@ app.get('/api/personal-todos', requireAuth, (req, res) => {
 app.post('/api/personal-todos', requireAuth, [
   body('text').isString().trim().notEmpty().withMessage('text is required'),
   body('due_hint').optional({ nullable: true }).isString().trim(),
+  body('due_date').optional({ nullable: true }).matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('due_date must be YYYY-MM-DD'),
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
   try {
     const maxSort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) AS m FROM personal_todos').get().m;
     const info = db.prepare(
-      'INSERT INTO personal_todos (text, due_hint, sort_order) VALUES (?, ?, ?)'
-    ).run(req.body.text.trim(), req.body.due_hint?.trim() || null, maxSort + 10);
+      'INSERT INTO personal_todos (text, due_hint, due_date, sort_order) VALUES (?, ?, ?, ?)'
+    ).run(req.body.text.trim(), req.body.due_hint?.trim() || null, req.body.due_date || null, maxSort + 10);
     const todo = db.prepare('SELECT * FROM personal_todos WHERE id = ?').get(info.lastInsertRowid);
     return res.status(201).json({ ok: true, todo });
   } catch (e) {
@@ -6673,11 +6687,12 @@ app.post('/api/personal-todos', requireAuth, [
   }
 });
 
-// PATCH — toggle done and/or edit text / due_hint.
+// PATCH — toggle done and/or edit text / due_hint / due_date.
 app.patch('/api/personal-todos/:id', requireAuth, [
   body('done').optional().isBoolean().withMessage('done must be boolean'),
   body('text').optional().isString().trim().notEmpty().withMessage('text cannot be empty'),
   body('due_hint').optional({ nullable: true }).isString().trim(),
+  body('due_date').optional({ nullable: true }).matches(/^\d{4}-\d{2}-\d{2}$/).withMessage('due_date must be YYYY-MM-DD'),
 ], (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ ok: false, errors: errors.array() });
@@ -6693,6 +6708,7 @@ app.patch('/api/personal-todos/:id', requireAuth, [
     }
     if (typeof req.body.text !== 'undefined') { sets.push('text = ?'); args.push(req.body.text.trim()); }
     if (typeof req.body.due_hint !== 'undefined') { sets.push('due_hint = ?'); args.push(req.body.due_hint?.trim() || null); }
+    if (typeof req.body.due_date !== 'undefined') { sets.push('due_date = ?'); args.push(req.body.due_date || null); }
     if (!sets.length) return res.status(400).json({ ok: false, error: 'nothing to update' });
     sets.push("updated_at = datetime('now')");
     db.prepare(`UPDATE personal_todos SET ${sets.join(', ')} WHERE id = ?`).run(...args, req.params.id);
