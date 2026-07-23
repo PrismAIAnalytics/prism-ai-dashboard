@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| _(empty)_ | | | | |
+| T-130 | Close-out Action autonomy — auto-merge via CLOSEOUT_PAT, red-fail fallback instead of silent green | fix/t130-closeout-autonomy | Claude Code | 2026-07-23 |
 
 ---
 
