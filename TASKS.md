@@ -9,7 +9,7 @@
 
 | Task ID | Title | Branch | Owner | Started |
 |---------|-------|--------|-------|---------|
-| T-130 | Close-out Action autonomy — auto-merge via CLOSEOUT_PAT, red-fail fallback instead of silent green | fix/t130-closeout-autonomy | Claude Code | 2026-07-23 |
+| _(none)_ | | | | |
 
 ---
 
@@ -46,6 +46,7 @@ _(none yet)_
 
 | ID | Title | Closed | Notes |
 |----|-------|--------|-------|
+| T-130 | Close-out Action autonomy — auto-merge via CLOSEOUT_PAT, red-fail fallback instead of silent green | 2026-07-23 | Auto-closed by the post-merge close-out Action (T-094): merged via PR #147 as `645462744688cbe74054cb876ab955cd94ddffad` (squash) on 2026-07-23. In Progress row cleared at merge time — closes the recurring WIP=1 close-out gap (see T-059 / T-088 / T-090 / T-093). `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-129 | Agenda card (rename My To-Dos) — `due_date` column, create/due date chips (ET-relative), collapsed Done section | 2026-07-20 | Merged via PR #145 as `a86f66d` (squash) on 2026-07-20; Security Gate green (first post-T-128 test of the unblocked chain), Railway auto-deployed within ~3 min, prod verified same session (card renders "Agenda", `/api/personal-todos` returns `due_date`, migration ran clean on the volume DB). Post-merge close-out Action ran "success" but did not clear the In Progress row or push its branch (recurring gap — T-059/T-088/T-090/T-093/T-120/T-122/T-124/T-125/T-128); cleared here via manual close-out PR same-day instead of waiting for the next ticket. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-128 | Pin all GitHub Action refs to commit SHAs — clear the 11 `github-actions-mutable-action-tag` Semgrep findings blocking Security Gate + Railway deploys since 7/1 | 2026-07-10 | Merged via PR #144 as `2698d8f` (squash) on 2026-07-10. The post-merge close-out Action did not clear the In Progress row (recurring gap — see T-059/T-088/T-090/T-093/T-120/T-122/T-124/T-125); lock cleared here as the first bookkeeping step of T-129 per WORKFLOW.md §4 fallback. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
 | T-127 | My To-Dos personal checklist card on Daily Agenda (`personal_todos` table + API + card) | 2026-07-10 | Merged via PR #143 as `4d5c09d` (squash) on 2026-07-10. Close-out bundled into T-128's first commit per WORKFLOW.md §4 (post-merge close-out Action did not clear the row — recurring gap). **Prod verification pending:** merge did NOT deploy — Security Gate has failed every main push since 7/1 (11 mutable-action-tag findings) and Railway "Wait for CI" held all deploys since 6/24; T-128 is the unblock. Verify the card on prod Daily Agenda once T-128 merges and Railway deploys. `sync-tasks.js` NOT run (T-091 DO-NOT-RUN-LIVE). |
